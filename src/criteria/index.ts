@@ -29,6 +29,7 @@ export type {
   FilterPrimitive,
   FilterGroupPrimitive,
   FilterValue,
+  PrimitiveFilterValue,
 } from './filter/types/filter-primitive.types.js';
 export type { IFilterExpression } from './types/filter-expression.interface.js';
 export { Filter } from './filter/filter.js';
