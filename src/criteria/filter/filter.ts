@@ -1,0 +1,184 @@
+import { FilterOperator } from '../types/operator.types.js';
+import type { IFilterExpression } from '../types/filter-expression.interface.js';
+import type {
+  FilterPrimitive,
+  FilterValue,
+  PrimitiveFilterValue,
+} from './types/filter-primitive.types.js';
+import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
+
+export class Filter<T extends string, Operator extends FilterOperator>
+  implements IFilterExpression
+{
+  constructor(private readonly primitive: FilterPrimitive<T, Operator>) {
+    switch (primitive.operator) {
+      case FilterOperator.LIKE:
+      case FilterOperator.NOT_LIKE:
+      case FilterOperator.CONTAINS:
+      case FilterOperator.NOT_CONTAINS:
+      case FilterOperator.STARTS_WITH:
+      case FilterOperator.ENDS_WITH:
+      case FilterOperator.SET_CONTAINS:
+      case FilterOperator.SET_NOT_CONTAINS:
+        if (!this.isString(this.value)) {
+          throw new Error('Filter value must be a string type');
+        }
+        break;
+      case FilterOperator.EQUALS:
+      case FilterOperator.NOT_EQUALS:
+      case FilterOperator.GREATER_THAN:
+      case FilterOperator.GREATER_THAN_OR_EQUALS:
+      case FilterOperator.LESS_THAN:
+      case FilterOperator.LESS_THAN_OR_EQUALS:
+        if (!this.isPrimitiveFilterValue(this.value))
+          throw new Error(
+            'Filter value must be a string | number | boolean | Date | null type',
+          );
+        break;
+      case FilterOperator.ARRAY_CONTAINS_ELEMENT:
+        if (
+          !this.isPrimitiveFilterValue(this.value) &&
+          !(
+            this.isObject(this.value) &&
+            Object.keys(this.value).length === 1 &&
+            this.isPrimitiveFilterValue(Object.values(this.value as object)[0])
+          )
+        ) {
+          throw new Error(
+            'For ARRAY_CONTAINS_ELEMENT, value must be a PrimitiveFilterValue or an object like { "path.to.array": elementValue }',
+          );
+        }
+        break;
+      case FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS:
+      case FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT:
+      case FilterOperator.ARRAY_EQUALS:
+        if (
+          !this.isArrayOfPrimitives(this.value) &&
+          !(
+            this.isObject(this.value) &&
+            Object.keys(this.value).length === 1 &&
+            this.isArrayOfPrimitives(Object.values(this.value as object)[0])
+          )
+        ) {
+          throw new Error(
+            'For ARRAY_CONTAINS_ALL/ANY/EQUALS, value must be an Array<Primitive> or an object like { "path.to.array": [elements] }',
+          );
+        }
+        break;
+      case FilterOperator.IN:
+      case FilterOperator.NOT_IN:
+        if (!this.isArrayOfPrimitives(this.value))
+          throw new Error(
+            'Filter value must be an array of string, number, boolean, Date',
+          );
+        break;
+      case FilterOperator.IS_NULL:
+      case FilterOperator.IS_NOT_NULL:
+        if (!this.isNull(this.value) && !this.isUndefined(this.value))
+          throw new Error('Filter value must be null or undefined');
+        break;
+      case FilterOperator.JSON_CONTAINS:
+      case FilterOperator.JSON_NOT_CONTAINS:
+        if (
+          !this.isObject(this.value) ||
+          !Object.values(this.value).every(
+            (val) =>
+              this.isPrimitiveFilterValue(val) ||
+              Array.isArray(val) ||
+              this.isRecord(val),
+          )
+        ) {
+          throw new Error(
+            'Filter value must be an object where each value is a string, number, boolean, Date, null, an Array, or a Record<string,any>',
+          );
+        }
+        break;
+    }
+  }
+
+  get field(): T {
+    return this.primitive.field;
+  }
+
+  get operator(): Operator {
+    return this.primitive.operator;
+  }
+
+  get value(): FilterValue<Operator> {
+    return this.primitive.value;
+  }
+
+  accept<
+    TranslationContext,
+    TranslationOutput = TranslationContext,
+    TFilterVisitorOutput extends any = any,
+  >(
+    visitor: ICriteriaVisitor<
+      TranslationContext,
+      TranslationOutput,
+      TFilterVisitorOutput
+    >,
+    currentAlias: string,
+  ): TFilterVisitorOutput {
+    return visitor.visitFilter(this, currentAlias);
+  }
+
+  toPrimitive(): FilterPrimitive<T, Operator> {
+    return this.primitive;
+  }
+  private isString(value: any): value is string {
+    return typeof value === 'string';
+  }
+  private isNumber(value: any): value is number {
+    return typeof value === 'number';
+  }
+  private isBoolean(value: any): value is boolean {
+    return typeof value === 'boolean';
+  }
+  private isArrayOfPrimitives(
+    value: any,
+  ): value is Array<Exclude<PrimitiveFilterValue, null | undefined>> {
+    return (
+      Array.isArray(value) &&
+      value.every((item) => {
+        return (
+          item instanceof Date ||
+          this.isString(item) ||
+          this.isNumber(item) ||
+          this.isBoolean(item)
+        );
+      })
+    );
+  }
+  private isObject(value: any): value is object {
+    return (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      value !== null &&
+      value !== undefined
+    );
+  }
+  private isNull(value: any): value is null {
+    return value === null;
+  }
+  private isUndefined(value: any): value is undefined {
+    return value === undefined;
+  }
+  private isPrimitiveFilterValue(value: any): value is PrimitiveFilterValue {
+    return (
+      this.isString(value) ||
+      this.isNumber(value) ||
+      this.isBoolean(value) ||
+      value instanceof Date ||
+      this.isNull(value)
+    );
+  }
+  private isRecord(value: any): value is Record<string, any> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.keys(value).every((key) => typeof key === 'string')
+    );
+  }
+}

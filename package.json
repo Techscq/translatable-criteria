@@ -1,0 +1,71 @@
+{
+  "name": "@nulledexp/translatable-criteria",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "A TypeScript library for building data-source agnostic, translatable query criteria. Define complex filtering, ordering, and join logic in a structured, type-safe way, then translate it to your specific data source using custom translators.",
+  "keywords": [
+    "criteria",
+    "query",
+    "filter",
+    "join",
+    "translator",
+    "data-access",
+    "query-builder",
+    "typescript",
+    "dsl",
+    "database",
+    "agnostic",
+    "data-source-agnostic"
+  ],
+  "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsc",
+    "ci": "npm run check-circular && npm run check-format && npm run check-exports && npm run test",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "check-exports": "attw --pack . --ignore-rules=cjs-resolves-to-esm",
+    "test": "vitest run",
+    "dev": "vitest",
+    "build-watch": "tsc --watch",
+    "check-circular": "npx madge --circular --extensions ts ./src",
+    "local-release": "changeset version && changeset publish",
+    "prepublishOnly": "npm run ci"
+  },
+  "homepage": "https://github.com/Techscq/translatable-criteria",
+  "bugs": {
+    "url": "https://github.com/Techscq/translatable-criteria/issues"
+  },
+  "author": "Nelson Cabrera <contact@nelsoncabrera.dev>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Techscq/translatable-criteria.git"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@changesets/cli": "^2.29.4",
+    "@types/node": "^24.0.0",
+    "@types/uuid": "^10.0.0",
+    "dotenv": "^16.5.0",
+    "madge": "^7.0.0",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
+    "ts-unused-exports": "^11.0.1",
+    "tsx": "^4.20.1",
+    "typescript": "^5.8.3",
+    "uuid": "^11.1.0",
+    "vitest": "^3.2.3"
+  }
+}
