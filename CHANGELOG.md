@@ -1,5 +1,11 @@
 # @nulledexp/translatable-criteria
 
+## 1.0.3
+
+### Patch Changes
+
+- 7b47be0: fix: Ensure Cursor type is exported
+
 ## 1.0.2
 
 ### Patch Changes
