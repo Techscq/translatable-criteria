@@ -23,7 +23,7 @@ export type {
   JoinRelationType,
   SchemaJoins,
 } from './types/schema.types.js';
-
+export type { Cursor } from './cursor.js';
 // --- Filter Definition Types ---
 export type {
   FilterPrimitive,
@@ -32,11 +32,11 @@ export type {
   PrimitiveFilterValue,
 } from './filter/types/filter-primitive.types.js';
 export type { IFilterExpression } from './types/filter-expression.interface.js';
-export { Filter } from './filter/filter.js';
-export { FilterGroup } from './filter/filter-group.js';
+export type { Filter } from './filter/filter.js';
+export type { FilterGroup } from './filter/filter-group.js';
 
 export type { OrderByPrimitive } from './order/order.js';
-export { Order } from './order/order.js';
+export type { Order } from './order/order.js';
 
 // --- Join Parameter Types (for users and translators) ---
 export type {
