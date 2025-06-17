@@ -1,5 +1,11 @@
 # @nulledexp/translatable-criteria
 
+## 1.0.2
+
+### Patch Changes
+
+- 9f588b4: fix: Export PrimitiveFilterValue type
+
 ## 1.0.1
 
 ### Patch Changes
