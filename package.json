@@ -1,6 +1,6 @@
 {
   "name": "@nulledexp/translatable-criteria",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "license": "MIT",
   "description": "A TypeScript library for building data-source agnostic, translatable query criteria. Define complex filtering, ordering, and join logic in a structured, type-safe way, then translate it to your specific data source using custom translators.",
   "keywords": [

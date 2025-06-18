@@ -1,5 +1,11 @@
 # @nulledexp/translatable-criteria
 
+## 1.0.4
+
+### Patch Changes
+
+- 0abab7f: feat: Export Filter and FilterGroup classes directly
+
 ## 1.0.3
 
 ### Patch Changes
