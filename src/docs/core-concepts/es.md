@@ -144,7 +144,11 @@ Los filtros permiten especificar las condiciones que deben cumplir los datos par
   - Patrones: `LIKE`, `NOT_LIKE`, `CONTAINS`, `NOT_CONTAINS`, `STARTS_WITH`, `ENDS_WITH`
   - Pertenencia: `IN`, `NOT_IN`
   - Nulidad: `IS_NULL`, `IS_NOT_NULL`
+  - Para rangos: `BETWEEN`, `NOT_BETWEEN`
+  - Para expresiones regulares: `MATCHES_REGEX`
+  - Para patrones insensibles a mayúsculas/minúsculas: `ILIKE`, `NOT_ILIKE`
   - Para campos tipo SET (o equivalentes): `SET_CONTAINS`, `SET_NOT_CONTAINS`
+  - Para campos tipo SET (o equivalentes) con múltiples valores: `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`
   - Para campos JSON: `JSON_CONTAINS`, `JSON_NOT_CONTAINS`
   - Para campos Array: `ARRAY_CONTAINS_ELEMENT`, `ARRAY_CONTAINS_ALL_ELEMENTS`, `ARRAY_CONTAINS_ANY_ELEMENT`, `ARRAY_EQUALS`
 

@@ -1,6 +1,6 @@
 # Practical Guide: Building Criteria
 
-Once you have defined your [Schemas](./defining-schemas.md), the next step is to use them to construct `Criteria` objects. These objects encapsulate all the logic of your query: what data to select, how to filter it, how to join it with other entities, how to order it, and how to paginate it.
+Once you have defined your [Schemas](../schema-definitions/en.md), the next step is to use them to construct `Criteria` objects. These objects encapsulate all the logic of your query: what data to select, how to filter it, how to join it with other entities, how to order it, and how to paginate it.
 
 This guide will show you how to use `CriteriaFactory` and the fluent methods of `Criteria` objects to build queries effectively and with type safety.
 
@@ -13,7 +13,10 @@ This guide will show you how to use `CriteriaFactory` and the fluent methods of 
   - [Advanced Filters (JSON, Array, Set)](#advanced-filters-json-array-set)
     - [Filtering JSON Fields (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)](#filtering-json-fields-json_contains-json_not_contains)
     - [Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtering-array-fields-array_contains_element-array_contains_all_elements-array_contains_any_element-array_equals)
-    - [Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`)](#filtering-set-fields-set_contains-set_not_contains)
+    - [Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)](#filtering-set-fields-set_contains-set_not_contains-set_contains_any-set_contains_all)
+    - [Filtering by Ranges (`BETWEEN`, `NOT_BETWEEN`)](#filtering-by-ranges-between-not_between)
+    - [Filtering with Regular Expressions (`MATCHES_REGEX`)](#filtering-with-regular-expressions-matches_regex)
+    - [Case-Insensitive Pattern Matching (`ILIKE`, `NOT_ILIKE`)](#case-insensitive-pattern-matching-ilike-not_ilike)
 - 3. [Adding Joins](#3-adding-joins)
   - [Simple Joins (one-to-many, many-to-one, one-to-one)](#simple-joins-one-to-many-many-to-one-one-to-one)
   - [Joins with Pivot Table (many-to-many)](#joins-with-pivot-table-many-to-many)
@@ -207,16 +210,87 @@ postCriteria.where({
 });
 ```
 
-#### Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`)
+#### Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)
 
 Similar to `CONTAINS` but conceptually for fields representing a set of values (like MySQL's `SET` type or a delimited string).
 
 ```typescript
 // Assuming a 'flags' field in UserSchema which is a SET('active', 'verified', 'beta_tester')
+// or a text field 'tags' like "typescript,javascript,nodejs"
+
+// Find users who have the 'verified' flag
 userCriteria.where({
   field: 'flags',
   operator: FilterOperator.SET_CONTAINS,
-  value: 'verified', // Finds users who have the 'verified' flag
+  value: 'verified',
+});
+
+// Find users who have AT LEAST ONE of the tags "typescript" or "javascript"
+userCriteria.where({
+  field: 'tags',
+  operator: FilterOperator.SET_CONTAINS_ANY,
+  value: ['typescript', 'javascript'], // Expects an array of values
+});
+
+// Find users who have ALL the flags "active" AND "beta_tester"
+userCriteria.where({
+  field: 'flags',
+  operator: FilterOperator.SET_CONTAINS_ALL,
+  value: ['active', 'beta_tester'], // Expects an array of values
+});
+```
+
+#### Filtering by Ranges (`BETWEEN`, `NOT_BETWEEN`)
+
+These operators allow you to check if a numeric or date value falls within or outside a specific range.
+
+```typescript
+// Find posts created between two dates
+postCriteria.where({
+  field: 'created_at',
+  operator: FilterOperator.BETWEEN,
+  value: [new Date('2023-01-01'), new Date('2023-03-31')], // [min, max]
+});
+
+// Find products whose price IS NOT between 100 and 200
+productCriteria.where({
+  field: 'price',
+  operator: FilterOperator.NOT_BETWEEN,
+  value: [100, 200],
+});
+```
+
+#### Filtering with Regular Expressions (`MATCHES_REGEX`)
+
+Allows for more powerful pattern matching using regular expressions. The specific syntax of the regular expression may depend on the underlying database.
+
+```typescript
+// Find users whose username starts with "admin" followed by numbers
+// (conceptual example, REGEX syntax varies)
+userCriteria.where({
+  field: 'username',
+  operator: FilterOperator.MATCHES_REGEX,
+  value: '^admin[0-9]+', // The regular expression as a string
+});
+```
+
+#### Case-Insensitive Pattern Matching (`ILIKE`, `NOT_ILIKE`)
+
+Similar to `LIKE` and `NOT_LIKE`, but they ensure that pattern comparison is case-insensitive, regardless of the database's default collation.
+
+```typescript
+// Find posts whose title contains "typescript" (case-insensitive)
+postCriteria.where({
+  field: 'title',
+  operator: FilterOperator.ILIKE,
+  value: '%typescript%',
+});
+
+// Find users whose email DOES NOT start with "test" (case-insensitive)
+userCriteria.where({
+  field: 'email',
+  operator: FilterOperator.NOT_ILIKE,
+  value: 'test%',
 });
 ```
 

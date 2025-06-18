@@ -376,91 +376,120 @@ These methods handle the different types of joins. They receive the `JoinCriteri
 This method translates an individual `Filter` into a condition for your query language.
 
 ```typescript
-  visitFilter<
-    FieldType extends string,
-    Operator extends FilterOperator,
-  >(
-    filter: Filter<FieldType, Operator>,
-    currentAlias: string,
-    // queryBuilder: MyQueryBuilder, // Context might not be needed here if only returning the condition
-  ): MyFilterConditionOutput {
-    const fieldName = `${currentAlias}.${String(filter.field)}`;
-    const paramName = this.generateParamPlaceholder();
-    let condition = '';
-    const params: any[] = [];
+    visitFilter<
+FieldType extends string,
+        Operator extends FilterOperator,
+>(
+        filter: Filter<FieldType, Operator>,
+        currentAlias: string,
+        // queryBuilder: MyQueryBuilder, // Context might not be needed here if only returning the condition
+): MyFilterConditionOutput {
+  const fieldName = `${currentAlias}.${String(filter.field)}`;
+  // const paramName = this.generateParamPlaceholder(); // Generate unique placeholder
+  let condition = '';
+  const params: any[] = []; // Array to collect parameters
 
-    switch (filter.operator) {
-      case FilterOperator.EQUALS:
-        condition = `${fieldName} = :${paramName}`;
-        params.push(filter.value);
-        break;
-      case FilterOperator.NOT_EQUALS:
-        condition = `${fieldName} != :${paramName}`;
-        params.push(filter.value);
-        break;
-      case FilterOperator.LIKE:
-        condition = `${fieldName} LIKE :${paramName}`;
-        params.push(filter.value); // Assume value already has '%'
-        break;
-      case FilterOperator.CONTAINS: // Could be same as LIKE or use a specific function
-        condition = `${fieldName} LIKE :${paramName}`;
-        params.push(`%${filter.value}%`);
-        break;
-      case FilterOperator.IN:
-        // TypeORM handles arrays for IN, but a manual translator would need to generate placeholders
-        condition = `${fieldName} IN (:...${paramName})`; // Placeholder for multiple values
-        params.push(filter.value); // Value is an array
-        break;
-      case FilterOperator.IS_NULL:
-        condition = `${fieldName} IS NULL`;
-        // No parameters for IS NULL
-        break;
-      // ... Implement all necessary FilterOperators
-      case FilterOperator.JSON_CONTAINS:
-        if (typeof filter.value === 'object' && filter.value !== null) {
-          const conditions: string[] = [];
-          for (const pathKey in filter.value) { // pathKey could be "tags" or "address.city"
-            const pathValue = (filter.value as Record<string, any>)[pathKey];
-            const currentParamName = this.generateParamPlaceholder(); // Use consistent name
-            // Note: JSON path construction (e.g., '$.${pathKey}' vs '${pathKey}')
-            // and the exact function (JSON_EXTRACT, JSON_CONTAINS, ->, @>, etc.)
-            // varies greatly by database (MySQL, PostgreSQL, etc.).
-            // This is a conceptual example for MySQL with JSON_EXTRACT for equality.
-            // To search for an element in a JSON array, MySQL would use JSON_CONTAINS(json_doc, candidate, json_path).
-            // Example: JSON_CONTAINS(metadata, '"tech"', '$.tags')
-            conditions.push(`JSON_EXTRACT(${fieldName}, '$.${pathKey}') = :${currentParamName}`);
-            params.push(pathValue);
-          }
-          condition = conditions.join(' AND '); // Assumes multiple JSON conditions are ANDed
-        } else {
-          // If value is not an object, it's an invalid condition for JSON_CONTAINS.
-          condition = '1=0'; // Condition that is always false
+  switch (filter.operator) {
+    case FilterOperator.EQUALS:
+      const eqParam = this.generateParamPlaceholder();
+      condition = `${fieldName} = ${eqParam}`; // Use placeholder
+      params.push(filter.value);
+      break;
+    case FilterOperator.NOT_EQUALS:
+      const neqParam = this.generateParamPlaceholder();
+      condition = `${fieldName} != ${neqParam}`;
+      params.push(filter.value);
+      break;
+    case FilterOperator.LIKE:
+      const likeParam = this.generateParamPlaceholder();
+      condition = `${fieldName} LIKE ${likeParam}`;
+      params.push(filter.value); // Assume value already has '%'
+      break;
+    case FilterOperator.CONTAINS: // Could be same as LIKE or use a specific function
+      const containsParam = this.generateParamPlaceholder();
+      condition = `${fieldName} LIKE ${containsParam}`;
+      params.push(`%${filter.value}%`);
+      break;
+    case FilterOperator.IN:
+      if (Array.isArray(filter.value) && filter.value.length > 0) {
+        const inPlaceholders = filter.value
+                .map(() => this.generateParamPlaceholder())
+                .join(', ');
+        condition = `${fieldName} IN (${inPlaceholders})`;
+        params.push(...filter.value);
+      } else {
+        // If array is empty or not an array, condition is usually false.
+        condition = '1=0'; // Or your DB's way for an always-false condition
+      }
+      break;
+    case FilterOperator.IS_NULL:
+      condition = `${fieldName} IS NULL`;
+      // No parameters for IS NULL
+      break;
+          // ... Implement all necessary FilterOperators
+    case FilterOperator.BETWEEN: // NEW CASE
+      if (Array.isArray(filter.value) && filter.value.length === 2) {
+        const paramMin = this.generateParamPlaceholder();
+        const paramMax = this.generateParamPlaceholder();
+        condition = `${fieldName} BETWEEN ${paramMin} AND ${paramMax}`;
+        params.push(filter.value[0], filter.value[1]);
+      } else {
+        // Handle invalid value for BETWEEN, perhaps throw error or false condition
+        condition = '1=0'; // Condition that is always false
+      }
+      break;
+    case FilterOperator.MATCHES_REGEX: // NEW CASE
+      // Implementation will depend on the database (e.g., REGEXP in MySQL, ~ in PostgreSQL)
+      const regexParam = this.generateParamPlaceholder();
+      condition = `${fieldName} REGEXP ${regexParam}`; // Example MySQL
+      params.push(filter.value);
+      break;
+    case FilterOperator.JSON_CONTAINS:
+      // ... (your existing implementation for JSON_CONTAINS)
+      // Conceptual example for MySQL:
+      if (typeof filter.value === 'object' && filter.value !== null) {
+        const conditions: string[] = [];
+        for (const pathKey in filter.value) {
+          const pathValue = (filter.value as Record<string, any>)[pathKey];
+          // Example: JSON_CONTAINS(metadata, '"tech"', '$.tags')
+          // Or for equality of a value at a path: JSON_EXTRACT(metadata, '$.views') = 100
+          conditions.push(
+                  `JSON_CONTAINS(${fieldName}, CAST(${this.generateParamPlaceholder()} AS JSON), '$.${pathKey}')`,
+          );
+          params.push(pathValue); // Translator might need to cast pathValue to JSON string
         }
-        break;
-      case FilterOperator.ARRAY_CONTAINS_ELEMENT:
-        const arrayElemParamName = this.generateParamPlaceholder(); // Use consistent name
-        if (typeof filter.value === 'object' && filter.value !== null && !Array.isArray(filter.value)) {
-          // Assume value is { "path.to.json.array": element_to_find }
-          const jsonPath = Object.keys(filter.value)[0]!;
-          const elementToFind = (filter.value as Record<string, any>)[jsonPath];
-          // Note: Syntax for querying arrays within JSON varies (e.g., MySQL vs PostgreSQL).
-          // This is a conceptual example for MySQL:
-          // JSON_CONTAINS(json_field, 'casted_element_value_to_json', '$.path.to.json.array')
-          condition = `JSON_CONTAINS(${fieldName}, CAST(:${arrayElemParamName} AS JSON), '$.${jsonPath}')`;
-          params.push(elementToFind); // Translator might need to cast this to JSON string
-        } else {
-          // For native array columns (e.g., PostgreSQL `ANY`)
-          condition = `:${arrayElemParamName} = ANY(${fieldName})`;
-          params.push(filter.value); // filter.value is the element to find
-        }
-        break;
-      default:
-        throw new Error(
-          `Translator: Unsupported filter operator '${filter.operator}'`,
-        );
-    }
-    return { condition, params: params.map(p => (p === undefined ? null : p)) };
+        condition = conditions.join(' AND ');
+      } else {
+        condition = '1=0';
+      }
+      break;
+    case FilterOperator.ARRAY_CONTAINS_ELEMENT:
+      // ... (your existing implementation for ARRAY_CONTAINS_ELEMENT)
+      const arrayElemParam = this.generateParamPlaceholder();
+      if (
+              typeof filter.value === 'object' &&
+              filter.value !== null &&
+              !Array.isArray(filter.value)
+      ) {
+        const jsonPath = Object.keys(filter.value)[0]!;
+        const elementToFind = (filter.value as Record<string, any>)[
+                jsonPath
+                ];
+        condition = `JSON_CONTAINS(${fieldName}, CAST(${arrayElemParam} AS JSON), '$.${jsonPath}')`;
+        params.push(elementToFind);
+      } else {
+        condition = `${arrayElemParam} = ANY(${fieldName})`; // Example PostgreSQL
+        params.push(filter.value);
+      }
+      break;
+    default:
+      throw new Error(
+              `Translator: Unsupported filter operator '${filter.operator}'`,
+      );
   }
+  // Ensure undefined parameters are converted to null if necessary
+  return { condition, params: params.map((p) => (p === undefined ? null : p)) };
+}
 ```
 
 **Considerations for `visitFilter`:**

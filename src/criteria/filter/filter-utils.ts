@@ -3,7 +3,12 @@ import type {
   FilterPrimitive,
 } from './types/filter-primitive.types.js';
 import { FilterOperator, LogicalOperator } from '../types/operator.types.js';
-
+/**
+ * Utility class for normalizing filter group structures.
+ * Normalization helps in simplifying complex filter groups by flattening
+ * redundant nested groups and removing empty ones, leading to a more
+ * canonical and easier-to-process filter structure.
+ */
 export class FilterNormalizer {
   static normalizeGroup<T extends string = string>(
     group: FilterGroupPrimitive<T>,
@@ -12,23 +17,36 @@ export class FilterNormalizer {
       FilterGroupPrimitive<T>,
       FilterGroupPrimitive<T>
     >();
-
+    /**
+     * Normalizes a given filter group primitive.
+     * This process involves:
+     * - Recursively normalizing child filter groups.
+     * - Flattening nested groups if they use the same logical operator as their parent.
+     * - Removing empty child groups.
+     * - Simplifying groups that end up with a single item (either by lifting the item
+     *   if it's a group, or by ensuring the single filter is wrapped in a group
+     *   with the original logical operator).
+     *
+     * @template T - A string literal type representing valid field names. Defaults to `string`.
+     * @param {FilterGroupPrimitive<T>} group - The filter group primitive to normalize.
+     * @returns {FilterGroupPrimitive<T>} The normalized filter group primitive.
+     */
     const normalizeInternal = (
-      current: FilterGroupPrimitive<T>,
+      group: FilterGroupPrimitive<T>,
     ): FilterGroupPrimitive<T> => {
-      const cached = normalizeCache.get(current);
+      const cached = normalizeCache.get(group);
       if (cached) return cached;
 
-      if (!current.items?.length) {
+      if (!group.items?.length) {
         const result = {
           logicalOperator: LogicalOperator.AND, // Default to AND for empty groups
           items: [],
         };
-        normalizeCache.set(current, result);
+        normalizeCache.set(group, result);
         return result;
       }
 
-      const normalizedItems = current.items.reduce<
+      const normalizedItems = group.items.reduce<
         Array<FilterPrimitive<T, FilterOperator> | FilterGroupPrimitive<T>>
       >((acc, item) => {
         if (!('logicalOperator' in item)) {
@@ -45,7 +63,7 @@ export class FilterNormalizer {
         }
 
         // If child's operator is same as current's, flatten its items
-        if (normalizedChild.logicalOperator === current.logicalOperator) {
+        if (normalizedChild.logicalOperator === group.logicalOperator) {
           acc.push(...normalizedChild.items);
         } else {
           // Otherwise, add the normalized child group as is
@@ -74,19 +92,19 @@ export class FilterNormalizer {
         } else {
           // If it's a single filter, wrap it in a group with the current operator
           result = {
-            logicalOperator: current.logicalOperator,
+            logicalOperator: group.logicalOperator,
             items: [singleItem],
           };
         }
       } else {
         // Multiple items remain, form a group with the current operator
         result = {
-          logicalOperator: current.logicalOperator,
+          logicalOperator: group.logicalOperator,
           items: normalizedItems,
         };
       }
 
-      normalizeCache.set(current, result);
+      normalizeCache.set(group, result);
       return result;
     };
 

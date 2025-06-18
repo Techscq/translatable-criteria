@@ -4,46 +4,46 @@ This section provides a detailed reference for the public classes, interfaces, t
 
 ## Index
 
-- **Main Classes and Factories**
-  - `CriteriaFactory`
-  - `RootCriteria`
-  - `InnerJoinCriteria`
-  - `LeftJoinCriteria`
-  - `OuterJoinCriteria`
-  - `Criteria` (Abstract Base Class)
-  - `Filter`
-  - `FilterGroup`
-  - `Order`
-  - `Cursor`
-- **Abstract Classes (for Extension)**
-  - `CriteriaTranslator`
-- **Enums and Constants**
-  - `FilterOperator`
-  - `LogicalOperator`
-  - `OrderDirection`
-- **Main Types and Interfaces (for Schema Definition and Typing)**
-  - `CriteriaSchema`
-  - `GetTypedCriteriaSchema`
-  - `FieldOfSchema`
-  - `SelectedAliasOf`
-  - `JoinRelationType`
-  - `SchemaJoins`
-  - `FilterPrimitive`
-  - `FilterGroupPrimitive`
-  - `FilterValue`
-  - `OrderByPrimitive`
-  - `PivotJoinInput`
-  - `SimpleJoinInput`
-  - `ICriteriaBase`
-  - `ICriteriaVisitor`
-  - `IFilterExpression`
-  - `StoredJoinDetails`
-  - `AnyJoinCriteria`
-  - `JoinCriteriaParameterType`
-  - `JoinParameterType`
-  - `SpecificMatchingJoinConfig`
-  - `PivotJoin`
-  - `SimpleJoin`
+- [**Main Classes and Factories**](#main-classes-and-factories)
+  - [`CriteriaFactory`](#criteriafactory)
+  - [`RootCriteria`](#rootcriteria)
+  - [`InnerJoinCriteria`](#innerjoincriteria)
+  - [`LeftJoinCriteria`](#leftjoincriteria)
+  - [`OuterJoinCriteria`](#outerjoincriteria)
+  - [`Criteria` (Abstract Base Class)](#criteria-abstract-base-class)
+  - [`Filter`](#filter)
+  - [`FilterGroup`](#filtergroup)
+  - [`Order`](#order)
+  - [`Cursor`](#cursor)
+- [**Abstract Classes (for Extension)**](#abstract-classes-for-extension)
+  - [`CriteriaTranslator`](#criteriatranslator)
+- [**Enums and Constants**](#enums-and-constants)
+  - [`FilterOperator`](#filteroperator)
+  - [`LogicalOperator`](#logicaloperator)
+  - [`OrderDirection`](#orderdirection)
+- [**Main Types and Interfaces (for Schema Definition and Typing)**](#main-types-and-interfaces-for-schema-definition-and-typing)
+  - [`CriteriaSchema`](#criteriaschema)
+  - [`GetTypedCriteriaSchema`](#gettypedcriteriaschema)
+  - [`FieldOfSchema`](#fieldofschema)
+  - [`SelectedAliasOf`](#selectedaliasof)
+  - [`JoinRelationType`](#joinrelationtype)
+  - [`SchemaJoins`](#schemajoins)
+  - [`FilterPrimitive`](#filterprimitive)
+  - [`FilterGroupPrimitive`](#filtergroupprimitive)
+  - [`FilterValue`](#filtervalue)
+  - [`OrderByPrimitive`](#orderbyprimitive)
+  - [`PivotJoinInput`](#pivotjoininput)
+  - [`SimpleJoinInput`](#simplejoininput)
+  - [`ICriteriaBase`](#icriteriabase)
+  - [`ICriteriaVisitor`](#icriteriavisitor)
+  - [`IFilterExpression`](#ifilterexpression)
+  - [`StoredJoinDetails`](#storedjoindetails)
+  - [`AnyJoinCriteria`](#anyjoincriteria)
+  - [`JoinCriteriaParameterType`](#joincriteriaparametertype)
+  - [`JoinParameterType`](#joinparametertype)
+  - [`SpecificMatchingJoinConfig`](#specificmatchingjoinconfig)
+  - [`PivotJoin`](#pivotjoin)
+  - [`SimpleJoin`](#simplejoin)
 
 ---
 
@@ -320,6 +320,13 @@ Enumeration defining the available comparison operators for filters.
   - `NOT_CONTAINS` (`NOT_CONTAINS`): Does not contain a specific substring.
   - `SET_CONTAINS`: For SET-type fields or simple arrays, checks if the set contains a value.
   - `SET_NOT_CONTAINS`: For SET-type fields or simple arrays, checks if the set does NOT contain a value.
+  - `SET_CONTAINS_ANY` (`SET_CONTAINS_ANY`): For SET-type fields or simple arrays, checks if the set contains AT LEAST ONE of the specified values. Expects an array of values.
+  - `SET_CONTAINS_ALL` (`SET_CONTAINS_ALL`): For SET-type fields or simple arrays, checks if the set contains ALL of the specified values. Expects an array of values.
+  - `BETWEEN` (`BETWEEN`): Checks if a value is within a specified range (inclusive). Expects an array or tuple of two values: `[min, max]`.
+  - `NOT_BETWEEN` (`NOT_BETWEEN`): Checks if a value is outside a specified range (inclusive). Expects an array or tuple of two values: `[min, max]`.
+  - `MATCHES_REGEX` (`MATCHES_REGEX`): Checks if a string value matches a regular expression pattern. The specific regex syntax may depend on the database. Expects a string representing the regular expression.
+  - `ILIKE` (`ILIKE`): Checks if a string value matches a pattern (case-insensitive). Expects a string for the pattern.
+  - `NOT_ILIKE` (`NOT_ILIKE`): Checks if a string value does not match a pattern (case-insensitive). Expects a string for the pattern.
   - `JSON_CONTAINS`: For JSON fields, checks if the JSON contains a specific structure or value at a path.
   - `JSON_NOT_CONTAINS`: For JSON fields, checks if the JSON does NOT contain a specific structure or value.
   - `ARRAY_CONTAINS_ELEMENT`: For Array fields (native or JSON), checks if the array contains an element.
@@ -460,6 +467,9 @@ Generic type representing the value associated with a filter, strongly typed acc
   - If `Operator` is `LIKE`, `CONTAINS`, etc. => `string`
   - If `Operator` is `EQUALS`, `GREATER_THAN`, etc. => `PrimitiveFilterValue` (string | number | boolean | Date | null)
   - If `Operator` is `IN`, `NOT_IN` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
+  - If `Operator` is `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
+  - If `Operator` is `BETWEEN`, `NOT_BETWEEN` => `[Exclude<PrimitiveFilterValue, null | undefined>, Exclude<PrimitiveFilterValue, null | undefined>]`
+  - If `Operator` is `MATCHES_REGEX`, `ILIKE`, `NOT_ILIKE` => `string`
   - If `Operator` is `ARRAY_CONTAINS_ELEMENT` => `PrimitiveFilterValue | { [jsonPath: string]: PrimitiveFilterValue }`
   - If `Operator` is `ARRAY_CONTAINS_ALL_ELEMENTS`, etc. => `Array<...> | { [jsonPath: string]: Array<...> }`
   - If `Operator` is `IS_NULL`, `IS_NOT_NULL` => `null | undefined`

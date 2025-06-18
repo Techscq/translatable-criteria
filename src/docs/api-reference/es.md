@@ -4,46 +4,46 @@ Esta sección proporciona una referencia detallada de las clases, interfaces, ti
 
 ## Índice
 
-- **Clases Principales y Factorías**
-  - `CriteriaFactory`
-  - `RootCriteria`
-  - `InnerJoinCriteria`
-  - `LeftJoinCriteria`
-  - `OuterJoinCriteria`
-  - `Criteria` (Clase Abstracta Base)
-  - `Filter`
-  - `FilterGroup`
-  - `Order`
-  - `Cursor`
-- **Clases Abstractas (para Extensión)**
-  - `CriteriaTranslator`
-- **Enumeraciones y Constantes**
-  - `FilterOperator`
-  - `LogicalOperator`
-  - `OrderDirection`
-- **Tipos e Interfaces Principales (para Definición de Esquemas y Tipado)**
-  - `CriteriaSchema`
-  - `GetTypedCriteriaSchema`
-  - `FieldOfSchema`
-  - `SelectedAliasOf`
-  - `JoinRelationType`
-  - `SchemaJoins`
-  - `FilterPrimitive`
-  - `FilterGroupPrimitive`
-  - `FilterValue`
-  - `OrderByPrimitive`
-  - `PivotJoinInput`
-  - `SimpleJoinInput`
-  - `ICriteriaBase`
-  - `ICriteriaVisitor`
-  - `IFilterExpression`
-  - `StoredJoinDetails`
-  - `AnyJoinCriteria`
-  - `JoinCriteriaParameterType`
-  - `JoinParameterType`
-  - `SpecificMatchingJoinConfig`
-  - `PivotJoin`
-  - `SimpleJoin`
+- [**Clases Principales y Factorías**](#clases-principales-y-factorías)
+  - [`CriteriaFactory`](#criteriafactory)
+  - [`RootCriteria`](#rootcriteria)
+  - [`InnerJoinCriteria`](#innerjoincriteria)
+  - [`LeftJoinCriteria`](#leftjoincriteria)
+  - [`OuterJoinCriteria`](#outerjoincriteria)
+  - [`Criteria` (Clase Abstracta Base)](#criteria-clase-abstracta-base)
+  - [`Filter`](#filter)
+  - [`FilterGroup`](#filtergroup)
+  - [`Order`](#order)
+  - [`Cursor`](#cursor)
+- [**Clases Abstractas (para Extensión)**](#clases-abstractas-para-extensión)
+  - [`CriteriaTranslator`](#criteriatranslator)
+- [**Enumeraciones y Constantes**](#enumeraciones-y-constantes)
+  - [`FilterOperator`](#filteroperator)
+  - [`LogicalOperator`](#logicaloperator)
+  - [`OrderDirection`](#orderdirection)
+- [**Tipos e Interfaces Principales (para Definición de Esquemas y Tipado)**](#tipos-e-interfaces-principales-para-definición-de-esquemas-y-tipado)
+  - [`CriteriaSchema`](#criteriaschema)
+  - [`GetTypedCriteriaSchema`](#gettypedcriteriaschema)
+  - [`FieldOfSchema`](#fieldofschema)
+  - [`SelectedAliasOf`](#selectedaliasof)
+  - [`JoinRelationType`](#joinrelationtype)
+  - [`SchemaJoins`](#schemajoins)
+  - [`FilterPrimitive`](#filterprimitive)
+  - [`FilterGroupPrimitive`](#filtergroupprimitive)
+  - [`FilterValue`](#filtervalue)
+  - [`OrderByPrimitive`](#orderbyprimitive)
+  - [`PivotJoinInput`](#pivotjoininput)
+  - [`SimpleJoinInput`](#simplejoininput)
+  - [`ICriteriaBase`](#icriteriabase)
+  - [`ICriteriaVisitor`](#icriteriavisitor)
+  - [`IFilterExpression`](#ifilterexpression)
+  - [`StoredJoinDetails`](#storedjoindetails)
+  - [`AnyJoinCriteria`](#anyjoincriteria)
+  - [`JoinCriteriaParameterType`](#joincriteriaparametertype)
+  - [`JoinParameterType`](#joinparametertype)
+  - [`SpecificMatchingJoinConfig`](#specificmatchingjoinconfig)
+  - [`PivotJoin`](#pivotjoin)
+  - [`SimpleJoin`](#simplejoin)
 
 ---
 
@@ -320,6 +320,13 @@ Enumeración que define los operadores de comparación disponibles para los filt
   - `NOT_CONTAINS` (`NOT_CONTAINS`): No contiene una subcadena específica.
   - `SET_CONTAINS`: Para campos tipo SET o arrays simples, busca si el conjunto contiene un valor.
   - `SET_NOT_CONTAINS`: Para campos tipo SET o arrays simples, busca si el conjunto NO contiene un valor.
+  - `SET_CONTAINS_ANY` (`SET_CONTAINS_ANY`): Para campos tipo SET o arrays simples, busca si el conjunto contiene AL MENOS UNO de los valores especificados. Espera un array de valores.
+  - `SET_CONTAINS_ALL` (`SET_CONTAINS_ALL`): Para campos tipo SET o arrays simples, busca si el conjunto contiene TODOS los valores especificados. Espera un array de valores.
+  - `BETWEEN` (`BETWEEN`): Comprueba si un valor está dentro de un rango especificado (inclusivo). Espera un array o tupla de dos valores: `[min, max]`.
+  - `NOT_BETWEEN` (`NOT_BETWEEN`): Comprueba si un valor está fuera de un rango especificado (inclusivo). Espera un array o tupla de dos valores: `[min, max]`.
+  - `MATCHES_REGEX` (`MATCHES_REGEX`): Comprueba si un valor de cadena coincide con un patrón de expresión regular. La sintaxis específica de regex puede depender de la base de datos. Espera una cadena que represente la expresión regular.
+  - `ILIKE` (`ILIKE`): Comprueba si un valor de cadena coincide con un patrón (insensible a mayúsculas/minúsculas). Espera una cadena para el patrón.
+  - `NOT_ILIKE` (`NOT_ILIKE`): Comprueba si un valor de cadena no coincide con un patrón (insensible a mayúsculas/minúsculas). Espera una cadena para el patrón.
   - `JSON_CONTAINS`: Para campos JSON, busca si el JSON contiene una estructura o valor específico en una ruta.
   - `JSON_NOT_CONTAINS`: Para campos JSON, busca si el JSON NO contiene una estructura o valor específico.
   - `ARRAY_CONTAINS_ELEMENT`: Para campos Array (nativo o JSON), busca si el array contiene un elemento.
@@ -460,6 +467,9 @@ Tipo genérico que representa el valor asociado con un filtro, fuertemente tipad
   - Si `Operator` es `LIKE`, `CONTAINS`, etc. => `string`
   - Si `Operator` es `EQUALS`, `GREATER_THAN`, etc. => `PrimitiveFilterValue` (string | number | boolean | Date | null)
   - Si `Operator` es `IN`, `NOT_IN` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
+  - Si `Operator` es `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
+  - Si `Operator` es `BETWEEN`, `NOT_BETWEEN` => `[Exclude<PrimitiveFilterValue, null | undefined>, Exclude<PrimitiveFilterValue, null | undefined>]`
+  - Si `Operator` es `MATCHES_REGEX`, `ILIKE`, `NOT_ILIKE` => `string`
   - Si `Operator` es `ARRAY_CONTAINS_ELEMENT` => `PrimitiveFilterValue | { [jsonPath: string]: PrimitiveFilterValue }`
   - Si `Operator` es `ARRAY_CONTAINS_ALL_ELEMENTS`, etc. => `Array<...> | { [jsonPath: string]: Array<...> }`
   - Si `Operator` es `IS_NULL`, `IS_NOT_NULL` => `null | undefined`

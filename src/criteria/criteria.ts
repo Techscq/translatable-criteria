@@ -127,6 +127,15 @@ export abstract class Criteria<
     return this;
   }
 
+  /**
+   * Asserts that a given field name is defined within the current criteria's schema.
+   * This is a protected utility method used internally to validate field names
+   * before they are used in filters, ordering, or selections.
+   *
+   * @protected
+   * @param {FieldOfSchema<TSchema>} field - The field name to validate.
+   * @throws {Error} If the field is not defined in the schema.
+   */
   protected assetFieldOnSchema(field: FieldOfSchema<TSchema>) {
     if (!this.schema.fields.includes(field))
       throw new Error(
@@ -249,33 +258,28 @@ export abstract class Criteria<
     return this._cursor;
   }
 
-  setCursor(
-    cursorFilters: [
-      Omit<
-        FilterPrimitive<
-          FieldOfSchema<TSchema>,
-          FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN
-        >,
-        'operator'
-      >,
-      Omit<
-        FilterPrimitive<
-          FieldOfSchema<TSchema>,
-          FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN
-        >,
-        'operator'
-      >,
-    ],
-    operator: FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN,
+  setCursor<
+    Operator extends FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN,
+  >(
+    filterPrimitives:
+      | readonly [
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+        ]
+      | readonly [
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+        ],
+    operator: Operator,
     order: OrderDirection,
-  ) {
-    if (cursorFilters.length !== 2)
-      throw new Error(`The cursor must have exactly 2 elements`);
+  ): ICriteriaBase<TSchema, CurrentAlias> {
+    if (filterPrimitives.length !== 1 && filterPrimitives.length !== 2) {
+      throw new Error('The cursor must have exactly 1 or 2 elements');
+    }
 
-    for (const filterPrimitive of cursorFilters) {
+    for (const filterPrimitive of filterPrimitives) {
       this.assetFieldOnSchema(filterPrimitive.field);
     }
-    this._cursor = new Cursor(cursorFilters, operator, order);
+    this._cursor = new Cursor(filterPrimitives, operator, order);
     return this;
   }
 }

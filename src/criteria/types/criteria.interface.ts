@@ -40,8 +40,8 @@ export interface ICriteriaBase<
    * the next or previous set of results. It typically uses a combination of
    * unique and ordered fields.
    *
-   * @param {Array<Omit<FilterPrimitive<FieldOfSchema<TSchema>>, 'operator'>>} filterPrimitive -
-   *   An array of exactly two filter primitives (without the operator)
+   * @param {Array<Omit<FilterPrimitive<FieldOfSchema<TSchema>>, 'operator'>>} filterPrimitives -
+   *   An array of exactly one or two filter primitives (without the operator)
    *   defining the fields and their values for the cursor.
    *   Example: `[{ field: 'created_at', value: '2023-10-26T10:00:00Z' }, { field: 'uuid', value: 'some-uuid' }]`
    * @param {FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN} operator -
@@ -51,7 +51,7 @@ export interface ICriteriaBase<
    *   If operator is GREATER_THAN, order should typically be ASC.
    *   If operator is LESS_THAN, order should typically be DESC.
    * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
-   * @throws {Error} If filterPrimitive does not contain exactly 2 elements.
+   * @throws {Error} If filterPrimitive does not contain exactly 1 or 2 elements.
    * @throws {Error} If any cursor field is not defined in the schema.
    * @throws {Error} If any cursor value is null or undefined.
    * @throws {Error} If the two cursor fields are identical.
@@ -59,10 +59,14 @@ export interface ICriteriaBase<
   setCursor<
     Operator extends FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN,
   >(
-    filterPrimitive: [
-      Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
-      Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
-    ],
+    filterPrimitives:
+      | readonly [
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+        ]
+      | readonly [
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+          Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+        ],
     operator: Operator,
     order: OrderDirection,
   ): ICriteriaBase<TSchema, CurrentAlias>;

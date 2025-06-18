@@ -118,7 +118,11 @@ Filters allow you to specify the conditions that data must meet to be selected.
   - Patterns: `LIKE`, `NOT_LIKE`, `CONTAINS`, `NOT_CONTAINS`, `STARTS_WITH`, `ENDS_WITH`
   - Membership: `IN`, `NOT_IN`
   - Nullability: `IS_NULL`, `IS_NOT_NULL`
-  - For SET-like fields: `SET_CONTAINS`, `SET_NOT_CONTAINS`
+  - For ranges: `BETWEEN`, `NOT_BETWEEN`
+  - For regular expressions: `MATCHES_REGEX`
+  - For case-insensitive pattern matching: `ILIKE`, `NOT_ILIKE`
+  - For SET-like fields (or equivalents): `SET_CONTAINS`, `SET_NOT_CONTAINS`
+  - For SET-like fields (or equivalents) with multiple values: `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`
   - For JSON fields: `JSON_CONTAINS`, `JSON_NOT_CONTAINS`
   - For Array fields: `ARRAY_CONTAINS_ELEMENT`, `ARRAY_CONTAINS_ALL_ELEMENTS`, `ARRAY_CONTAINS_ANY_ELEMENT`, `ARRAY_EQUALS`
 

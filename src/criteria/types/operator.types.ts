@@ -35,19 +35,55 @@ export enum FilterOperator {
   /** Checks if a string value does not contain a specific substring. */
   NOT_CONTAINS = 'NOT_CONTAINS',
   /**
-   * Checks if a field, representing a collection of predefined choices
-   * (where multiple can be selected), contains a specific choice.
-   * The specific database implementation might vary (e.g., MySQL SET type,
-   * a text field with delimited values, or a JSON array).
+   * Checks if a field, representing a collection of values (e.g., MySQL SET type
+   * or a text field with comma-delimited values), contains a specific value.
+   * Expects a single value.
    */
   SET_CONTAINS = 'SET_CONTAINS',
   /**
-   * Checks if a field, representing a collection of predefined choices
-   * (where multiple can be selected), does NOT contain a specific choice.
-   * The specific database implementation might vary.
+   * Checks if a field, representing a collection of values (e.g., MySQL SET type
+   * or a text field with comma-delimited values), does NOT contain a specific value.
+   * Expects a single value.
    */
   SET_NOT_CONTAINS = 'SET_NOT_CONTAINS',
-
+  /**
+   * Checks if a field, representing a collection of values (e.g., MySQL SET type
+   * or a text field with comma-delimited values), contains AT LEAST ONE of the specified values.
+   * Expects an array of values.
+   */
+  SET_CONTAINS_ANY = 'SET_CONTAINS_ANY',
+  /**
+   * Checks if a field, representing a collection of values (e.g., MySQL SET type
+   * or a text field with comma-delimited values), contains ALL of the specified values.
+   * Expects an array of values.
+   */
+  SET_CONTAINS_ALL = 'SET_CONTAINS_ALL',
+  /**
+   * Checks if a value is within a specified range (inclusive).
+   * Expects an array or tuple of two values: [min, max].
+   */
+  BETWEEN = 'BETWEEN',
+  /**
+   * Checks if a value is outside a specified range (inclusive).
+   * Expects an array or tuple of two values: [min, max].
+   */
+  NOT_BETWEEN = 'NOT_BETWEEN',
+  /**
+   * Checks if a string value matches a regular expression pattern.
+   * The specific regex syntax may depend on the database.
+   * Expects a string representing the regular expression.
+   */
+  MATCHES_REGEX = 'MATCHES_REGEX',
+  /**
+   * Checks if a string value matches a pattern (case-insensitive).
+   * Expects a string for the pattern.
+   */
+  ILIKE = 'ILIKE',
+  /**
+   * Checks if a string value does not match a pattern (case-insensitive).
+   * Expects a string for the pattern.
+   */
+  NOT_ILIKE = 'NOT_ILIKE',
   /**
    * Checks if a JSON column contains a specific value or path.
    * The specific implementation depends on the database (e.g., JSON_CONTAINS in MySQL, @> in PostgreSQL for JSONB).
@@ -58,8 +94,6 @@ export enum FilterOperator {
    * The specific implementation depends on the database.
    */
   JSON_NOT_CONTAINS = 'JSON_NOT_CONTAINS',
-
-  // --- Array Operators ---
   /**
    * Checks if a column representing an array contains a specific element.
    * The underlying column could be a native array type (e.g., PostgreSQL)

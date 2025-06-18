@@ -15,7 +15,7 @@ export type PrimitiveFilterValue = string | number | boolean | Date | null;
  * @template Operator - The specific filter operator.
  */
 export type FilterValue<Operator extends FilterOperator> =
-  // String-based operators: LIKE, NOT_LIKE, CONTAINS, NOT_CONTAINS, STARTS_WITH, ENDS_WITH
+  // String-based operators
   Operator extends
     | FilterOperator.LIKE
     | FilterOperator.NOT_LIKE
@@ -25,9 +25,12 @@ export type FilterValue<Operator extends FilterOperator> =
     | FilterOperator.ENDS_WITH
     | FilterOperator.SET_CONTAINS
     | FilterOperator.SET_NOT_CONTAINS
-    ? /** Expected value: A string value to search within the SET-like field. */
+    | FilterOperator.MATCHES_REGEX
+    | FilterOperator.ILIKE
+    | FilterOperator.NOT_ILIKE
+    ? /** Expected value: A string. */
       string
-    : // Comparison and equality operators: EQUALS, NOT_EQUALS, GREATER_THAN, GREATER_THAN_OR_EQUALS, LESS_THAN, LESS_THAN_OR_EQUALS
+    : // Comparison and equality operators
       Operator extends
           | FilterOperator.EQUALS
           | FilterOperator.NOT_EQUALS
@@ -37,68 +40,66 @@ export type FilterValue<Operator extends FilterOperator> =
           | FilterOperator.LESS_THAN_OR_EQUALS
       ? /** Expected value: A primitive value (string, number, boolean, Date, or null) for comparison. */
         PrimitiveFilterValue
-      : // Array-based operators (for IN, NOT_IN): IN, NOT_IN
-        Operator extends FilterOperator.IN | FilterOperator.NOT_IN
-        ? /** Expected value: An array of primitive values (excluding null/undefined) to check for inclusion. */
+      : // Array-based operators (for IN, NOT_IN, SET_CONTAINS_ANY, SET_CONTAINS_ALL)
+        Operator extends
+            | FilterOperator.IN
+            | FilterOperator.NOT_IN
+            | FilterOperator.SET_CONTAINS_ANY
+            | FilterOperator.SET_CONTAINS_ALL
+        ? /** Expected value: An array of primitive values (excluding null/undefined). */
           Array<Exclude<PrimitiveFilterValue, null | undefined>>
-        : Operator extends FilterOperator.ARRAY_CONTAINS_ELEMENT
-          ? /**
-             * Expected value:
-             * 1. A primitive value for direct array column comparison.
-             * 2. An object `{ [jsonPath: string]: PrimitiveFilterValue }` for checking an element
-             *    within an array at a specific path inside a JSON column.
-             *    Example: `{ "tags": "admin" }` or `{ "$.tags": "admin" }`
-             *    Only one path-element pair is expected.
-             */
-            PrimitiveFilterValue | { [key: string]: PrimitiveFilterValue }
-          : Operator extends
-                | FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS
-                | FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT
-                | FilterOperator.ARRAY_EQUALS
+        : // Range operators: BETWEEN, NOT_BETWEEN (Nuevos)
+          Operator extends FilterOperator.BETWEEN | FilterOperator.NOT_BETWEEN
+          ? /** Expected value: A tuple of two primitive values [min, max] (excluding null/undefined). */
+            [
+              Exclude<PrimitiveFilterValue, null | undefined>,
+              Exclude<PrimitiveFilterValue, null | undefined>,
+            ]
+          : // Array element operators
+            Operator extends FilterOperator.ARRAY_CONTAINS_ELEMENT
             ? /**
                * Expected value:
-               * 1. An array of primitive values for direct array column comparison.
-               * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
-               *    for checking elements within an array at a specific path inside a JSON column.
-               *    Example: `{ "tags": ["admin", "editor"] }` or `{ "$.tags": ["admin", "editor"] }`
-               *    Only one path-array pair is expected.
+               * 1. A primitive value for direct array column comparison.
+               * 2. An object `{ [jsonPath: string]: PrimitiveFilterValue }` for checking an element
+               *    within an array at a specific path inside a JSON column.
                */
-              | Array<Exclude<PrimitiveFilterValue, null | undefined>>
-                | {
-                    [key: string]: Array<
-                      Exclude<PrimitiveFilterValue, null | undefined>
-                    >;
-                  }
-            : // Null operators: IS_NULL, IS_NOT_NULL
-              Operator extends
-                  | FilterOperator.IS_NULL
-                  | FilterOperator.IS_NOT_NULL
-              ? /** Expected value: `null` or `undefined`. The actual value is often ignored by the translator for these operators. */
-                null | undefined
-              : // JSON operators: JSON_CONTAINS, JSON_NOT_CONTAINS
+              PrimitiveFilterValue | { [key: string]: PrimitiveFilterValue }
+            : Operator extends
+                  | FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS
+                  | FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT
+                  | FilterOperator.ARRAY_EQUALS
+              ? /**
+                 * Expected value:
+                 * 1. An array of primitive values for direct array column comparison.
+                 * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
+                 *    for checking elements within an array at a specific path inside a JSON column.
+                 */
+                | Array<Exclude<PrimitiveFilterValue, null | undefined>>
+                  | {
+                      [key: string]: Array<
+                        Exclude<PrimitiveFilterValue, null | undefined>
+                      >;
+                    }
+              : // Null operators
                 Operator extends
-                    | FilterOperator.JSON_CONTAINS
-                    | FilterOperator.JSON_NOT_CONTAINS
-                ? /**
-                   * Expected value: An object where keys are JSON path strings (e.g., "$.user.name" or just "user.name" depending on translator convention)
-                   * and values are the candidates to search for at that path.
-                   * Candidate values can be primitives, objects, or arrays.
-                   * Example: `{ "$.name": "John", "$.address.city": "New York", "$.tags": ["dev", "js"] }`
-                   */
-                  {
-                    [
-                      key: string
-                    ]: // JSON path (e.g., "$.user.details" or "details.address")
-                    | PrimitiveFilterValue // Candidate for the path is a primitive
-                      | Array<any> // Candidate for the path is a JSON array
-                      | Record<string, any>; // Candidate for the path is a JSON object
-                  }
-                : // Fallback for any unhandled operator
-                  /** Indicates an operator that is not explicitly handled by the FilterValue type definition.
-                   *  This should ideally not be reached if all operators are covered.
-                   *  A runtime error for unsupported operators should be handled by the translator.
-                   */
-                  never;
+                    | FilterOperator.IS_NULL
+                    | FilterOperator.IS_NOT_NULL
+                ? /** Expected value: `null` or `undefined`. The actual value is often ignored by the translator. */
+                  null | undefined
+                : // JSON operators
+                  Operator extends
+                      | FilterOperator.JSON_CONTAINS
+                      | FilterOperator.JSON_NOT_CONTAINS
+                  ? /**
+                     * Expected value: An object where keys are JSON path strings
+                     * and values are the candidates to search for at that path.
+                     */
+                    {
+                      [key: string]: // JSON path
+                      PrimitiveFilterValue | Array<any> | Record<string, any>;
+                    }
+                  : // Fallback
+                    never;
 
 /**
  * Defines the structure for a single filter condition.

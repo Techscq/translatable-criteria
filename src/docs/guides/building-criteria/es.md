@@ -1,10 +1,10 @@
 # Guía Práctica: Construcción de Criterios
 
-Una vez que has definido tus [Esquemas](./defining-schemas.md), el siguiente paso es utilizarlos para construir objetos `Criteria`. Estos objetos encapsulan toda la lógica de tu consulta: qué datos seleccionar, cómo filtrarlos, cómo unirlos con otras entidades, cómo ordenarlos y cómo paginarlos.
+Una vez que has definido tus [Esquemas](../schema-definitions/es.md), el siguiente paso es utilizarlos para construir objetos `Criteria`. Estos objetos encapsulan toda la lógica de tu consulta: qué datos seleccionar, cómo filtrarlos, cómo unirlos con otras entidades, cómo ordenarlos y cómo paginarlos.
 
 Esta guía te mostrará cómo utilizar `CriteriaFactory` y los métodos fluidos de los objetos `Criteria` para construir consultas de manera efectiva y con seguridad de tipos.
 
-## <a id="indice-guia-construccion-criterios"></a>Índice
+## Índice
 
 - 1. [Creando un `RootCriteria`](#1-creando-un-rootcriteria)
 - 2. [Aplicando Filtros](#2-aplicando-filtros)
@@ -13,7 +13,10 @@ Esta guía te mostrará cómo utilizar `CriteriaFactory` y los métodos fluidos 
   - [Filtros Avanzados (JSON, Array, Set)](#filtros-avanzados-json-array-set)
     - [Filtrando Campos JSON (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)](#filtrando-campos-json-json_contains-json_not_contains)
     - [Filtrando Campos Array (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtrando-campos-array-array_contains_element-array_contains_all_elements-array_contains_any_element-array_equals)
-    - [Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`)](#filtrando-campos-set-set_contains-set_not_contains)
+    - [Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)](#filtrando-campos-set-set_contains-set_not_contains-set_contains_any-set_contains_all)
+    - [Filtrando por Rangos (`BETWEEN`, `NOT_BETWEEN`)](#filtrando-por-rangos-between-not_between)
+    - [Filtrando con Expresiones Regulares (`MATCHES_REGEX`)](#filtrando-con-expresiones-regulares-matches_regex)
+    - [Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas (`ILIKE`, `NOT_ILIKE`)](#coincidencia-de-patrones-insensible-a-mayúsculasminúsculas-ilike-not_ilike)
 - 3. [Añadiendo Uniones (Joins)](#3-añadiendo-uniones-joins)
   - [Uniones Simples (one-to-many, many-to-one, one-to-one)](#uniones-simples-one-to-many-many-to-one-one-to-one)
   - [Uniones con Tabla Pivote (many-to-many)](#uniones-con-tabla-pivote-many-to-many)
@@ -207,16 +210,87 @@ postCriteria.where({
 });
 ```
 
-#### Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`)
+#### Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)
 
 Similar a `CONTAINS` pero conceptualmente para campos que representan un conjunto de valores (como el tipo `SET` de MySQL o un string delimitado).
 
 ```typescript
 // Suponiendo un campo 'flags' en UserSchema que es un SET('active', 'verified', 'beta_tester')
+// o un campo de texto 'tags' como "typescript,javascript,nodejs"
+
+// Busca usuarios que tengan el flag 'verified'
 userCriteria.where({
   field: 'flags',
   operator: FilterOperator.SET_CONTAINS,
-  value: 'verified', // Busca usuarios que tengan el flag 'verified'
+  value: 'verified',
+});
+
+// Busca usuarios que tengan AL MENOS UNO de los tags "typescript" o "javascript"
+userCriteria.where({
+  field: 'tags',
+  operator: FilterOperator.SET_CONTAINS_ANY,
+  value: ['typescript', 'javascript'], // Espera un array de valores
+});
+
+// Busca usuarios que tengan TODOS los flags "active" Y "beta_tester"
+userCriteria.where({
+  field: 'flags',
+  operator: FilterOperator.SET_CONTAINS_ALL,
+  value: ['active', 'beta_tester'], // Espera un array de valores
+});
+```
+
+#### Filtrando por Rangos (`BETWEEN`, `NOT_BETWEEN`)
+
+Estos operadores permiten verificar si un valor numérico o de fecha se encuentra dentro o fuera de un rango específico.
+
+```typescript
+// Encontrar posts creados entre dos fechas
+postCriteria.where({
+  field: 'created_at',
+  operator: FilterOperator.BETWEEN,
+  value: [new Date('2023-01-01'), new Date('2023-03-31')], // [min, max]
+});
+
+// Encontrar productos cuyo precio NO esté entre 100 y 200
+productCriteria.where({
+  field: 'price',
+  operator: FilterOperator.NOT_BETWEEN,
+  value: [100, 200],
+});
+```
+
+#### Filtrando con Expresiones Regulares (`MATCHES_REGEX`)
+
+Permite realizar búsquedas de patrones más potentes utilizando expresiones regulares. La sintaxis específica de la expresión regular puede depender de la base de datos subyacente.
+
+```typescript
+// Encontrar usuarios cuyo username comience con "admin" seguido de números
+// (ejemplo conceptual, la sintaxis REGEX varía)
+userCriteria.where({
+  field: 'username',
+  operator: FilterOperator.MATCHES_REGEX,
+  value: '^admin[0-9]+', // La expresión regular como string
+});
+```
+
+#### Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas (`ILIKE`, `NOT_ILIKE`)
+
+Similares a `LIKE` y `NOT_LIKE`, pero garantizan que la comparación de patrones sea insensible a mayúsculas y minúsculas, independientemente de la configuración por defecto de la base de datos.
+
+```typescript
+// Encontrar posts cuyo título contenga "typescript" (sin importar mayúsculas/minúsculas)
+postCriteria.where({
+  field: 'title',
+  operator: FilterOperator.ILIKE,
+  value: '%typescript%',
+});
+
+// Encontrar usuarios cuyo email NO comience con "test" (insensible a mayúsculas/minúsculas)
+userCriteria.where({
+  field: 'email',
+  operator: FilterOperator.NOT_ILIKE,
+  value: 'test%',
 });
 ```
 
