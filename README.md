@@ -4,6 +4,7 @@
 ![NPM Downloads](https://img.shields.io/npm/dw/%40nulledexp%2Ftranslatable-criteria)
 [![Development Stage](https://img.shields.io/badge/Development-Active%20Development-green)]()
 [![Documentation](https://img.shields.io/badge/Documentation-EN/ES-blue)](./src/docs/introduction/en.md)
+[![CI](https://github.com/Techscq/translatable-criteria/actions/workflows/ci.yml/badge.svg)](https://github.com/Techscq/translatable-criteria/actions/workflows/ci.yml)
 
 A TypeScript library for building data-source agnostic, translatable query criteria. Define complex filtering, ordering, and join logic in a structured, type-safe way, then translate it to your specific data source using custom translators.
 

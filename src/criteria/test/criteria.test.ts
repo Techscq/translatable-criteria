@@ -11,9 +11,8 @@ import {
   PostCommentSchema,
   PostSchema,
   UserSchema,
-} from './fake-entities.js'; // Ajusta la ruta si es necesario
+} from './fake-entities.js';
 
-// Helper (se mantiene igual)
 const testJoinsData = (
   joinDetails: StoredJoinDetails<CriteriaSchema>,
   joinParameter: { join_field: string | object; parent_field: string | object },
@@ -26,7 +25,7 @@ const testJoinsData = (
 };
 
 describe('Criteria', () => {
-  let criteriaRoot: RootCriteria<typeof PostSchema, 'posts'>; // Tipado más específico
+  let criteriaRoot: RootCriteria<typeof PostSchema, 'posts'>;
 
   beforeEach(() => {
     criteriaRoot = new RootCriteria(PostSchema, 'posts');
@@ -85,7 +84,6 @@ describe('Criteria', () => {
     });
 
     it('should OR filters with orWhere, creating OR( AND(f1), AND(f2) )', () => {
-      // Este test ya pasa, se mantiene igual
       const filter1 = {
         field: 'uuid' as const,
         operator: FilterOperator.EQUALS,
@@ -107,7 +105,6 @@ describe('Criteria', () => {
     });
 
     it('should handle sequence: where().andWhere().orWhere()', () => {
-      // Este test ya pasa, se mantiene igual
       const filter1 = {
         field: 'uuid' as const,
         operator: FilterOperator.EQUALS,
@@ -138,7 +135,6 @@ describe('Criteria', () => {
     });
 
     it('should handle sequence: where().orWhere().andWhere()', () => {
-      // Este test ya pasa, se mantiene igual
       const filter1 = {
         field: 'uuid' as const,
         operator: FilterOperator.EQUALS,
@@ -171,11 +167,11 @@ describe('Criteria', () => {
 
   describe('Selection Logic', () => {
     it('should clear specific selections and revert to selectAll when selectAll() is called after setSelect', () => {
-      criteriaRoot.setSelect(['uuid', 'title']); // Primero selecciona campos específicos
-      expect(criteriaRoot.select).toEqual(['uuid', 'title']); // Confirma la selección específica
+      criteriaRoot.setSelect(['uuid', 'title']);
+      expect(criteriaRoot.select).toEqual(['uuid', 'title']);
 
       criteriaRoot.resetSelect();
-      expect(criteriaRoot.select).toEqual(PostSchema.fields); // Verifica que ahora selecciona todos los campos del schema
+      expect(criteriaRoot.select).toEqual(PostSchema.fields);
     });
 
     it('should select all fields by default', () => {
@@ -426,7 +422,7 @@ describe('Criteria', () => {
 
     it('should replace a join if the same alias is used', () => {
       const userJoinCriteria1 = new InnerJoinCriteria(UserSchema, 'publisher');
-      const userJoinCriteria2 = new LeftJoinCriteria(UserSchema, 'publisher'); // Mismo alias, diferente tipo
+      const userJoinCriteria2 = new LeftJoinCriteria(UserSchema, 'publisher');
 
       const userJoinParameter = {
         parent_field: 'user_uuid',
@@ -435,7 +431,7 @@ describe('Criteria', () => {
 
       criteriaRoot
         .join(userJoinCriteria1, userJoinParameter)
-        .join(userJoinCriteria2, userJoinParameter); // Debería reemplazar el anterior
+        .join(userJoinCriteria2, userJoinParameter);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -444,7 +440,7 @@ describe('Criteria', () => {
       expect(joinEntry).toBeDefined();
       if (joinEntry) {
         expect(joinEntry.criteria.alias).toBe('publisher');
-        expect(joinEntry.criteria).toBeInstanceOf(LeftJoinCriteria); // Verifica que es el último
+        expect(joinEntry.criteria).toBeInstanceOf(LeftJoinCriteria);
         testJoinsData(joinEntry, userJoinParameter, criteriaRoot);
         expect(joinEntry.criteria).toBe(userJoinCriteria2);
       }
@@ -457,7 +453,7 @@ describe('Criteria', () => {
           rootSchema: UserSchema,
           rootAlias: 'users',
           joinSchema: PermissionSchema,
-          joinAlias: 'permissions', // 'permissions' es many_to_many
+          joinAlias: 'permissions',
           joinParam: {
             parent_field: 'uuid',
             join_field: { pivot_field: 'pf', reference: 'uuid' },
@@ -515,7 +511,7 @@ describe('Criteria', () => {
           const root = new RootCriteria(rootSchema, rootAlias);
           const joinCrit = new InnerJoinCriteria(joinSchema, joinAlias);
           expect(() => {
-            // @ts-expect-error - Probando tipos inválidos intencionalmente
+            // @ts-expect-error - Testing invalid types
             root.join(joinCrit, joinParam);
           }).toThrow(expectedErrorMsg);
         },
@@ -571,7 +567,6 @@ describe('Criteria', () => {
 
   describe('Complex Criteria Building', () => {
     it('should build a complete criteria with all features', () => {
-      // Este test ya existe y es un buen test de integración a nivel de Criteria
       const criteria = new RootCriteria(PostSchema, 'posts')
         .setSelect(['uuid', 'title', 'user_uuid'])
         .where({
@@ -585,7 +580,7 @@ describe('Criteria', () => {
             .where({
               field: 'comment_text',
               operator: FilterOperator.IS_NOT_NULL,
-              value: null, // value es irrelevante para IS_NOT_NULL
+              value: null,
             }),
           {
             parent_field: 'uuid',
