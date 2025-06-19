@@ -34,7 +34,6 @@ describe('Filter', () => {
       return { field: mockField, operator, value };
     };
 
-    // Updated to include new string-based operators
     const stringOnlyOperators = [
       FilterOperator.LIKE,
       FilterOperator.NOT_LIKE,
@@ -44,12 +43,10 @@ describe('Filter', () => {
       FilterOperator.ENDS_WITH,
       FilterOperator.SET_CONTAINS,
       FilterOperator.SET_NOT_CONTAINS,
-      FilterOperator.MATCHES_REGEX, // Nuevo
-      FilterOperator.ILIKE, // Nuevo
-      FilterOperator.NOT_ILIKE, // Nuevo
+      FilterOperator.MATCHES_REGEX,
+      FilterOperator.ILIKE,
+      FilterOperator.NOT_ILIKE,
     ];
-    // Error message is now dynamic
-    // const stringExpectedErrorMessage = 'Filter value must be a string type';
 
     describe.each(stringOnlyOperators)(
       'String Only Operator: %s',
@@ -80,9 +77,6 @@ describe('Filter', () => {
       FilterOperator.LESS_THAN,
       FilterOperator.LESS_THAN_OR_EQUALS,
     ];
-    // Error message is now dynamic
-    // const primitiveExpectedErrorMessage =
-    //   'Filter value must be a string | number | boolean | Date | null type';
 
     describe.each(primitiveValueOperators)(
       'Primitive Value Operator (excluding ARRAY_CONTAINS_ELEMENT): %s',
@@ -129,10 +123,10 @@ describe('Filter', () => {
 
       it.each([
         [undefined],
-        [{ path1: 'val1', path2: 'val2' }], // More than one key
-        [{ path: { nested: 'obj' } }], // Value is not primitive
-        [{ path: [1, 2] }], // Value is an array, not primitive
-        [[]], // Not a primitive or valid object structure
+        [{ path1: 'val1', path2: 'val2' }],
+        [{ path: { nested: 'obj' } }],
+        [{ path: [1, 2] }],
+        [[]],
       ])('should throw for invalid value: %s', (invalidValue) => {
         expect(
           () => new Filter(createPrimitive(operator, invalidValue)),
@@ -140,16 +134,12 @@ describe('Filter', () => {
       });
     });
 
-    // Updated to include new array-based operators
     const arrayValueOperators = [
       FilterOperator.IN,
       FilterOperator.NOT_IN,
-      FilterOperator.SET_CONTAINS_ANY, // Nuevo
-      FilterOperator.SET_CONTAINS_ALL, // Nuevo
+      FilterOperator.SET_CONTAINS_ANY,
+      FilterOperator.SET_CONTAINS_ALL,
     ];
-    // Error message is now dynamic
-    // const arrayValueExpectedErrorMessage =
-    //   'Filter value must be an array of string, number, boolean, Date';
 
     describe.each(arrayValueOperators)(
       'Array Value Operator (IN, NOT_IN, SET_CONTAINS_ANY, SET_CONTAINS_ALL): %s',
@@ -194,10 +184,10 @@ describe('Filter', () => {
         it.each([
           [['a', 'b']],
           [[1, 2, new Date()]],
-          [[]], // Valid direct arrays
+          [[]],
           [{ path: ['a', 'b'] }],
           [{ '$.path': [1, 2] }],
-          [{ path: [] }], // Valid object forms
+          [{ path: [] }],
         ])('should accept valid value: %s', (validValue) => {
           expect(
             () => new Filter(createPrimitive(operator, validValue)),
@@ -206,12 +196,12 @@ describe('Filter', () => {
 
         it.each([
           'not an array or object',
-          [[1, null, 3]], // Array contains null
-          [[1, undefined, 3]], // Array contains undefined
-          [[1, { a: 1 }, 3]], // Array contains object
-          { path1: ['a'], path2: ['b'] }, // Multiple keys in object
-          { path: 'not an array' }, // Object value is not an array
-          { path: [1, null, 3] }, // Object's array value contains null
+          [[1, null, 3]],
+          [[1, undefined, 3]],
+          [[1, { a: 1 }, 3]],
+          { path1: ['a'], path2: ['b'] },
+          { path: 'not an array' },
+          { path: [1, null, 3] },
         ])('should throw for invalid value: %s', (invalidValue) => {
           const primitive = createPrimitive(operator, invalidValue);
           expect(() => new Filter(primitive)).toThrowError(
@@ -221,7 +211,6 @@ describe('Filter', () => {
       },
     );
 
-    // Nueva suite de pruebas para BETWEEN y NOT_BETWEEN
     const rangeOperators = [FilterOperator.BETWEEN, FilterOperator.NOT_BETWEEN];
 
     describe.each(rangeOperators)('Range Operator: %s', (operator) => {
@@ -230,7 +219,7 @@ describe('Filter', () => {
         [['a', 'z']],
         [[1, 100]],
         [[new Date('2023-01-01'), new Date('2023-12-31')]],
-        [[1, 'z']], // Mixed primitives are fine by definition
+        [[1, 'z']],
       ])('should accept a tuple of two primitives: %s', (validValue) => {
         expect(
           () => new Filter(createPrimitive(operator, validValue)),
@@ -239,12 +228,12 @@ describe('Filter', () => {
 
       it.each([
         ['not an array'],
-        [[1]], // Not a tuple of two
-        [[1, 2, 3]], // More than two elements
-        [[1, null]], // Contains null
-        [[undefined, 10]], // Contains undefined
-        [[{ a: 1 }, 10]], // Contains non-primitive
-        [[1, { b: 2 }]], // Contains non-primitive
+        [[1]],
+        [[1, 2, 3]],
+        [[1, null]],
+        [[undefined, 10]],
+        [[{ a: 1 }, 10]],
+        [[1, { b: 2 }]],
       ])(
         'should throw for invalid tuple structure or non-primitive/null/undefined values: %s',
         (invalidValue) => {
@@ -256,8 +245,6 @@ describe('Filter', () => {
     });
 
     const nullOperators = [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL];
-    // Error message is now dynamic
-    // const nullExpectedErrorMessage = 'Filter value must be null or undefined';
 
     describe.each(nullOperators)('Null/Undefined Operator: %s', (operator) => {
       const expectedErrorMessage = `Filter value for operator ${operator} must be null or undefined`;
@@ -284,7 +271,7 @@ describe('Filter', () => {
       FilterOperator.JSON_CONTAINS,
       FilterOperator.JSON_NOT_CONTAINS,
     ];
-    const jsonExpectedErrorMessage = // This one seems to be generic in filter.ts, so it can stay
+    const jsonExpectedErrorMessage =
       'Filter value must be an object where each value is a string, number, boolean, Date, null, an Array, or a Record<string,any>';
 
     describe.each(jsonOperators)('JSON Operator: %s', (operator) => {
@@ -302,9 +289,9 @@ describe('Filter', () => {
       it.each([
         ['not an object'],
         [123],
-        [[1, 2]], // Direct array is not the expected structure for JSON_CONTAINS
-        [{ path1: () => console.log('test') }], // Function as value
-        [{ path1: undefined }], // Undefined as value
+        [[1, 2]],
+        [{ path1: () => console.log('test') }],
+        [{ path1: undefined }],
       ])(
         'should throw for non-object or object with invalid inner values: %s',
         (invalidValue) => {
@@ -315,10 +302,8 @@ describe('Filter', () => {
       );
     });
 
-    // Test for the default case in the constructor's switch statement
     it('should throw for an unhandled operator', () => {
       const unhandledOperator = 'UNHANDLED_OPERATOR' as FilterOperator;
-      // Temporarily cast to any to bypass TypeScript's enum check for testing purposes
       const primitive = createPrimitive(unhandledOperator as any, 'test');
       expect(() => new Filter(primitive)).toThrowError(
         `Unhandled filter operator: ${unhandledOperator}`,

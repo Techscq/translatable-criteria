@@ -170,7 +170,6 @@ Clase base abstracta para todos los tipos de criterios (`RootCriteria`, `InnerJo
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Añade una condición OR, creando un nuevo grupo si es necesario.
 - **`join<...>(criteriaToJoin: ..., joinParameter: ...): this`**: Añade una condición de join.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configura la paginación basada en cursor.
-- **`resetCriteria(): ICriteriaBase<TSchema, CurrentAlias>`**: Método abstracto que debe ser implementado por las clases hijas para devolver una nueva instancia reseteada.
 
 Volver al Índice
 
@@ -247,6 +246,10 @@ Representa la configuración para la paginación basada en cursor. Se instancia 
 - `constructor(filterPrimitive: readonly [Omit<FilterPrimitive<...>, 'operator'>] | readonly [Omit<FilterPrimitive<...>, 'operator'>, Omit<FilterPrimitive<...>, 'operator'>], operator: FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN, order: OrderDirection)`
   - Valida que los campos y valores del cursor estén definidos y sean válidos.
   - Soporta 1 o 2 `FilterPrimitive` para cursores simples o compuestos.
+  - @throws {Error} Si algún campo del cursor no está definido.
+  - @throws {Error} Si algún valor del cursor es undefined (se permite null).
+  - @throws {Error} Si se proporcionan dos campos de cursor y son idénticos.
+  - @throws {Error} Si no se proporcionan primitivas de filtro.
 
 **Propiedades (readonly):**
 
@@ -371,7 +374,9 @@ Interfaz que define la estructura de un esquema de entidad. Los esquemas son cru
   - `joins: readonly SchemaJoins<string>[]` (opcional): Un array que define las posibles relaciones de unión con otros esquemas.
     - `SchemaJoins<AliasUnion extends string>`:
       - `alias: AliasUnion`: El alias de la entidad unida (debe coincidir con un alias en el esquema de la entidad unida).
-      - `join_relation_type: JoinRelationType`: El tipo de relación (ej. `'one_to_many'`).
+      - `relation_type: JoinRelationType`: El tipo de relación (ej. `'one_to_many'`).
+      - `metadata?: { [key: string]: any }`: Metadatos opcionales asociados con esta configuración de join específica.
+  - `metadata?: { [key: string]: any }`: Metadatos opcionales asociados con la definición completa del esquema. Pueden ser usados por los traductores para lógica o pistas personalizadas.
 
 Volver al Índice
 
@@ -392,7 +397,7 @@ const MiEsquemaUsuario = GetTypedCriteriaSchema({
   source_name: 'usuarios_tabla',
   alias: ['usuario', 'u'],
   fields: ['id', 'nombre', 'email'],
-  joins: [{ alias: 'pedidos', join_relation_type: 'one_to_many' }],
+  joins: [{ alias: 'pedidos', relation_type: 'one_to_many' }],
 });
 // MiEsquemaUsuario ahora tiene tipos literales para alias y fields.
 ```
@@ -429,7 +434,8 @@ Interfaz que define la estructura de una configuración de join dentro de la pro
 
 - **Propiedades:**
   - `alias: AliasUnion`: El alias de la entidad con la que se une.
-  - `join_relation_type: JoinRelationType`: El tipo de relación.
+  - `relation_type: JoinRelationType`: El tipo de relación.
+  - `metadata?: { [key: string]: any }`: Metadatos opcionales asociados con esta configuración de join específica.
 
 Volver al Índice
 
@@ -534,7 +540,6 @@ Interfaz base que define la funcionalidad común para todos los tipos de criteri
   - `orWhere(...)`
   - `join(...)`
   - `setCursor(...)`
-  - `resetCriteria()`
 - **Propiedades (getters):** `select`, `selectAll`, `take`, `skip`, `orders`, `joins`, `rootFilterGroup`, `sourceName`, `alias`, `cursor`.
 
 Volver al Índice
@@ -610,14 +615,16 @@ Tipo que representa los parámetros completamente resueltos para una unión `man
 - **Genéricos:**
   - `ParentSchema extends CriteriaSchema`
   - `JoinSchema extends CriteriaSchema`
-  - `TJoinRelationType extends JoinRelationType`
+  - `TRelationType extends JoinRelationType`
 - **Propiedades:**
-  - `parent_to_join_relation_type: TJoinRelationType`
+  - `relation_type: TRelationType`: El tipo de relación desde la entidad padre a la entidad unida.
   - `parent_source_name: ParentSchema['source_name']`
   - `parent_alias: ParentSchema['alias'][number]`
   - `pivot_source_name: string`
   - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`
   - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`
+  - `parent_schema_metadata: { [key: string]: any }`: Metadatos opcionales del esquema padre.
+  - `join_metadata: { [key: string]: any }`: Metadatos opcionales de la configuración específica del join.
 
 Volver al Índice
 
@@ -628,13 +635,15 @@ Tipo que representa los parámetros completamente resueltos para una unión simp
 - **Genéricos:**
   - `ParentSchema extends CriteriaSchema`
   - `JoinSchema extends CriteriaSchema`
-  - `TJoinRelationType extends JoinRelationType`
+  - `TRelationType extends JoinRelationType`
 - **Propiedades:**
-  - `parent_to_join_relation_type: TJoinRelationType`
+  - `relation_type: TRelationType`: El tipo de relación desde la entidad padre a la entidad unida.
   - `parent_source_name: ParentSchema['source_name']`
   - `parent_alias: ParentSchema['alias'][number]`
   - `parent_field: FieldOfSchema<ParentSchema>`
   - `join_field: FieldOfSchema<JoinSchema>`
+  - `parent_schema_metadata: { [key: string]: any }`: Metadatos opcionales del esquema padre.
+  - `join_metadata: { [key: string]: any }`: Metadatos opcionales de la configuración específica del join.
 
 Volver al Índice
 

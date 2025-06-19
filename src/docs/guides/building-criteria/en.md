@@ -444,9 +444,11 @@ This is more efficient for large and frequently changing datasets. Use `setCurso
 
 Requires:
 
-1. `cursorFilters`: An array with one or two `FilterPrimitive` objects (without the `operator`). These define the values of the last item from the previous page.
-   - If it's a single object, it's used for simple pagination over a unique field (usually an ordered and unique field, or a timestamp).
-   - If there are two objects, it's used for composite pagination (keyset pagination), typically over a primary sort field (e.g., `created_at`) and a unique tie-breaker field (e.g., `uuid`).
+1. `cursorFilters`: An array with one or two `FilterPrimitive` objects (without the `operator`). These define the values of the last item from the previous page. The `value` for these filters can be `null` if the field itself is null, but it cannot be `undefined`.
+
+- If it's a single object, it's used for simple pagination over a unique field (usually an ordered and unique field, or a timestamp).
+- If there are two objects, it's used for composite pagination (keyset pagination), typically over a primary sort field (e.g., `created_at`) and a unique tie-breaker field (e.g., `uuid`).
+
 2. `operator`: `FilterOperator.GREATER_THAN` (for next page) or `FilterOperator.LESS_THAN` (for previous page, if order is inverted).
 3. `order`: The main `OrderDirection` in which pagination is occurring.
 

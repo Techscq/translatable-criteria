@@ -1,5 +1,9 @@
 /**
  * Defines the type of relationship for a join.
+ * - `one_to_one`: Represents a one-to-one relationship.
+ * - `one_to_many`: Represents a one-to-many relationship.
+ * - `many_to_one`: Represents a many-to-one relationship.
+ * - `many_to_many`: Represents a many-to-many relationship, typically involving a pivot table.
  */
 export type JoinRelationType =
   | 'one_to_one'
@@ -15,7 +19,15 @@ export type SchemaJoins<ValidAlias extends string> = {
   /** The alias used to refer to this join in criteria construction. */
   alias: ValidAlias;
   /** The type of relationship this join represents (e.g., 'one_to_many'). */
-  join_relation_type: JoinRelationType;
+  relation_type: JoinRelationType;
+  /**
+   * Optional metadata associated with this specific join configuration.
+   * This allows for storing arbitrary, translator-specific information
+   * or hints directly within the schema definition for a join.
+   * For example, it could hold database-specific join hints or
+   * information about how to handle the join in a particular ORM.
+   */
+  metadata?: { [key: string]: any };
 };
 
 /**
@@ -41,6 +53,14 @@ export type CriteriaSchema<
   fields: TFields;
   /** An array of configurations for entities that can be joined from this entity. */
   joins: ReadonlyArray<SchemaJoins<JoinsAlias>>;
+  /**
+   * Optional metadata associated with the entire schema definition.
+   * This can be used to store arbitrary, translator-specific information
+   * or configuration relevant to the entity this schema represents.
+   * For example, it could hold information about custom data types,
+   * default behaviors, or ORM-specific settings.
+   */
+  metadata?: { [key: string]: any };
 };
 
 /**
@@ -54,7 +74,7 @@ export type CriteriaSchema<
  *   source_name: 'users_table',
  *   alias: ['user', 'u'],
  *   fields: ['id', 'name', 'email'],
- *   joins: [{ alias: 'posts', join_relation_type: 'one_to_many' }]
+ *   joins: [{ alias: 'posts', relation_type: 'one_to_many' }]
  * });
  */
 export function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(

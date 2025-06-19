@@ -15,13 +15,24 @@ import type {
   JoinCriteriaParameterType,
   JoinParameterType,
   SpecificMatchingJoinConfig,
+  StoredJoinDetails,
 } from './types/join-utility.types.js';
 import { FilterOperator } from './types/operator.types.js';
 import type {
   PivotJoinInput,
   SimpleJoinInput,
 } from './types/join-input.types.js';
-
+import type { PivotJoin, SimpleJoin } from './types/join-parameter.types.js';
+//import { CriteriaFactory } from './criteria-factory.js';
+import type { FilterGroup } from './filter/filter-group.js';
+/**
+ * Abstract base class for constructing query criteria.
+ * It provides a fluent API for defining filters, joins, selections, ordering, and pagination.
+ * Concrete criteria types (e.g., RootCriteria, JoinCriteria) will extend this class.
+ *
+ * @template TSchema - The schema definition for the entity this criteria operates on.
+ * @template CurrentAlias - The selected alias for the entity from its schema.
+ */
 export abstract class Criteria<
   TSchema extends CriteriaSchema,
   CurrentAlias extends SelectedAliasOf<TSchema> = SelectedAliasOf<TSchema>,
@@ -31,15 +42,30 @@ export abstract class Criteria<
   private readonly _joinManager = new CriteriaJoinManager<TSchema>();
   private readonly _source_name: TSchema['source_name'];
   private _take: number = 0; // 0 = no limit
+  /**
+   * Stores the set of fields explicitly selected by the user.
+   * This is used when `_selectAll` is false.
+   * @protected
+   */
   protected _select: Set<FieldOfSchema<TSchema>> = new Set([]);
   private _selectAll: boolean = true;
+  /**
+   * Stores the cursor configuration for pagination, if set.
+   * @protected
+   */
   protected _cursor:
     | Cursor<
         FieldOfSchema<TSchema>,
         FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN
       >
     | undefined;
-
+  /**
+   * Initializes a new instance of the Criteria class.
+   * @param {TSchema} schema - The schema definition for the entity.
+   * @param {CurrentAlias} _alias - The alias to use for this entity in the query.
+   * @throws {Error} If the provided alias is not supported by the schema.
+   * @protected
+   */
   constructor(
     protected readonly schema: TSchema,
     protected _alias: CurrentAlias,
@@ -51,25 +77,45 @@ export abstract class Criteria<
 
     this._source_name = schema.source_name;
   }
-  get select() {
+
+  /**
+   * Gets the currently selected fields.
+   * If `_selectAll` is true, it returns all fields from the schema.
+   * Otherwise, it returns the fields explicitly set via `setSelect`.
+   * @returns {Array<FieldOfSchema<TSchema>>} An array of selected field names.
+   */
+  get select(): Array<FieldOfSchema<TSchema>> {
     if (this._selectAll) {
       return [...this.schema.fields] as Array<FieldOfSchema<TSchema>>;
     }
     return Array.from(this._select);
   }
-
-  abstract resetCriteria(): ICriteriaBase<TSchema, CurrentAlias>;
+  /**
+   * Resets the selection to include all fields from the schema.
+   * Subsequent calls to `get select()` will return all schema fields
+   * until `setSelect()` is called again.
+   * @returns {this} The current criteria instance for chaining.
+   */
   resetSelect() {
     this._selectAll = true;
     this._select.clear();
     return this;
   }
-
-  get selectAll() {
+  /**
+   * Indicates whether all fields are currently configured to be selected.
+   * @returns {boolean} True if all fields are selected, false if specific fields are selected.
+   */
+  get selectAll(): boolean {
     return this._selectAll;
   }
-
-  setSelect(selectFields: Array<FieldOfSchema<TSchema>>) {
+  /**
+   * Specifies which fields to select for the entity.
+   * Calling this method sets `selectAll` to false.
+   * @param {Array<FieldOfSchema<TSchema>>} selectFields - An array of field names to select.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If any of the specified fields are not defined in the schema.
+   */
+  setSelect(selectFields: Array<FieldOfSchema<TSchema>>): this {
     for (const field of selectFields) {
       this.assetFieldOnSchema(field);
     }
@@ -79,47 +125,79 @@ export abstract class Criteria<
     }
     return this;
   }
-
-  get take() {
+  /**
+   * Gets the maximum number of records to return (LIMIT).
+   * @returns {number} The take value.
+   */
+  get take(): number {
     return this._take;
   }
 
   private _skip: number = 0;
-
-  get skip() {
+  /**
+   * Gets the number of records to skip (OFFSET).
+   * @returns {number} The skip value.
+   */
+  get skip(): number {
     return this._skip;
   }
 
   private _orders: Array<Order<FieldOfSchema<TSchema>>> = [];
-
+  /**
+   * Gets the current ordering rules applied to this criteria.
+   * @returns {ReadonlyArray<Order<FieldOfSchema<TSchema>>>} A readonly array of order objects.
+   */
   get orders(): ReadonlyArray<Order<FieldOfSchema<TSchema>>> {
     return [...this._orders];
   }
-
-  get joins() {
+  /**
+   * Gets the configured join details for this criteria.
+   * @returns {ReadonlyArray<StoredJoinDetails<TSchema>>} A readonly array of join configurations.
+   */
+  get joins(): ReadonlyArray<StoredJoinDetails<TSchema>> {
     return [...this._joinManager.getJoins()];
   }
-
-  get rootFilterGroup() {
+  /**
+   * Gets the root filter group for this criteria, which holds all filter conditions.
+   * @returns {FilterGroup} The root filter group.
+   */
+  get rootFilterGroup(): FilterGroup {
     return this._filterManager.getRootFilterGroup();
   }
-
-  get sourceName() {
+  /**
+   * Gets the source name (e.g., table name) for the entity of this criteria.
+   * @returns {TSchema['source_name']} The source name string.
+   */
+  get sourceName(): TSchema['source_name'] {
     return this._source_name;
   }
-
-  get alias() {
+  /**
+   * Gets the alias used for the entity of this criteria.
+   * @returns {CurrentAlias} The alias string.
+   */
+  get alias(): CurrentAlias {
     return this._alias;
   }
-
-  setTake(amount: number) {
+  /**
+   * Sets the maximum number of records to return (LIMIT).
+   * @param {number} amount - The number of records to take. Must be non-negative.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the amount is negative.
+   */
+  setTake(amount: number): this {
     if (amount < 0) {
       throw new Error(`Take value cant be negative`);
     }
     this._take = amount;
     return this;
   }
-  setSkip(amount: number) {
+  /**
+   * Sets the number of records to skip before starting to return records (OFFSET).
+   * @param {number} amount - The number of records to skip. Must be non-negative.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the amount is negative.
+   */
+  setSkip(amount: number): this {
     if (amount < 0) {
       throw new Error(`Skip value cant be negative`);
     }
@@ -142,36 +220,86 @@ export abstract class Criteria<
         `The field '${String(field)}' is not defined in the schema '${this.schema.source_name}'.`,
       );
   }
-  orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection) {
+  /**
+   * Adds an ordering rule to the criteria.
+   * Multiple calls will append new ordering rules.
+   * @param {FieldOfSchema<TSchema>} field - The field to order by.
+   * @param {OrderDirection} direction - The direction of the ordering (ASC or DESC).
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the specified field is not defined in the schema.
+   */
+  orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this {
     this.assetFieldOnSchema(field);
     this._orders.push(new Order(direction, field));
     return this;
   }
-
+  /**
+   * Initializes the filter criteria with a single filter primitive.
+   * This replaces any existing filters in the root filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to apply.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
+   */
   where<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ) {
+  ): this {
     this.assetFieldOnSchema(filterPrimitive.field);
     this._filterManager.where(filterPrimitive);
     return this;
   }
-
+  /**
+   * Adds a filter primitive to the current filter group using an AND logical operator.
+   * Requires `where()` to have been called first to initialize the filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to add.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
+   * @throws {Error} If `where()` has not been called first.
+   */
   andWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ) {
+  ): this {
     this.assetFieldOnSchema(filterPrimitive.field);
     this._filterManager.andWhere(filterPrimitive);
     return this;
   }
-
+  /**
+   * Adds a filter primitive to the current filter group using an OR logical operator.
+   * Requires `where()` to have been called first to initialize the filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to add.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
+   * @throws {Error} If `where()` has not been called first.
+   */
   orWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ) {
+  ): this {
     this.assetFieldOnSchema(filterPrimitive.field);
     this._filterManager.orWhere(filterPrimitive);
     return this;
   }
-
+  /**
+   * Adds a join to another criteria.
+   * @template TJoinSchema - The schema of the entity to join.
+   * @template TJoinedCriteriaAlias - The alias for the joined entity.
+   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the joined
+   *   alias.
+   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaAlias, TMatchingJoinConfig>} criteriaToJoin
+   * The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
+   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter
+   * The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for
+   *   many-to-many).
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If `criteriaToJoin` is a string (which is invalid).
+   * @throws {Error} If `parent_field` in `joinParameter` (or `parent_field.reference` for pivot joins) is not defined
+   *   in the parent schema.
+   * @throws {Error} If the join configuration for the given `criteriaToJoin.alias` is not found in the parent schema's
+   *   `joins` array.
+   * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using
+   *   simple join input for many-to-many or vice-versa).
+   */
   join<
     TJoinSchema extends CriteriaSchema,
     TJoinedCriteriaAlias extends SelectedAliasOf<TJoinSchema>,
@@ -187,7 +315,7 @@ export abstract class Criteria<
       TMatchingJoinConfig
     >,
     joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
-  ) {
+  ): this {
     if (typeof criteriaToJoin === 'string') {
       throw new Error(`Invalid criteriaToJoin: ${criteriaToJoin}`);
     }
@@ -207,11 +335,17 @@ export abstract class Criteria<
 
     this.assertIsValidJoinOptions(joinConfig, joinParameter);
 
-    const fullJoinParameters = {
+    const fullJoinParameters:
+      | PivotJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type>
+      | SimpleJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type> = {
       ...joinParameter,
       parent_alias: this.alias,
       parent_source_name: this.sourceName,
-      parent_to_join_relation_type: joinConfig.join_relation_type,
+      relation_type: joinConfig.relation_type,
+      join_metadata:
+        this.schema.joins.find((join) => join.alias === criteriaToJoin.alias)
+          ?.metadata ?? {},
+      parent_schema_metadata: this.schema.metadata ?? {},
     };
     this._joinManager.addJoin(criteriaToJoin, fullJoinParameters);
     return this;
@@ -233,7 +367,7 @@ export abstract class Criteria<
         'reference' in field
       );
     };
-    if (joinConfig.join_relation_type === 'many_to_many') {
+    if (joinConfig.relation_type === 'many_to_many') {
       if (
         !isPivotFieldObject(joinParameter.parent_field) ||
         !isPivotFieldObject(joinParameter.join_field)
@@ -248,16 +382,39 @@ export abstract class Criteria<
         typeof joinParameter.join_field !== 'string'
       ) {
         throw new Error(
-          `Invalid JoinOptions for '${joinConfig.join_relation_type}' join. Expected parent_field and join_field to be strings. Alias: '${String(joinConfig.alias)}'`,
+          `Invalid JoinOptions for '${joinConfig.relation_type}' join. Expected parent_field and join_field to be strings. Alias: '${String(joinConfig.alias)}'`,
         );
       }
     }
   }
-
-  get cursor() {
+  /**
+   * Gets the current cursor configuration, if set.
+   * @returns {Cursor<FieldOfSchema<TSchema>, FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN> | undefined}
+   * The cursor object or undefined.
+   */
+  get cursor():
+    | Cursor<
+        FieldOfSchema<TSchema>,
+        FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN
+      >
+    | undefined {
     return this._cursor;
   }
-
+  /**
+   * Sets the cursor for pagination.
+   * @template Operator - The specific comparison operator for the cursor.
+   * @param {readonly [Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>] | readonly
+   *   [Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>,
+   *   Omit<FilterPrimitive<FieldOfSchema<TSchema>, Operator>, 'operator'>]} filterPrimitives - An array of one or two
+   *   filter primitives defining the cursor's fields and values.
+   * @param {Operator} operator - The comparison operator (GREATER_THAN or LESS_THAN).
+   * @param {OrderDirection} order - The primary order direction for pagination.
+   * @returns {this} The current criteria instance for chaining.
+   * @throws {Error} If filterPrimitives does not contain exactly 1 or 2 elements.
+   * @throws {Error} If any cursor field is not defined in the schema.
+   * @throws {Error} If any cursor value is undefined (null is allowed, per Cursor constructor).
+   * @throws {Error} If two cursor fields are provided and they are identical (per Cursor constructor).
+   */
   setCursor<
     Operator extends FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN,
   >(
@@ -271,7 +428,7 @@ export abstract class Criteria<
         ],
     operator: Operator,
     order: OrderDirection,
-  ): ICriteriaBase<TSchema, CurrentAlias> {
+  ): this {
     if (filterPrimitives.length !== 1 && filterPrimitives.length !== 2) {
       throw new Error('The cursor must have exactly 1 or 2 elements');
     }

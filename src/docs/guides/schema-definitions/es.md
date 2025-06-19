@@ -22,6 +22,8 @@ Un `CriteriaSchema` se define con los siguientes campos principales:
 - `joins`: (array de objetos) Define las relaciones que esta entidad tiene con otras. Cada objeto de join especifica:
   - `alias`: (string) El alias que usarás para referirte a la entidad unida (debe coincidir con uno de los `alias` definidos en el esquema de la entidad unida).
   - `join_relation_type`: (string) El tipo de relación, como `'one_to_many'`, `'many_to_one'`, `'one_to_one'`, o `'many_to_many'`.
+  - `metadata`: (objeto opcional) Un campo opcional para almacenar información arbitraria específica del traductor o pistas directamente dentro de la definición del esquema para esta unión específica.
+- `metadata`: (objeto opcional) Un campo opcional en la raíz del esquema para almacenar información arbitraria específica del traductor o configuración relevante para toda la entidad que este esquema representa.
 
 ## Ejemplo: Definiendo el Esquema `UserSchema`
 

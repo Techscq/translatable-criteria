@@ -444,9 +444,11 @@ Es más eficiente para conjuntos de datos grandes y que cambian frecuentemente. 
 
 Requiere:
 
-1.  `cursorFilters`: Un array con uno o dos objetos `FilterPrimitive` (sin el `operator`). Estos definen los valores del último ítem de la página anterior.
-    - Si es un solo objeto, se usa para paginación simple sobre un campo único (generalmente un campo ordenado y único, o un timestamp).
-    - Si son dos objetos, se usa para paginación compuesta (keyset pagination), típicamente sobre un campo de ordenamiento primario (ej. `created_at`) y un campo de desempate único (ej. `uuid`).
+1.  `cursorFilters`: Un array con uno o dos objetos `FilterPrimitive` (sin el `operator`). Estos definen los valores del último ítem de la página anterior. El `value` para estos filtros puede ser `null` si el campo en sí es nulo, pero no puede ser `undefined`.
+
+- Si es un solo objeto, se usa para paginación simple sobre un campo único (generalmente un campo ordenado y único, o un timestamp).
+- Si son dos objetos, se usa para paginación compuesta (keyset pagination), típicamente sobre un campo de ordenamiento primario (ej. `created_at`) y un campo de desempate único (ej. `uuid`).
+
 2.  `operator`: `FilterOperator.GREATER_THAN` (para página siguiente) o `FilterOperator.LESS_THAN` (para página anterior, si se invierte el orden).
 3.  `order`: La `OrderDirection` principal en la que se está paginando.
 

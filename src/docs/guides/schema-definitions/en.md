@@ -22,6 +22,8 @@ A `CriteriaSchema` is defined with the following main fields:
 - `joins`: (array of objects) Defines the relationships this entity has with others. Each join object specifies:
   - `alias`: (string) The alias you will use to refer to the joined entity (must match one of the `alias` defined in the joined entity's schema).
   - `join_relation_type`: (string) The type of relationship, such as `'one_to_many'`, `'many_to_one'`, `'one_to_one'`, or `'many_to_many'`.
+  - `metadata`: (optional object) An optional field to store arbitrary, translator-specific information or hints directly within the schema definition for this specific join.
+- `metadata`: (optional object) An optional field at the root of the schema to store arbitrary, translator-specific information or configuration relevant to the entire entity this schema represents.
 
 ## Example: Defining the `UserSchema`
 

@@ -42,8 +42,12 @@ export class InnerJoinCriteria<
 
     return visitor.visitInnerJoin(this, parameters, context);
   }
-
-  override resetCriteria(): InnerJoinCriteria<CSchema, Alias> {
+  /**
+   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
+   * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
+   * @returns {InnerJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   */
+  resetCriteria(): InnerJoinCriteria<CSchema, Alias> {
     return new InnerJoinCriteria(this.schema, this._alias);
   }
 }

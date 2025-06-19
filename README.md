@@ -54,7 +54,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: ['users', 'user', 'publisher'],
   fields: ['uuid', 'email', 'username', 'created_at'],
   joins: [
-    { alias: 'posts', join_relation_type: 'one_to_many' },
+    { alias: 'posts', relation_type: 'one_to_many' },
     // other joins like 'permissions', 'addresses' can be defined here
   ],
 });
@@ -73,8 +73,8 @@ export const PostSchema = GetTypedCriteriaSchema({
     'metadata', // Example: for JSON filters
   ],
   joins: [
-    { alias: 'comments', join_relation_type: 'one_to_many' },
-    { alias: 'publisher', join_relation_type: 'many_to_one' },
+    { alias: 'comments', relation_type: 'one_to_many' },
+    { alias: 'publisher', relation_type: 'many_to_one' },
   ],
 });
 export type PostSchema = typeof PostSchema;

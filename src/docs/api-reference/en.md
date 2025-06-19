@@ -170,7 +170,6 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an OR condition, creating a new group if necessary.
 - **`join<...>(criteriaToJoin: ..., joinParameter: ...): this`**: Adds a join condition.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configures cursor-based pagination.
-- **`resetCriteria(): ICriteriaBase<TSchema, CurrentAlias>`**: Abstract method that must be implemented by child classes to return a new reset instance.
 
 Back to Index
 
@@ -247,6 +246,10 @@ Represents the configuration for cursor-based pagination. Instantiated internall
 - `constructor(filterPrimitive: readonly [Omit<FilterPrimitive<...>, 'operator'>] | readonly [Omit<FilterPrimitive<...>, 'operator'>, Omit<FilterPrimitive<...>, 'operator'>], operator: FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN, order: OrderDirection)`
   - Validates that cursor fields and values are defined and valid.
   - Supports 1 or 2 `FilterPrimitive`s for simple or composite cursors.
+  - @throws {Error} If any cursor field is not defined.
+  - @throws {Error} If any cursor value is undefined (null is allowed).
+  - @throws {Error} If two cursor fields are provided and they are identical.
+  - @throws {Error} If no filter primitives are provided.
 
 **Properties (readonly):**
 
@@ -371,7 +374,9 @@ Interface defining the structure of an entity schema. Schemas are crucial for ty
   - `joins: readonly SchemaJoins<string>[]` (optional): An array defining possible join relationships with other schemas.
     - `SchemaJoins<AliasUnion extends string>`:
       - `alias: AliasUnion`: The alias of the joined entity (must match an alias in the joined entity's schema).
-      - `join_relation_type: JoinRelationType`: The type of relationship (e.g., `'one_to_many'`).
+      - `relation_type: JoinRelationType`: The type of relationship (e.g., `'one_to_many'`).
+      - `metadata?: { [key: string]: any }`: Optional metadata associated with the specific join configuration.
+  - `metadata?: { [key: string]: any }`: Optional metadata associated with the entire schema definition. Can be used by translators for custom logic or hints.
 
 Back to Index
 
@@ -392,7 +397,7 @@ const MyUserSchema = GetTypedCriteriaSchema({
   source_name: 'user_table',
   alias: ['user', 'u'],
   fields: ['id', 'name', 'email'],
-  joins: [{ alias: 'orders', join_relation_type: 'one_to_many' }],
+  joins: [{ alias: 'orders', relation_type: 'one_to_many' }],
 });
 // MyUserSchema now has literal types for alias and fields.
 ```
@@ -429,7 +434,8 @@ Interface defining the structure of a join configuration within the `joins` prop
 
 - **Properties:**
   - `alias: AliasUnion`: The alias of the entity being joined to.
-  - `join_relation_type: JoinRelationType`: The type of relationship.
+  - `relation_type: JoinRelationType`: The type of relationship.
+  - `metadata?: { [key: string]: any }`: Optional metadata associated with this specific join configuration.
 
 Back to Index
 
@@ -534,7 +540,6 @@ Base interface defining common functionality for all criteria types.
   - `orWhere(...)`
   - `join(...)`
   - `setCursor(...)`
-  - `resetCriteria()`
 - **Properties (getters):** `select`, `selectAll`, `take`, `skip`, `orders`, `joins`, `rootFilterGroup`, `sourceName`, `alias`, `cursor`.
 
 Back to Index
@@ -610,14 +615,16 @@ Type representing the fully resolved parameters for a `many-to-many` join via a 
 - **Generics:**
   - `ParentSchema extends CriteriaSchema`
   - `JoinSchema extends CriteriaSchema`
-  - `TJoinRelationType extends JoinRelationType`
+  - `TRelationType extends JoinRelationType`
 - **Properties:**
-  - `parent_to_join_relation_type: TJoinRelationType`
+  - `relation_type: TRelationType`: The type of relationship from the parent to the joined entity.
   - `parent_source_name: ParentSchema['source_name']`
   - `parent_alias: ParentSchema['alias'][number]`
   - `pivot_source_name: string`
   - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`
   - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`
+  - `parent_schema_metadata: { [key: string]: any }`: Optional metadata from the parent schema.
+  - `join_metadata: { [key: string]: any }`: Optional metadata from the specific join configuration.
 
 Back to Index
 
@@ -628,13 +635,15 @@ Type representing the fully resolved parameters for a simple join (one-to-one, o
 - **Generics:**
   - `ParentSchema extends CriteriaSchema`
   - `JoinSchema extends CriteriaSchema`
-  - `TJoinRelationType extends JoinRelationType`
+  - `TRelationType extends JoinRelationType`
 - **Properties:**
-  - `parent_to_join_relation_type: TJoinRelationType`
+  - `relation_type: TRelationType`: The type of relationship from the parent to the joined entity.
   - `parent_source_name: ParentSchema['source_name']`
   - `parent_alias: ParentSchema['alias'][number]`
   - `parent_field: FieldOfSchema<ParentSchema>`
   - `join_field: FieldOfSchema<JoinSchema>`
+  - `parent_schema_metadata: { [key: string]: any }`: Optional metadata from the parent schema.
+  - `join_metadata: { [key: string]: any }`: Optional metadata from the specific join configuration.
 
 Back to Index
 

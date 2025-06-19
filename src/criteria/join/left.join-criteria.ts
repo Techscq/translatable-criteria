@@ -41,6 +41,11 @@ export class LeftJoinCriteria<
 
     return visitor.visitLeftJoin(this, parameters, context);
   }
+  /**
+   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
+   * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
+   * @returns {LeftJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   */
   resetCriteria(): LeftJoinCriteria<CSchema, Alias> {
     return new LeftJoinCriteria(this.schema, this._alias);
   }

@@ -127,7 +127,7 @@ export interface FilterPrimitive<
  * typically derived from {@link FieldOfSchema} of a {@link CriteriaSchema}.
  */
 type FilterItem<Field extends string> =
-  | FilterPrimitive<Field, FilterOperator> // Explicitly state FilterOperator for the second generic arg
+  | FilterPrimitive<Field, FilterOperator>
   | FilterGroupPrimitive<Field>;
 
 /**

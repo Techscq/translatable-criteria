@@ -6,7 +6,6 @@ import type {
 } from '../types/filter-primitive.types.js';
 
 describe('FilterGroup', () => {
-  // Helper function to create test filter primitives
   const createFilterPrimitive = (
     field: string,
     value: string,
@@ -227,7 +226,6 @@ describe('FilterGroup', () => {
         const filterGroup = new FilterGroup(complexNested);
         const result = filterGroup.toPrimitive();
 
-        // Structure should be preserved as it can't be simplified
         expect(result).toEqual(complexNested);
       });
 
@@ -259,7 +257,6 @@ describe('FilterGroup', () => {
         const filterGroup = new FilterGroup(multipleEmptyGroups);
         const result = filterGroup.toPrimitive();
 
-        // Should remove all empty groups and preserve only the actual filter
         expect(result).toEqual({
           logicalOperator: LogicalOperator.AND,
           items: [createFilterPrimitive('field1', 'value1')],
@@ -337,7 +334,6 @@ describe('FilterGroup', () => {
         const filterGroup = new FilterGroup(deeplyNested);
         const result = filterGroup.toPrimitive();
 
-        // Should be simplified to a simple OR with one filter
         expect(result).toEqual({
           logicalOperator: LogicalOperator.OR,
           items: [createFilterPrimitive('field1', 'value1')],
@@ -347,7 +343,6 @@ describe('FilterGroup', () => {
 
     describe('performance tests', () => {
       it('should handle large groups efficiently', () => {
-        // Create a large group with 1000 items
         const items = Array.from({ length: 1000 }, (_, index) =>
           createFilterPrimitive(`field${index}`, `value${index}`),
         );
@@ -362,14 +357,11 @@ describe('FilterGroup', () => {
         const result = filterGroup.toPrimitive();
         const endTime = performance.now();
 
-        // Verification
         expect(result.items).toHaveLength(1000);
-        // Performance check - should process in less than 100ms
         expect(endTime - startTime).toBeLessThan(100);
       });
 
       it('should handle complex nested structure efficiently', () => {
-        // Create a complex structure that we know should be normalized
         const complexStructure: FilterGroupPrimitive = {
           logicalOperator: LogicalOperator.AND,
           items: [
@@ -398,10 +390,8 @@ describe('FilterGroup', () => {
         const result = filterGroup.toPrimitive();
         const endTime = performance.now();
 
-        // Performance check
         expect(endTime - startTime).toBeLessThan(100);
 
-        // Structure verification - should be flattened to a single AND group
         expect(result).toEqual({
           logicalOperator: LogicalOperator.AND,
           items: [

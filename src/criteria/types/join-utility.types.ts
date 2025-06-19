@@ -65,7 +65,7 @@ export type JoinCriteriaParameterType<
 
 /**
  * Determines the expected shape of the join parameters object passed to the `.join()` method,
- * based on the `join_relation_type` defined in the `ParentSchema` for the `ActualJoinedAlias`.
+ * based on the `relation_type` defined in the `ParentSchema` for the `ActualJoinedAlias`.
  * If the `ActualJoinedAlias` is not a valid join alias, this type resolves to `never`.
  * For 'many_to_many' relations, it expects {@link PivotJoinInput}.
  * For other relations (one-to-one, one-to-many, many-to-one), it expects {@link SimpleJoinInput}.
@@ -81,23 +81,23 @@ export type JoinParameterType<
   MatchingConfigForActualAlias extends SchemaJoins<string> | never,
 > = [MatchingConfigForActualAlias] extends [never]
   ? never
-  : MatchingConfigForActualAlias['join_relation_type'] extends 'many_to_many'
+  : MatchingConfigForActualAlias['relation_type'] extends 'many_to_many'
     ? PivotJoinInput<ParentSchema, JoinedSchema>
     : SimpleJoinInput<ParentSchema, JoinedSchema>;
 
 /**
  * Extracts the specific join configuration object from the `ParentSchema`'s `joins` array
  * that matches the provided `JoinedSchemaSpecificAlias`.
- * This utility type is crucial for inferring the `join_relation_type` and other
+ * This utility type is crucial for inferring the `relation_type` and other
  * join-specific details defined in the parent schema.
  *
  * @template ParentSchema - The {@link CriteriaSchema} of the parent entity.
  * @template JoinedSchemaSpecificAlias - The specific alias of the joined entity,
  *                                       as defined in the `ParentSchema.joins` configuration.
  * @example
- * // Given UserSchema has a join defined as: { alias: 'posts', join_relation_type: 'one_to_many' }
+ * // Given UserSchema has a join defined as: { alias: 'posts', relation_type: 'one_to_many' }
  * // type UserPostsJoinConfig = SpecificMatchingJoinConfig<typeof UserSchema, 'posts'>;
- * // UserPostsJoinConfig would be: { alias: 'posts'; join_relation_type: 'one_to_many'; }
+ * // UserPostsJoinConfig would be: { alias: 'posts'; relation_type: 'one_to_many'; }
  */
 export type SpecificMatchingJoinConfig<
   ParentSchema extends CriteriaSchema,

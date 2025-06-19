@@ -30,10 +30,13 @@ export interface ICriteriaBase<
    * Configures the criteria to select all available fields from the root entity
    * and any joined entities that also have `selectAll()` called or by default.
    * This overrides any previous specific selections made by `setSelect()`.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    */
-  resetSelect(): ICriteriaBase<TSchema, CurrentAlias>;
-
+  resetSelect(): this;
+  /**
+   * Indicates whether all fields are currently selected for the root entity.
+   * @returns {boolean} True if all fields are selected, false otherwise.
+   */
   get selectAll(): boolean;
   /**
    * Sets the cursor for pagination. A cursor defines a point from which to fetch
@@ -50,10 +53,10 @@ export interface ICriteriaBase<
    * @param {OrderDirection} order - The direction of ordering that matches the cursor logic.
    *   If operator is GREATER_THAN, order should typically be ASC.
    *   If operator is LESS_THAN, order should typically be DESC.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If filterPrimitive does not contain exactly 1 or 2 elements.
    * @throws {Error} If any cursor field is not defined in the schema.
-   * @throws {Error} If any cursor value is null or undefined.
+   * @throws {Error} If any cursor value is undefined (null is allowed).
    * @throws {Error} If the two cursor fields are identical.
    */
   setCursor<
@@ -69,9 +72,8 @@ export interface ICriteriaBase<
         ],
     operator: Operator,
     order: OrderDirection,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  ): this;
 
-  resetCriteria(): ICriteriaBase<TSchema, CurrentAlias>;
   /**
    * Gets the current cursor configuration, if set.
    * @returns {Cursor<FieldOfSchema<TSchema>> | undefined} The cursor object or undefined.
@@ -87,12 +89,10 @@ export interface ICriteriaBase<
    * Specifies which fields to select for the root entity.
    * Calling this method disables `selectAll()` behavior.
    * @param {Array<FieldOfSchema<TSchema>>} selectFields - An array of field names to select.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If any of the specified fields are not defined in the schema.
    */
-  setSelect(
-    selectFields: Array<FieldOfSchema<TSchema>>,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  setSelect(selectFields: Array<FieldOfSchema<TSchema>>): this;
 
   /**
    * Gets the currently selected fields. If `selectAll()` was last called or is default,
@@ -106,29 +106,26 @@ export interface ICriteriaBase<
    * Multiple calls to `orderBy` will append new ordering rules.
    * @param {FieldOfSchema<TSchema>} field - The field to order by.
    * @param {OrderDirection} direction - The direction of the ordering (ASC or DESC).
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field is not defined in the schema.
    */
-  orderBy(
-    field: FieldOfSchema<TSchema>,
-    direction: OrderDirection,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this;
 
   /**
    * Sets the maximum number of records to return (LIMIT).
    * @param {number} amount - The number of records to take. Must be non-negative.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the amount is negative.
    */
-  setTake(amount: number): ICriteriaBase<TSchema, CurrentAlias>;
+  setTake(amount: number): this;
 
   /**
    * Sets the number of records to skip before starting to return records (OFFSET).
    * @param {number} amount - The number of records to skip. Must be non-negative.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the amount is negative.
    */
-  setSkip(amount: number): ICriteriaBase<TSchema, CurrentAlias>;
+  setSkip(amount: number): this;
 
   /**
    * Gets the configured join details.
@@ -176,34 +173,34 @@ export interface ICriteriaBase<
    * Initializes the filter criteria with a single filter primitive.
    * This replaces any existing filters.
    * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to apply.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    */
   where<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  ): this;
 
   /**
    * Adds a filter primitive to the current filter group using an AND logical operator.
    * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to add.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    * @throws {Error} If `where()` has not been called first.
    */
   andWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  ): this;
 
   /**
    * Adds a filter primitive, creating a new OR group with the existing filters.
    * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to add.
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    * @throws {Error} If `where()` has not been called first.
    */
   orWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  ): this;
 
   /**
    * Adds a join to another criteria.
@@ -214,10 +211,10 @@ export interface ICriteriaBase<
    * The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
    * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter
    * The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for many-to-many).
-   * @returns {ICriteriaBase<TSchema, CurrentAlias>} The current criteria instance for chaining.
+   * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the join configuration for the given alias is not found in the parent schema.
    * @throws {Error} If `parent_field` in `joinParameter` is not defined in the parent schema.
-   * @throws {Error} If `joinParameter` is invalid for the `join_relation_type` defined in the schema (e.g., using simple join input for many-to-many).
+   * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using simple join input for many-to-many).
    */
   join<
     TJoinSchema extends CriteriaSchema,
@@ -234,5 +231,5 @@ export interface ICriteriaBase<
       TMatchingJoinConfig
     >,
     joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
-  ): ICriteriaBase<TSchema, CurrentAlias>;
+  ): this;
 }

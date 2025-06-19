@@ -32,6 +32,11 @@ export class RootCriteria<
   ): TranslationOutput {
     return visitor.visitRoot(this, context);
   }
+  /**
+   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
+   * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
+   * @returns {RootCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   */
   resetCriteria(): RootCriteria<CSchema, Alias> {
     return new RootCriteria(this.schema, this._alias);
   }

@@ -208,12 +208,10 @@ describe('Criteria', () => {
 
       expect(criteriaRoot.select).toEqual(['uuid', 'title']);
     });
-
-    // AQUÍ AÑADIREMOS EL NUEVO TEST PARA selectAll()
   });
 
   describe('Cursor Functionality', () => {
-    const testUuid = 'test-uuid'; // Mover la constante aquí para que sea accesible a todos los 'it'
+    const testUuid = 'test-uuid';
 
     it('should set cursor with composite key correctly', () => {
       criteriaRoot.setCursor(
@@ -256,7 +254,7 @@ describe('Criteria', () => {
         criteriaRoot.setCursor(
           [
             { field: 'uuid', value: testUuid },
-            { field: 'uuid', value: 'another-uuid-for-same-field' }, // Valor diferente, mismo campo
+            { field: 'uuid', value: 'another-uuid-for-same-field' },
           ],
           FilterOperator.GREATER_THAN,
           OrderDirection.ASC,
@@ -264,7 +262,7 @@ describe('Criteria', () => {
       }).toThrow('Cursor fields must be different');
     });
 
-    it('should validate cursor values are not null or undefined', () => {
+    it('should validate cursor values are not undefined but could be null', () => {
       expect(() => {
         criteriaRoot.setCursor(
           [
@@ -274,18 +272,21 @@ describe('Criteria', () => {
           FilterOperator.GREATER_THAN,
           OrderDirection.ASC,
         );
-      }).toThrow('Cursor value for field uuid must be defined');
+      }).not.toThrow();
 
       expect(() => {
         criteriaRoot.setCursor(
           [
             { field: 'uuid', value: testUuid },
-            { field: 'user_uuid', value: null },
+            //@ts-expect-error
+            { field: 'user_uuid', value: undefined },
           ],
           FilterOperator.GREATER_THAN,
           OrderDirection.ASC,
         );
-      }).toThrow('Cursor value for field user_uuid must be defined');
+      }).toThrow(
+        'Cursor value for field user_uuid must be explicitly defined (can be null, but not undefined)',
+      );
     });
   });
 

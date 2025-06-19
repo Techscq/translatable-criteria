@@ -41,6 +41,11 @@ export class OuterJoinCriteria<
       : this.assetFieldOnSchema(parameters.join_field);
     return visitor.visitOuterJoin(this, parameters, context);
   }
+  /**
+   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
+   * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
+   * @returns {OuterJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   */
   resetCriteria(): OuterJoinCriteria<CSchema, Alias> {
     return new OuterJoinCriteria(this.schema, this._alias);
   }

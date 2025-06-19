@@ -363,14 +363,21 @@ Estos métodos manejan los diferentes tipos de uniones. Reciben la instancia del
 
 **Consideraciones para los `visitJoin...`:**
 
-- **Tipo de Join:** Usa el tipo de join (`INNER JOIN`, `LEFT JOIN`, etc.) apropiado.
-- **Tabla y Alias:** Usa `criteria.sourceName` y `criteria.alias` para la tabla unida.
+- **Tipo de Join:** Usa el tipo de join (`INNER JOIN`, `LEFT JOIN`, etc.) apropiado según el método `visit...` específico que se esté implementando.
+- **Tabla y Alias:** Usa `criteria.sourceName` y `criteria.alias` para la tabla a la que se está uniendo (el objeto `criteria` es la instancia de `JoinCriteria` pasada al método).
 - **Condición `ON`:**
-  - Para `SimpleJoin` (one-to-one, one-to-many, many-to-one): Construye la condición `ON` usando `parameters.parent_alias`.`parameters.parent_field` = `criteria.alias`.`parameters.join_field`.
-  - Para `PivotJoin` (many-to-many): Necesitarás dos uniones: una desde la tabla padre a la tabla pivote (`parameters.pivot_source_name`), y otra desde la tabla pivote a la tabla destino (`criteria.sourceName`). Las condiciones `ON` usarán los campos definidos en `parameters.parent_field.pivot_field`, `parameters.parent_field.reference`, `parameters.join_field.pivot_field`, y `parameters.join_field.reference`.
-- **Filtros en el Join:** Si `criteria.rootFilterGroup` (del `JoinCriteria`) tiene filtros, estos deben aplicarse como condiciones adicionales en la cláusula `ON` del join (o como `AND` después del `ON`, dependiendo de la base de datos). Llama a `criteria.rootFilterGroup.accept(this, criteria.alias, context)` para esto.
-- **Selección de Campos del Join:** Añade los campos de `criteria.select` (del `JoinCriteria`) a tu selección principal, usualmente prefijados con `criteria.alias`.
-- **Ordenamiento del Join:** Si `criteria.orders` (del `JoinCriteria`) tiene órdenes, almacénalos para aplicarlos globalmente al final.
+  - Para `SimpleJoin` (relaciones como 'one_to_one', 'one_to_many', 'many_to_one' según lo definido por `parameters.relation_type`): Construye la condición `ON` usando `parameters.parent_alias`.`parameters.parent_field` = `criteria.alias`.`parameters.join_field`.
+  - Para `PivotJoin` (relación 'many_to_many' según lo definido por `parameters.relation_type`): Típicamente necesitarás dos operaciones de join en tu consulta nativa. La primera une la tabla padre (identificada por `parameters.parent_alias`) con la tabla pivote (`parameters.pivot_source_name`) usando `parameters.parent_field.reference` (del padre) y `parameters.parent_field.pivot_field` (del pivote). La segunda une la tabla pivote con la tabla destino unida (`criteria.sourceName` con alias `criteria.alias`) usando `parameters.join_field.pivot_field` (del pivote) y `parameters.join_field.reference` (del destino).
+- **Accediendo a Metadatos:** El objeto `parameters` (de tipo `PivotJoin` o `SimpleJoin`) pasado a estos métodos de visita de join contiene:
+  - `parameters.parent_schema_metadata`: Metadatos del `CriteriaSchema` raíz del criteria padre.
+  - `parameters.join_metadata`: Metadatos de la configuración específica del join en el array `joins` del esquema padre.
+    Los traductores pueden usar estos metadatos para lógica personalizada, como aplicar pistas específicas de la base de datos o manejar condiciones de join personalizadas.
+- **Filtros en el Join:** Si `criteria.rootFilterGroup` (del `JoinCriteria` que se está visitando) tiene filtros, estos deben aplicarse como condiciones adicionales. Esto se hace típicamente añadiéndolos a la cláusula `ON` del join (ej. `... ON condicion AND (filtros_del_join)`) o como condiciones `WHERE` separadas si la base de datos/ORM lo maneja así para uniones externas. Llama a `criteria.rootFilterGroup.accept(this, criteria.alias, context)` para procesar estos filtros.
+- **Selección de Campos del Join:**
+  - Si `criteria.selectAll` (del `JoinCriteria`) es `true`, todos los campos de `criteria.schema.fields` deben añadirse a la selección de la consulta principal, prefijados con `criteria.alias`.
+  - Si `criteria.selectAll` es `false`, solo los campos en `criteria.select` deben añadirse, prefijados con `criteria.alias`.
+- **Ordenamiento del Join:** Si `criteria.orders` (del `JoinCriteria`) tiene reglas de ordenamiento, estas deben ser recolectadas. Todos los órdenes recolectados (de la raíz y de todos los joins) deben ser ordenados globalmente por su `sequenceId` al final del método `visitRoot` antes de ser aplicados a la consulta final, para asegurar un orden de clasificación determinista.
+- **Joins Anidados:** De manera crucial, si el `criteria` (el `JoinCriteria` que se está visitando) tiene a su vez `criteria.joins` definidos (es decir, joins encadenados a partir de un join), debes iterar sobre ellos y llamar recursivamente a `subJoinDetail.criteria.accept(this, subJoinDetail.parameters, context)` para procesar estos joins anidados. El `context` (ej. tu constructor de consultas) se pasa y se modifica.
 
 ### 3.3. `visitFilter`
 
@@ -598,6 +605,7 @@ Esta es más compleja y requiere una coordinación cuidadosa con el ordenamiento
 
 - Para un cursor simple: `WHERE (campo_cursor operador_cursor_traducido valor_cursor)`
 - Para un cursor compuesto: `WHERE ( (campo_orden_primario op_traducido valor_primario_cursor) OR (campo_orden_primario = valor_primario_cursor AND campo_desempate op_traducido valor_desempate_cursor) )`. Ajusta los operadores según la dirección.
+- **Nota sobre NULLs:** Si un `valor_cursor` es `null`, el traductor debe generar el SQL apropiado (ej. condiciones `IS NULL` o `IS NOT NULL`) en lugar de comparaciones directas como `campo = NULL`.
 
 2.  **Aplicar Ordenamiento del Cursor con Prioridad:**
 

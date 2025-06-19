@@ -55,9 +55,9 @@ export class Cursor<
       if (!filter.field) {
         throw new Error('Cursor field must be defined');
       }
-      if (filter.value === undefined || filter.value === null) {
+      if (filter.value === undefined) {
         throw new Error(
-          `Cursor value for field ${filter.field} must be defined`,
+          `Cursor value for field ${String(filter.field)} must be explicitly defined (can be null, but not undefined)`,
         );
       }
     }

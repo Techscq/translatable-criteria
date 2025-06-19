@@ -18,7 +18,7 @@ export type PivotJoin<
   TJoinRelationType extends JoinRelationType,
 > = {
   /** The type of relationship from the parent to the joined entity (e.g., 'many_to_many'). */
-  parent_to_join_relation_type: TJoinRelationType;
+  relation_type: TJoinRelationType;
   /** The source name (e.g., table name) of the parent entity. */
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
@@ -48,6 +48,19 @@ export type PivotJoin<
      */
     reference: FieldOfSchema<JoinSchema>;
   };
+  /**
+   * Optional metadata associated with the parent schema definition.
+   * This can be used by translators to store or access additional,
+   * schema-specific information relevant to the join.
+   */
+  parent_schema_metadata: { [key: string]: any };
+  /**
+   * Optional metadata specifically associated with this join configuration
+   * as defined in the parent schema's `joins` array.
+   * This can be used by translators to store or access additional,
+   * join-specific information.
+   */
+  join_metadata: { [key: string]: any };
 };
 
 /**
@@ -64,7 +77,7 @@ export type SimpleJoin<
   TJoinRelationType extends JoinRelationType,
 > = {
   /** The type of relationship from the parent to the joined entity (e.g., 'one_to_one', 'many_to_one'). */
-  parent_to_join_relation_type: TJoinRelationType;
+  relation_type: TJoinRelationType;
   /** The source name (e.g., table name) of the parent entity. */
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
@@ -81,4 +94,17 @@ export type SimpleJoin<
    * @see FieldOfSchema<JoinSchema>
    */
   join_field: FieldOfSchema<JoinSchema>;
+  /**
+   * Optional metadata associated with the parent schema definition.
+   * This can be used by translators to store or access additional,
+   * schema-specific information relevant to the join.
+   */
+  parent_schema_metadata: { [key: string]: any };
+  /**
+   * Optional metadata specifically associated with this join configuration
+   * as defined in the parent schema's `joins` array.
+   * This can be used by translators to store or access additional,
+   * join-specific information.
+   */
+  join_metadata: { [key: string]: any };
 };

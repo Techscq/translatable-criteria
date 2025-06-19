@@ -21,15 +21,15 @@ export const UserSchema = GetTypedCriteriaSchema({
   joins: [
     {
       alias: 'permissions',
-      join_relation_type: 'many_to_many',
+      relation_type: 'many_to_many',
     },
     {
       alias: 'addresses',
-      join_relation_type: 'one_to_many',
+      relation_type: 'one_to_many',
     },
     {
       alias: 'posts',
-      join_relation_type: 'one_to_many',
+      relation_type: 'one_to_many',
     },
   ],
 });
@@ -62,8 +62,8 @@ export const PostSchema = GetTypedCriteriaSchema({
     'metadata',
   ],
   joins: [
-    { alias: 'comments', join_relation_type: 'one_to_many' },
-    { alias: 'publisher', join_relation_type: 'many_to_one' },
+    { alias: 'comments', relation_type: 'one_to_many' },
+    { alias: 'publisher', relation_type: 'many_to_one' },
   ],
 });
 export type PostSchema = typeof PostSchema;
@@ -79,8 +79,8 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
   alias: ['comments', 'comment'],
   fields: ['uuid', 'comment_text', 'user_uuid', 'post_uuid', 'created_at'],
   joins: [
-    { alias: 'post', join_relation_type: 'many_to_one' },
-    { alias: 'user', join_relation_type: 'many_to_one' },
+    { alias: 'post', relation_type: 'many_to_one' },
+    { alias: 'user', relation_type: 'many_to_one' },
   ],
 });
 export type PostCommentSchema = typeof PostCommentSchema;
@@ -96,7 +96,7 @@ export const PermissionSchema = GetTypedCriteriaSchema({
   joins: [
     {
       alias: 'users',
-      join_relation_type: 'many_to_many',
+      relation_type: 'many_to_many',
     },
   ],
 });
@@ -113,7 +113,7 @@ export const AddressSchema = GetTypedCriteriaSchema({
   joins: [
     {
       alias: 'user',
-      join_relation_type: 'many_to_one',
+      relation_type: 'many_to_one',
     },
   ],
 });
