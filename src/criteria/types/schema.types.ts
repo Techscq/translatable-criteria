@@ -54,6 +54,14 @@ export type CriteriaSchema<
   /** An array of configurations for entities that can be joined from this entity. */
   joins: ReadonlyArray<SchemaJoins<JoinsAlias>>;
   /**
+   * The name of the field that uniquely identifies an entity of this schema.
+   * This field **must** be one of the names listed in the `fields` array.
+   * @example 'uuid'
+   * @example 'id'
+   */
+  identifier_field: TFields[number];
+
+  /**
    * Optional metadata associated with the entire schema definition.
    * This can be used to store arbitrary, translator-specific information
    * or configuration relevant to the entity this schema represents.
@@ -74,6 +82,7 @@ export type CriteriaSchema<
  *   source_name: 'users_table',
  *   alias: ['user', 'u'],
  *   fields: ['id', 'name', 'email'],
+ *   identifier_field: 'id', // Must be one of 'id', 'name', or 'email'
  *   joins: [{ alias: 'posts', relation_type: 'one_to_many' }]
  * });
  */

@@ -23,8 +23,8 @@ import type {
   SimpleJoinInput,
 } from './types/join-input.types.js';
 import type { PivotJoin, SimpleJoin } from './types/join-parameter.types.js';
-//import { CriteriaFactory } from './criteria-factory.js';
 import type { FilterGroup } from './filter/filter-group.js';
+
 /**
  * Abstract base class for constructing query criteria.
  * It provides a fluent API for defining filters, joins, selections, ordering, and pagination.
@@ -34,8 +34,9 @@ import type { FilterGroup } from './filter/filter-group.js';
  * @template CurrentAlias - The selected alias for the entity from its schema.
  */
 export abstract class Criteria<
-  TSchema extends CriteriaSchema,
-  CurrentAlias extends SelectedAliasOf<TSchema> = SelectedAliasOf<TSchema>,
+  const TSchema extends CriteriaSchema,
+  const CurrentAlias extends
+    SelectedAliasOf<TSchema> = SelectedAliasOf<TSchema>,
 > implements ICriteriaBase<TSchema, CurrentAlias>
 {
   private readonly _filterManager = new CriteriaFilterManager<TSchema>();
@@ -59,29 +60,65 @@ export abstract class Criteria<
         FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN
       >
     | undefined;
+
+  protected readonly _schema: TSchema;
   /**
    * Initializes a new instance of the Criteria class.
    * @param {TSchema} schema - The schema definition for the entity.
    * @param {CurrentAlias} _alias - The alias to use for this entity in the query.
    * @throws {Error} If the provided alias is not supported by the schema.
+   * @throws {Error} If the schema's identifier_field is not one of its defined fields.
    * @protected
    */
   constructor(
-    protected readonly schema: TSchema,
+    schema: TSchema['identifier_field'] extends TSchema['fields'][number]
+      ? TSchema
+      : `Schema identifier_field '${TSchema['identifier_field']}' must be one of the schema's defined fields. Schema: ${TSchema['source_name']}`,
     protected _alias: CurrentAlias,
   ) {
+    if (typeof schema === 'string') {
+      throw new Error(`Invalid Schema: ${schema}`);
+    }
     if (!schema.alias.includes(this._alias))
       throw new Error(
         `Unsupported alia ${this._alias} for schema ${schema.source_name}`,
       );
+    if (!schema.fields.includes(schema.identifier_field)) {
+      throw new Error(
+        `Schema identifier_field '${String(schema.identifier_field)}' must be one of the schema's defined fields. Schema: ${schema.source_name}`,
+      );
+    }
+    this._schema = schema as TSchema;
 
     this._source_name = schema.source_name;
   }
 
+  private get schema(): TSchema {
+    return this._schema;
+  }
+
+  /**
+   * Gets the metadata associated with the root schema of this criteria.
+   * @returns {TSchema['metadata']} The metadata object from the schema, which can be undefined.
+   * @remarks This is intended primarily for use by translators.
+   */
+  get schemaMetadata(): TSchema['metadata'] {
+    return this.schema.metadata;
+  }
+
+  /**
+   * Gets the name of the identifier field for the current schema.
+   * @returns {FieldOfSchema<TSchema>} The name of the identifier field.
+   */
+  get identifierField(): FieldOfSchema<TSchema> {
+    return this.schema.identifier_field as FieldOfSchema<TSchema>;
+  }
+
   /**
    * Gets the currently selected fields.
-   * If `_selectAll` is true, it returns all fields from the schema.
-   * Otherwise, it returns the fields explicitly set via `setSelect`.
+   * If `_selectAll` is true (default or after `resetSelect()`), it returns all fields from the schema.
+   * If `_selectAll` is false (after `setSelect()`), it returns the fields explicitly set by the user,
+   * plus the schema's `identifier_field` (which is added implicitly by `setSelect`).
    * @returns {Array<FieldOfSchema<TSchema>>} An array of selected field names.
    */
   get select(): Array<FieldOfSchema<TSchema>> {
@@ -92,11 +129,11 @@ export abstract class Criteria<
   }
   /**
    * Resets the selection to include all fields from the schema.
-   * Subsequent calls to `get select()` will return all schema fields
+   * Later calls to `get select()` will return all schema fields
    * until `setSelect()` is called again.
    * @returns {this} The current criteria instance for chaining.
    */
-  resetSelect() {
+  resetSelect(): this {
     this._selectAll = true;
     this._select.clear();
     return this;
@@ -111,6 +148,9 @@ export abstract class Criteria<
   /**
    * Specifies which fields to select for the entity.
    * Calling this method sets `selectAll` to false.
+   * The schema's `identifier_field` will always be included in the selection
+   * if it's not already present in `selectFields`.
+   * If `selectFields` is empty, only the `identifier_field` will be selected.
    * @param {Array<FieldOfSchema<TSchema>>} selectFields - An array of field names to select.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If any of the specified fields are not defined in the schema.
@@ -119,10 +159,9 @@ export abstract class Criteria<
     for (const field of selectFields) {
       this.assetFieldOnSchema(field);
     }
-    if (selectFields.length !== this.schema.fields.length) {
-      this._selectAll = false;
-      this._select = new Set(selectFields);
-    }
+    this._selectAll = false;
+    this._select = new Set(selectFields);
+    this._select.add(this.schema.identifier_field as FieldOfSchema<TSchema>);
     return this;
   }
   /**

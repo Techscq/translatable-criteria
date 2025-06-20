@@ -47,6 +47,42 @@ describe('Criteria', () => {
       expect(criteriaRoot.orders).toEqual([]);
       expect(criteriaRoot.joins).toEqual([]);
     });
+
+    it('should correctly expose the identifierField from the schema', () => {
+      expect(criteriaRoot.identifierField).toBe(PostSchema.identifier_field);
+    });
+
+    it('should correctly expose schemaMetadata from the schema', () => {
+      const schemaWithMetadata = GetTypedCriteriaSchema({
+        ...PostSchema,
+        metadata: { customInfo: 'testValue' },
+      });
+      const criteriaWithMeta = new RootCriteria(schemaWithMetadata, 'posts');
+      expect(criteriaWithMeta.schemaMetadata).toEqual({
+        customInfo: 'testValue',
+      });
+    });
+
+    it('should have undefined schemaMetadata if not present in schema', () => {
+      expect(criteriaRoot.schemaMetadata).toBeUndefined();
+    });
+
+    it('should throw error if identifier_field is not in schema fields during construction', () => {
+      const invalidSchema = {
+        ...UserSchema,
+        identifier_field: 'non_existent_field',
+      };
+      expect(
+        () =>
+          new RootCriteria(
+            // @ts-expect-error Testing invalid schema
+            invalidSchema,
+            'users',
+          ),
+      ).toThrow(
+        `Schema identifier_field 'non_existent_field' must be one of the schema's defined fields. Schema: user`,
+      );
+    });
   });
 
   describe('Filter Logic', () => {
@@ -166,29 +202,51 @@ describe('Criteria', () => {
   });
 
   describe('Selection Logic', () => {
-    it('should clear specific selections and revert to selectAll when selectAll() is called after setSelect', () => {
+    it('should clear specific selections and revert to selectAll when resetSelect() is called after setSelect', () => {
       criteriaRoot.setSelect(['uuid', 'title']);
-      expect(criteriaRoot.select).toEqual(['uuid', 'title']);
+      expect(criteriaRoot.select).toEqual(
+        expect.arrayContaining(['uuid', 'title']),
+      );
+      expect(criteriaRoot.select).toHaveLength(2);
 
       criteriaRoot.resetSelect();
       expect(criteriaRoot.select).toEqual(PostSchema.fields);
+      expect(criteriaRoot.selectAll).toBe(true);
     });
 
     it('should select all fields by default', () => {
-      expect(criteriaRoot.select).toEqual([
-        'uuid',
-        'categories',
-        'title',
-        'body',
-        'user_uuid',
-        'created_at',
-        'metadata',
-      ]);
+      expect(criteriaRoot.selectAll).toBe(true);
+      expect(criteriaRoot.select).toEqual(PostSchema.fields);
     });
 
-    it('should allow selecting specific fields', () => {
-      criteriaRoot.setSelect(['uuid', 'title']);
-      expect(criteriaRoot.select).toEqual(['uuid', 'title']);
+    it('should allow selecting specific fields and implicitly add identifierField', () => {
+      criteriaRoot.setSelect(['title', 'body']);
+      expect(criteriaRoot.selectAll).toBe(false);
+      expect(criteriaRoot.select).toEqual(
+        expect.arrayContaining(['title', 'body', PostSchema.identifier_field]),
+      );
+      expect(criteriaRoot.select).toHaveLength(3);
+    });
+
+    it('should select only identifierField if setSelect is called with an empty array', () => {
+      criteriaRoot.setSelect([]);
+      expect(criteriaRoot.selectAll).toBe(false);
+      expect(criteriaRoot.select).toEqual([PostSchema.identifier_field]);
+    });
+
+    it('should select only identifierField if setSelect is called with only the identifierField', () => {
+      criteriaRoot.setSelect([PostSchema.identifier_field]);
+      expect(criteriaRoot.selectAll).toBe(false);
+      expect(criteriaRoot.select).toEqual([PostSchema.identifier_field]);
+    });
+
+    it('should not duplicate identifierField if explicitly included in setSelect', () => {
+      criteriaRoot.setSelect(['title', PostSchema.identifier_field]);
+      expect(criteriaRoot.selectAll).toBe(false);
+      expect(criteriaRoot.select).toEqual(
+        expect.arrayContaining(['title', PostSchema.identifier_field]),
+      );
+      expect(criteriaRoot.select).toHaveLength(2);
     });
 
     it('should validate selected fields exist in schema', () => {
@@ -202,11 +260,15 @@ describe('Criteria', () => {
 
     it('should maintain selected fields after other operations', () => {
       criteriaRoot
-        .setSelect(['uuid', 'title'])
+        .setSelect(['title', 'body'])
         .where({ field: 'uuid', operator: FilterOperator.EQUALS, value: '1' })
         .orderBy('uuid', OrderDirection.ASC);
 
-      expect(criteriaRoot.select).toEqual(['uuid', 'title']);
+      expect(criteriaRoot.selectAll).toBe(false);
+      expect(criteriaRoot.select).toEqual(
+        expect.arrayContaining(['title', 'body', PostSchema.identifier_field]),
+      );
+      expect(criteriaRoot.select).toHaveLength(3);
     });
   });
 
@@ -600,7 +662,10 @@ describe('Criteria', () => {
         );
 
       const cursor = criteria.cursor;
-      expect(criteria.select).toEqual(['uuid', 'title', 'user_uuid']);
+      expect(criteria.select).toEqual(
+        expect.arrayContaining(['uuid', 'title', 'user_uuid']),
+      );
+      expect(criteria.select).toHaveLength(3);
       expect(criteria.take).toBe(10);
       expect(cursor).toBeDefined();
       if (cursor) {
@@ -612,7 +677,25 @@ describe('Criteria', () => {
         typeof PostCommentSchema,
         'comments'
       >;
-      expect(joinCriteria?.select).toEqual(['uuid', 'comment_text']);
+      expect(joinCriteria?.select).toEqual(
+        expect.arrayContaining([
+          'uuid',
+          'comment_text',
+          PostCommentSchema.identifier_field,
+        ]),
+      );
+      expect(joinCriteria?.select).toHaveLength(2);
     });
   });
 });
+
+/**
+ * Helper function to create a typed schema for testing.
+ * This is a simplified version of GetTypedCriteriaSchema for test purposes
+ * if the main one causes issues with complex generic inference in tests.
+ */
+function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(
+  schema: TInput,
+): TInput {
+  return schema;
+}

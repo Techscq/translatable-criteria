@@ -27,6 +27,18 @@ export interface ICriteriaBase<
   CurrentAlias extends SelectedAliasOf<TSchema>,
 > {
   /**
+   * Gets the metadata associated with the root schema of this criteria.
+   * @returns {TSchema['metadata']} The metadata object from the schema, which can be undefined.
+   */
+  get schemaMetadata(): TSchema['metadata'];
+
+  /**
+   * Gets the name of the identifier field for the current schema.
+   * @returns {FieldOfSchema<TSchema>} The name of the identifier field.
+   */
+  get identifierField(): FieldOfSchema<TSchema>;
+
+  /**
    * Configures the criteria to select all available fields from the root entity
    * and any joined entities that also have `selectAll()` called or by default.
    * This overrides any previous specific selections made by `setSelect()`.

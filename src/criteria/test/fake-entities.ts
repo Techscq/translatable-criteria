@@ -18,6 +18,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'user',
   alias: ['users', 'user', 'publisher'],
   fields: ['uuid', 'email', 'username', 'created_at'],
+  identifier_field: 'uuid',
   joins: [
     {
       alias: 'permissions',
@@ -52,6 +53,7 @@ export interface Post extends EntityBase {
 export const PostSchema = GetTypedCriteriaSchema({
   source_name: 'post',
   alias: ['posts', 'post'],
+  identifier_field: 'uuid',
   fields: [
     'uuid',
     'categories',
@@ -78,6 +80,7 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
   source_name: 'post_comment',
   alias: ['comments', 'comment'],
   fields: ['uuid', 'comment_text', 'user_uuid', 'post_uuid', 'created_at'],
+  identifier_field: 'uuid',
   joins: [
     { alias: 'post', relation_type: 'many_to_one' },
     { alias: 'user', relation_type: 'many_to_one' },
@@ -93,6 +96,7 @@ export const PermissionSchema = GetTypedCriteriaSchema({
   source_name: 'permission',
   alias: ['permissions', 'permission'],
   fields: ['uuid', 'name', 'created_at'],
+  identifier_field: 'uuid',
   joins: [
     {
       alias: 'users',
@@ -110,6 +114,7 @@ export const AddressSchema = GetTypedCriteriaSchema({
   source_name: 'address',
   alias: ['addresses', 'address'],
   fields: ['uuid', 'direction', 'user_uuid', 'created_at'],
+  identifier_field: 'uuid',
   joins: [
     {
       alias: 'user',
@@ -164,6 +169,7 @@ export interface DomainEvent<T extends { [key: string]: any }> {
 export const DomainEventsSchema = GetTypedCriteriaSchema({
   source_name: 'event',
   alias: ['event', 'events'],
+  identifier_field: 'id',
   fields: [
     'id',
     'event_type',
