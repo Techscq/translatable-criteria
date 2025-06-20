@@ -4,7 +4,7 @@ import type {
   SelectedAliasOf,
 } from '../types/schema.types.js';
 import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
-import { Criteria } from '../criteria.js';
+import { Criteria, type ValidSchema } from '../criteria.js';
 import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 
 /**
@@ -48,6 +48,9 @@ export class InnerJoinCriteria<
    * @returns {InnerJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
    */
   resetCriteria(): InnerJoinCriteria<CSchema, Alias> {
-    return new InnerJoinCriteria(this.schema, this._alias);
+    return new InnerJoinCriteria(
+      this.schema as ValidSchema<CSchema>,
+      this._alias,
+    );
   }
 }

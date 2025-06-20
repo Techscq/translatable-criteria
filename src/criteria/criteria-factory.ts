@@ -3,6 +3,7 @@ import type { CriteriaSchema, SelectedAliasOf } from './types/schema.types.js';
 import { InnerJoinCriteria } from './join/inner.join-criteria.js';
 import { LeftJoinCriteria } from './join/left.join-criteria.js';
 import { OuterJoinCriteria } from './join/outer.join-criteria.js';
+import type { ValidSchema } from './criteria.js';
 
 /**
  * Provides static methods for creating instances of different types of `Criteria`.
@@ -26,7 +27,7 @@ export class CriteriaFactory {
   static GetCriteria<
     CSchema extends CriteriaSchema,
     Alias extends SelectedAliasOf<CSchema>,
-  >(schema: CSchema, alias: Alias): RootCriteria<CSchema, Alias> {
+  >(schema: ValidSchema<CSchema>, alias: Alias): RootCriteria<CSchema, Alias> {
     return new RootCriteria(schema, alias);
   }
 
@@ -47,7 +48,10 @@ export class CriteriaFactory {
   static GetInnerJoinCriteria<
     CSchema extends CriteriaSchema,
     Alias extends SelectedAliasOf<CSchema>,
-  >(schema: CSchema, alias: Alias): InnerJoinCriteria<CSchema, Alias> {
+  >(
+    schema: ValidSchema<CSchema>,
+    alias: Alias,
+  ): InnerJoinCriteria<CSchema, Alias> {
     return new InnerJoinCriteria(schema, alias);
   }
 
@@ -67,7 +71,10 @@ export class CriteriaFactory {
   static GetLeftJoinCriteria<
     CSchema extends CriteriaSchema,
     Alias extends SelectedAliasOf<CSchema>,
-  >(schema: CSchema, alias: Alias): LeftJoinCriteria<CSchema, Alias> {
+  >(
+    schema: ValidSchema<CSchema>,
+    alias: Alias,
+  ): LeftJoinCriteria<CSchema, Alias> {
     return new LeftJoinCriteria(schema, alias);
   }
 
@@ -87,7 +94,10 @@ export class CriteriaFactory {
   static GetOuterJoinCriteria<
     CSchema extends CriteriaSchema,
     Alias extends SelectedAliasOf<CSchema>,
-  >(schema: CSchema, alias: Alias): OuterJoinCriteria<CSchema, Alias> {
+  >(
+    schema: ValidSchema<CSchema>,
+    alias: Alias,
+  ): OuterJoinCriteria<CSchema, Alias> {
     return new OuterJoinCriteria(schema, alias);
   }
 }

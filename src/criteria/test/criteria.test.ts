@@ -4,7 +4,7 @@ import { OrderDirection } from '../order/order.js';
 import { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { StoredJoinDetails } from '../types/join-utility.types.js';
-import type { CriteriaSchema, SelectedAliasOf } from '../types/schema.types.js';
+
 import { FilterOperator, LogicalOperator } from '../types/operator.types.js';
 import {
   PermissionSchema,
@@ -12,16 +12,26 @@ import {
   PostSchema,
   UserSchema,
 } from './fake-entities.js';
+import {
+  type CriteriaSchema,
+  GetTypedCriteriaSchema,
+  type SelectedAliasOf,
+} from '../types/schema.types.js';
 
 const testJoinsData = (
   joinDetails: StoredJoinDetails<CriteriaSchema>,
   joinParameter: { join_field: string | object; parent_field: string | object },
-  criteria: RootCriteria<CriteriaSchema, SelectedAliasOf<CriteriaSchema>>,
+  parentCriteria: RootCriteria<CriteriaSchema, SelectedAliasOf<CriteriaSchema>>,
 ) => {
   expect(joinDetails.parameters.join_field).toBe(joinParameter.join_field);
   expect(joinDetails.parameters.parent_field).toBe(joinParameter.parent_field);
-  expect(joinDetails.parameters.parent_alias).toBe(criteria.alias);
-  expect(joinDetails.parameters.parent_source_name).toBe(criteria.sourceName);
+  expect(joinDetails.parameters.parent_alias).toBe(parentCriteria.alias);
+  expect(joinDetails.parameters.parent_source_name).toBe(
+    parentCriteria.sourceName,
+  );
+  expect(joinDetails.parameters.parent_identifier).toBe(
+    parentCriteria.identifierField,
+  );
 };
 
 describe('Criteria', () => {
@@ -418,7 +428,7 @@ describe('Criteria', () => {
       );
     });
 
-    it('should add an inner join', () => {
+    it('should add an inner join and correctly populate parent_identifier', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema, 'publisher');
       const joinParameter = {
         parent_field: 'user_uuid',
@@ -440,7 +450,36 @@ describe('Criteria', () => {
       }
     });
 
-    it('should add multiple joins', () => {
+    it('should add a many-to-many join and correctly populate parent_identifier', () => {
+      const userCriteriaRoot = new RootCriteria(UserSchema, 'users');
+      const permissionJoinCriteria = new InnerJoinCriteria(
+        PermissionSchema,
+        'permissions',
+      );
+      const joinParameter = {
+        pivot_source_name: 'user_permission_pivot',
+        parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
+        join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
+      } as const;
+
+      userCriteriaRoot.join(permissionJoinCriteria, joinParameter);
+
+      const joinsArray = userCriteriaRoot.joins;
+      expect(joinsArray.length).toBe(1);
+      const joinEntry = joinsArray[0];
+      expect(joinEntry).toBeDefined();
+      if (joinEntry) {
+        expect(joinEntry.criteria.alias).toBe('permissions');
+        expect(joinEntry.criteria).toBeInstanceOf(InnerJoinCriteria);
+        testJoinsData(joinEntry, joinParameter, userCriteriaRoot);
+        expect(joinEntry.criteria).toBe(permissionJoinCriteria);
+        expect(joinEntry.parameters.parent_identifier).toBe(
+          UserSchema.identifier_field,
+        );
+      }
+    });
+
+    it('should add multiple joins and correctly populate parent_identifier for each', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema, 'publisher');
       const userJoinParameter = {
         parent_field: 'user_uuid',
@@ -483,7 +522,7 @@ describe('Criteria', () => {
       }
     });
 
-    it('should replace a join if the same alias is used', () => {
+    it('should replace a join if the same alias is used and check parent_identifier', () => {
       const userJoinCriteria1 = new InnerJoinCriteria(UserSchema, 'publisher');
       const userJoinCriteria2 = new LeftJoinCriteria(UserSchema, 'publisher');
 
@@ -688,14 +727,3 @@ describe('Criteria', () => {
     });
   });
 });
-
-/**
- * Helper function to create a typed schema for testing.
- * This is a simplified version of GetTypedCriteriaSchema for test purposes
- * if the main one causes issues with complex generic inference in tests.
- */
-function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(
-  schema: TInput,
-): TInput {
-  return schema;
-}

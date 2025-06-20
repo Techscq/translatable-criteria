@@ -25,6 +25,10 @@ import type {
 import type { PivotJoin, SimpleJoin } from './types/join-parameter.types.js';
 import type { FilterGroup } from './filter/filter-group.js';
 
+export type ValidSchema<CSchema extends CriteriaSchema> =
+  CSchema['identifier_field'] extends CSchema['fields'][number]
+    ? CSchema
+    : `Schema identifier_field '${CSchema['identifier_field']}' must be one of the schema's defined fields. Schema: ${CSchema['source_name']}`;
 /**
  * Abstract base class for constructing query criteria.
  * It provides a fluent API for defining filters, joins, selections, ordering, and pagination.
@@ -71,9 +75,7 @@ export abstract class Criteria<
    * @protected
    */
   constructor(
-    schema: TSchema['identifier_field'] extends TSchema['fields'][number]
-      ? TSchema
-      : `Schema identifier_field '${TSchema['identifier_field']}' must be one of the schema's defined fields. Schema: ${TSchema['source_name']}`,
+    schema: ValidSchema<TSchema>,
     protected _alias: CurrentAlias,
   ) {
     if (typeof schema === 'string') {
@@ -93,7 +95,7 @@ export abstract class Criteria<
     this._source_name = schema.source_name;
   }
 
-  private get schema(): TSchema {
+  protected get schema(): TSchema {
     return this._schema;
   }
 
@@ -385,6 +387,7 @@ export abstract class Criteria<
         this.schema.joins.find((join) => join.alias === criteriaToJoin.alias)
           ?.metadata ?? {},
       parent_schema_metadata: this.schema.metadata ?? {},
+      parent_identifier: this.identifierField,
     };
     this._joinManager.addJoin(criteriaToJoin, fullJoinParameters);
     return this;

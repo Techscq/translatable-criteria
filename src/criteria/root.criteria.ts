@@ -1,4 +1,4 @@
-import { Criteria } from './criteria.js';
+import { Criteria, type ValidSchema } from './criteria.js';
 import type { CriteriaSchema, SelectedAliasOf } from './types/schema.types.js';
 import type { ICriteriaVisitor } from './types/visitor-interface.types.js';
 
@@ -38,6 +38,6 @@ export class RootCriteria<
    * @returns {RootCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
    */
   resetCriteria(): RootCriteria<CSchema, Alias> {
-    return new RootCriteria(this.schema, this._alias);
+    return new RootCriteria(this.schema as ValidSchema<CSchema>, this._alias);
   }
 }
