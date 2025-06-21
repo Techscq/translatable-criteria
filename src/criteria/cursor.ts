@@ -78,4 +78,8 @@ export class Cursor<
     this.filters = filterArray as typeof this.filters;
     this.order = order;
   }
+
+  get operator() {
+    return this.filters[0].operator;
+  }
 }

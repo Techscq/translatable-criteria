@@ -26,24 +26,27 @@ export class Filter<T extends string, Operator extends FilterOperator>
     return this.primitive.value;
   }
 
-  accept<
-    TranslationContext,
-    TranslationOutput = TranslationContext,
-    TFilterVisitorOutput extends any = any,
-  >(
-    visitor: ICriteriaVisitor<
-      TranslationContext,
-      TranslationOutput,
-      TFilterVisitorOutput
-    >,
+  /**
+   * Accepts a visitor and calls the appropriate visit method.
+   * @template TranslationContext The type of the context object.
+   * @template TFilterVisitorOutput The specific return type expected from `visitFilter`.
+   * @param visitor The visitor implementation.
+   * @param currentAlias The alias of the current entity being processed.
+   * @param context The mutable context object for the translation.
+   * @returns The result of the visitor processing this filter.
+   */
+  public accept<TranslationContext, TFilterVisitorOutput extends any>(
+    visitor: ICriteriaVisitor<TranslationContext, TFilterVisitorOutput>,
     currentAlias: string,
+    context: TranslationContext,
   ): TFilterVisitorOutput {
-    return visitor.visitFilter(this, currentAlias);
+    return visitor.visitFilter(this, currentAlias, context);
   }
 
-  toPrimitive(): FilterPrimitive<T, Operator> {
+  public toPrimitive(): FilterPrimitive<T, Operator> {
     return this.primitive;
   }
+
   private isString(value: any): value is string {
     return typeof value === 'string';
   }

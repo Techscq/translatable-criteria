@@ -3,7 +3,6 @@ import type {
   CriteriaSchema,
   FieldOfSchema,
   JoinRelationType,
-  SelectedAliasOf,
 } from './schema.types.js';
 
 import type { FilterPrimitive } from '../filter/types/filter-primitive.types.js';
@@ -64,13 +63,13 @@ export interface IJoinManager<CSchema extends CriteriaSchema> {
   /**
    * Adds a join configuration to the Criteria.
    * @template JoinSchema - The {@link CriteriaSchema} of the entity being joined.
-   * @param {AnyJoinCriteria<JoinSchema, SelectedAliasOf<JoinSchema>>} criteriaToJoin -
+   * @param {AnyJoinCriteria<JoinSchema>} criteriaToJoin -
    *   The criteria instance representing the entity to join (e.g., InnerJoinCriteria, LeftJoinCriteria).
    * @param {PivotJoin<CSchema, JoinSchema, JoinRelationType> | SimpleJoin<CSchema, JoinSchema, JoinRelationType>} joinParameter -
    *   The fully resolved parameters defining how the join should be performed.
    */
   addJoin<JoinSchema extends CriteriaSchema>(
-    criteriaToJoin: AnyJoinCriteria<JoinSchema, SelectedAliasOf<JoinSchema>>,
+    criteriaToJoin: AnyJoinCriteria<JoinSchema>,
     joinParameter:
       | PivotJoin<CSchema, JoinSchema, JoinRelationType>
       | SimpleJoin<CSchema, JoinSchema, JoinRelationType>,

@@ -1,10 +1,3 @@
-import { RootCriteria } from '../root.criteria.js';
-import { FilterGroup } from '../filter/filter-group.js';
-import { OrderDirection } from '../order/order.js';
-import { InnerJoinCriteria } from '../join/inner.join-criteria.js';
-import { LeftJoinCriteria } from '../join/left.join-criteria.js';
-import type { StoredJoinDetails } from '../types/join-utility.types.js';
-
 import { FilterOperator, LogicalOperator } from '../types/operator.types.js';
 import {
   PermissionSchema,
@@ -15,13 +8,18 @@ import {
 import {
   type CriteriaSchema,
   GetTypedCriteriaSchema,
-  type SelectedAliasOf,
 } from '../types/schema.types.js';
+import { type StoredJoinDetails } from '../types/join-utility.types.js';
+import { RootCriteria } from '../root.criteria.js';
+import { FilterGroup } from '../filter/filter-group.js';
+import { OrderDirection } from '../order/order.js';
+import { InnerJoinCriteria } from '../join/inner.join-criteria.js';
+import { LeftJoinCriteria } from '../join/left.join-criteria.js';
 
 const testJoinsData = (
   joinDetails: StoredJoinDetails<CriteriaSchema>,
   joinParameter: { join_field: string | object; parent_field: string | object },
-  parentCriteria: RootCriteria<CriteriaSchema, SelectedAliasOf<CriteriaSchema>>,
+  parentCriteria: RootCriteria<CriteriaSchema>,
 ) => {
   expect(joinDetails.parameters.join_field).toBe(joinParameter.join_field);
   expect(joinDetails.parameters.parent_field).toBe(joinParameter.parent_field);
@@ -35,10 +33,10 @@ const testJoinsData = (
 };
 
 describe('Criteria', () => {
-  let criteriaRoot: RootCriteria<typeof PostSchema, 'posts'>;
+  let criteriaRoot: RootCriteria<typeof PostSchema>;
 
   beforeEach(() => {
-    criteriaRoot = new RootCriteria(PostSchema, 'posts');
+    criteriaRoot = new RootCriteria(PostSchema);
   });
 
   describe('Initialization and Defaults', () => {
@@ -67,7 +65,7 @@ describe('Criteria', () => {
         ...PostSchema,
         metadata: { customInfo: 'testValue' },
       });
-      const criteriaWithMeta = new RootCriteria(schemaWithMetadata, 'posts');
+      const criteriaWithMeta = new RootCriteria(schemaWithMetadata);
       expect(criteriaWithMeta.schemaMetadata).toEqual({
         customInfo: 'testValue',
       });
@@ -87,7 +85,6 @@ describe('Criteria', () => {
           new RootCriteria(
             // @ts-expect-error Testing invalid schema
             invalidSchema,
-            'users',
           ),
       ).toThrow(
         `Schema identifier_field 'non_existent_field' must be one of the schema's defined fields. Schema: user`,
@@ -406,15 +403,8 @@ describe('Criteria', () => {
   });
 
   describe('Join Functionality', () => {
-    it('should throw an error if join configuration for alias is not found in schema', () => {
-      expect(() => {
-        // @ts-expect-error testing invalid join_alias type
-        new InnerJoinCriteria(UserSchema, 'non_existent_join_alias');
-      }).toThrow('Unsupported alia non_existent_join_alias for schema user');
-    });
-
     it('should throw an error if parent_field in joinParameter is not in parent schema', () => {
-      const userJoinCriteria = new InnerJoinCriteria(UserSchema, 'publisher');
+      const userJoinCriteria = new InnerJoinCriteria(UserSchema);
       const joinParameter = {
         parent_field: 'invalid_parent_field',
         join_field: 'uuid',
@@ -422,20 +412,20 @@ describe('Criteria', () => {
 
       expect(() => {
         // @ts-expect-error testing invalid parent_field type
-        criteriaRoot.join(userJoinCriteria, joinParameter);
+        criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
       }).toThrow(
         "The field 'invalid_parent_field' is not defined in the schema 'post'.",
       );
     });
 
     it('should add an inner join and correctly populate parent_identifier', () => {
-      const userJoinCriteria = new InnerJoinCriteria(UserSchema, 'publisher');
+      const userJoinCriteria = new InnerJoinCriteria(UserSchema);
       const joinParameter = {
         parent_field: 'user_uuid',
         join_field: 'uuid',
       } as const;
 
-      criteriaRoot.join(userJoinCriteria, joinParameter);
+      criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -443,7 +433,7 @@ describe('Criteria', () => {
       const joinEntry = joinsArray[0];
       expect(joinEntry).toBeDefined();
       if (joinEntry) {
-        expect(joinEntry.criteria.alias).toBe('publisher');
+        expect(joinEntry.parameters.join_alias).toBe('publisher');
         expect(joinEntry.criteria).toBeInstanceOf(InnerJoinCriteria);
         testJoinsData(joinEntry, joinParameter, criteriaRoot);
         expect(joinEntry.criteria).toBe(userJoinCriteria);
@@ -451,18 +441,19 @@ describe('Criteria', () => {
     });
 
     it('should add a many-to-many join and correctly populate parent_identifier', () => {
-      const userCriteriaRoot = new RootCriteria(UserSchema, 'users');
-      const permissionJoinCriteria = new InnerJoinCriteria(
-        PermissionSchema,
-        'permissions',
-      );
+      const userCriteriaRoot = new RootCriteria(UserSchema);
+      const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
       const joinParameter = {
         pivot_source_name: 'user_permission_pivot',
         parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
         join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
       } as const;
 
-      userCriteriaRoot.join(permissionJoinCriteria, joinParameter);
+      userCriteriaRoot.join(
+        'permissions',
+        permissionJoinCriteria,
+        joinParameter,
+      );
 
       const joinsArray = userCriteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -480,33 +471,30 @@ describe('Criteria', () => {
     });
 
     it('should add multiple joins and correctly populate parent_identifier for each', () => {
-      const userJoinCriteria = new InnerJoinCriteria(UserSchema, 'publisher');
+      const userJoinCriteria = new InnerJoinCriteria(UserSchema);
       const userJoinParameter = {
         parent_field: 'user_uuid',
         join_field: 'uuid',
       } as const;
 
-      const commentJoinCriteria = new LeftJoinCriteria(
-        PostCommentSchema,
-        'comments',
-      );
+      const commentJoinCriteria = new LeftJoinCriteria(PostCommentSchema);
       const commentJoinParameter = {
         parent_field: 'uuid',
         join_field: 'post_uuid',
       } as const;
 
       criteriaRoot
-        .join(userJoinCriteria, userJoinParameter)
-        .join(commentJoinCriteria, commentJoinParameter);
+        .join('publisher', userJoinCriteria, userJoinParameter)
+        .join('comments', commentJoinCriteria, commentJoinParameter);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(2);
 
       const publisherJoin = joinsArray.find(
-        (entry) => entry.criteria.alias === 'publisher',
+        (entry) => entry.parameters.join_alias === 'publisher',
       );
       const commentsJoin = joinsArray.find(
-        (entry) => entry.criteria.alias === 'comments',
+        (entry) => entry.parameters.join_alias === 'comments',
       );
 
       expect(publisherJoin).toBeDefined();
@@ -523,8 +511,8 @@ describe('Criteria', () => {
     });
 
     it('should replace a join if the same alias is used and check parent_identifier', () => {
-      const userJoinCriteria1 = new InnerJoinCriteria(UserSchema, 'publisher');
-      const userJoinCriteria2 = new LeftJoinCriteria(UserSchema, 'publisher');
+      const userJoinCriteria1 = new InnerJoinCriteria(UserSchema);
+      const userJoinCriteria2 = new LeftJoinCriteria(UserSchema);
 
       const userJoinParameter = {
         parent_field: 'user_uuid',
@@ -532,8 +520,8 @@ describe('Criteria', () => {
       } as const;
 
       criteriaRoot
-        .join(userJoinCriteria1, userJoinParameter)
-        .join(userJoinCriteria2, userJoinParameter);
+        .join('publisher', userJoinCriteria1, userJoinParameter)
+        .join('publisher', userJoinCriteria2, userJoinParameter);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -541,7 +529,7 @@ describe('Criteria', () => {
       const joinEntry = joinsArray[0];
       expect(joinEntry).toBeDefined();
       if (joinEntry) {
-        expect(joinEntry.criteria.alias).toBe('publisher');
+        expect(joinEntry.parameters.join_alias).toBe('publisher');
         expect(joinEntry.criteria).toBeInstanceOf(LeftJoinCriteria);
         testJoinsData(joinEntry, userJoinParameter, criteriaRoot);
         expect(joinEntry.criteria).toBe(userJoinCriteria2);
@@ -604,17 +592,16 @@ describe('Criteria', () => {
         'should throw for $description',
         ({
           rootSchema,
-          rootAlias,
           joinSchema,
-          joinAlias,
           joinParam,
+          joinAlias,
           expectedErrorMsg,
         }) => {
-          const root = new RootCriteria(rootSchema, rootAlias);
-          const joinCrit = new InnerJoinCriteria(joinSchema, joinAlias);
+          const root = new RootCriteria(rootSchema);
+          const joinCrit = new InnerJoinCriteria(joinSchema);
           expect(() => {
             // @ts-expect-error - Testing invalid types
-            root.join(joinCrit, joinParam);
+            root.join(joinAlias, joinCrit, joinParam);
           }).toThrow(expectedErrorMsg);
         },
       );
@@ -656,11 +643,11 @@ describe('Criteria', () => {
         } as const,
       ])(
         'should pass validation for a valid $description',
-        ({ rootSchema, rootAlias, joinSchema, joinAlias, joinParam }) => {
-          const root = new RootCriteria(rootSchema, rootAlias);
-          const joinCrit = new InnerJoinCriteria(joinSchema, joinAlias);
+        ({ rootSchema, joinSchema, joinAlias, joinParam }) => {
+          const root = new RootCriteria(rootSchema);
+          const joinCrit = new InnerJoinCriteria(joinSchema);
           expect(() => {
-            root.join(joinCrit, joinParam as any);
+            root.join(joinAlias, joinCrit, joinParam as any);
           }).not.toThrow();
         },
       );
@@ -669,7 +656,7 @@ describe('Criteria', () => {
 
   describe('Complex Criteria Building', () => {
     it('should build a complete criteria with all features', () => {
-      const criteria = new RootCriteria(PostSchema, 'posts')
+      const criteria = new RootCriteria(PostSchema)
         .setSelect(['uuid', 'title', 'user_uuid'])
         .where({
           field: 'title',
@@ -677,7 +664,8 @@ describe('Criteria', () => {
           value: '%test%',
         })
         .join(
-          new InnerJoinCriteria(PostCommentSchema, 'comments')
+          'comments',
+          new InnerJoinCriteria(PostCommentSchema)
             .setSelect(['uuid', 'comment_text'])
             .where({
               field: 'comment_text',
@@ -713,8 +701,7 @@ describe('Criteria', () => {
       expect(criteria.joins).toHaveLength(1);
       expect(criteria.orders).toHaveLength(1);
       const joinCriteria = criteria.joins[0]?.criteria as InnerJoinCriteria<
-        typeof PostCommentSchema,
-        'comments'
+        typeof PostCommentSchema
       >;
       expect(joinCriteria?.select).toEqual(
         expect.arrayContaining([

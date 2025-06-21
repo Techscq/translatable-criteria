@@ -1,124 +1,96 @@
+import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
+import type { RootCriteria } from '../root.criteria.js';
 import type {
   CriteriaSchema,
   JoinRelationType,
-  SelectedAliasOf,
 } from '../types/schema.types.js';
-import type { RootCriteria } from '../root.criteria.js';
-import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
-import type { FilterGroup } from '../filter/filter-group.js';
 import type { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import type { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { OuterJoinCriteria } from '../join/outer.join-criteria.js';
+import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
 import type { Filter } from '../filter/filter.js';
-import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
+import type { FilterGroup } from '../filter/filter-group.js';
 import type { FilterOperator } from '../types/operator.types.js';
 
 /**
- * Abstract Class for translating criteria into various query formats
- * @template TranslationContext - The target format (e.g., QueryBuilder, raw SQL string, etc.)
- * @template TranslationOutput - The output format by default its Source (Only specify this if
- * you really need something like a memory translator and the output would be different
- * from the TranslationContext itself)
- * @template RootSchema - The schema type for the root criteria
- * @example
- * // TypeORM QueryBuilder translator
- * class TypeORMTranslator implements CriteriaTranslator<SelectQueryBuilder<Entity>> {
- *  ...Concrete implementation
- * }
+ * An abstract base class for creating specific criteria translators.
+ * It implements the ICriteriaVisitor interface and provides a structured way to handle the translation process.
  *
- * // Raw MySQL translator
- * export class MysqlTranslator extends CriteriaTranslator<string, string> { {
- *  ...Concrete implementation
- * }
+ * @template TranslationContext The mutable context object (e.g., a query builder) passed through the traversal.
+ * @template TranslationOutput The final result type of the translation process. Defaults to `TranslationContext`.
+ * @template TFilterVisitorOutput The specific type returned by `visitFilter`.
  */
 export abstract class CriteriaTranslator<
   TranslationContext,
   TranslationOutput = TranslationContext,
-  TFilterVisitorOutput extends any = any,
-> implements
-    ICriteriaVisitor<
-      TranslationContext,
-      TranslationOutput,
-      TFilterVisitorOutput
-    >
+  TFilterVisitorOutput = any,
+> implements ICriteriaVisitor<TranslationContext, TFilterVisitorOutput>
 {
   /**
-   * Translates a criteria into the target source format
-   * @param criteria - The criteria to translate
-   * @param source - The source object to translate into (e.g., QueryBuilder instance, or raw SQL string)
-   * @returns The modified source or the output format if specified
+   * Translates a `RootCriteria` object into a target format.
+   * This is the main entry point for the translation process.
+   * @param criteria The `RootCriteria` to translate.
+   * @param source The initial context for the translation (e.g., a new query builder).
+   * @returns The final translated output.
    */
-  translate<RootCriteriaSchema extends CriteriaSchema>(
-    criteria: RootCriteria<
-      RootCriteriaSchema,
-      SelectedAliasOf<RootCriteriaSchema>
-    >,
+  public abstract translate<RootCriteriaSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCriteriaSchema>,
     source: TranslationContext,
-  ): TranslationOutput {
-    return criteria.accept(this, source);
-  }
-
-  abstract visitRoot<
-    RootCriteriaSchema extends CriteriaSchema,
-    RootAlias extends SelectedAliasOf<RootCriteriaSchema>,
-  >(
-    criteria: RootCriteria<RootCriteriaSchema, RootAlias>,
-    context: TranslationContext,
   ): TranslationOutput;
 
-  abstract visitInnerJoin<
+  public abstract visitRoot<RootCSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCSchema>,
+    context: TranslationContext,
+  ): void;
+
+  public abstract visitInnerJoin<
     ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
+    JoinCSchema extends CriteriaSchema,
   >(
-    criteria: InnerJoinCriteria<JoinCriteriaSchema, JoinAlias>,
+    criteria: InnerJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
-  abstract visitLeftJoin<
+  public abstract visitLeftJoin<
     ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
+    JoinCSchema extends CriteriaSchema,
   >(
-    criteria: LeftJoinCriteria<JoinCriteriaSchema, JoinAlias>,
+    criteria: LeftJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
-  abstract visitOuterJoin<
+  public abstract visitOuterJoin<
     ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
+    JoinCSchema extends CriteriaSchema,
   >(
-    criteria: OuterJoinCriteria<JoinCriteriaSchema, JoinAlias>,
+    criteria: OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
-  abstract visitFilter<
-    FieldType extends string,
-    Operator extends FilterOperator,
-  >(
-    filter: Filter<FieldType, Operator>,
+  public abstract visitFilter<FieldType extends string>(
+    filter: Filter<FieldType, FilterOperator>,
     currentAlias: string,
+    context: TranslationContext,
   ): TFilterVisitorOutput;
 
-  abstract visitAndGroup<FieldType extends string>(
+  public abstract visitAndGroup<FieldType extends string>(
     group: FilterGroup<FieldType>,
     currentAlias: string,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
-  abstract visitOrGroup<FieldType extends string>(
+  public abstract visitOrGroup<FieldType extends string>(
     group: FilterGroup<FieldType>,
     currentAlias: string,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 }

@@ -1,8 +1,4 @@
-import type {
-  CriteriaSchema,
-  FieldOfSchema,
-  SelectedAliasOf,
-} from './schema.types.js';
+import type { CriteriaSchema, FieldOfSchema } from './schema.types.js';
 import type { FilterGroup } from '../filter/filter-group.js';
 
 import type { Cursor } from '../cursor.js';
@@ -20,12 +16,8 @@ import type { FilterPrimitive } from '../filter/types/filter-primitive.types.js'
  * Base interface for defining query criteria.
  * It provides methods for filtering, joining, selecting fields, ordering, and paginating results.
  * @template TSchema - The schema definition for the primary entity.
- * @template CurrentAlias - The selected alias for the primary entity from its schema.
  */
-export interface ICriteriaBase<
-  TSchema extends CriteriaSchema,
-  CurrentAlias extends SelectedAliasOf<TSchema>,
-> {
+export interface ICriteriaBase<TSchema extends CriteriaSchema> {
   /**
    * Gets the metadata associated with the root schema of this criteria.
    * @returns {TSchema['metadata']} The metadata object from the schema, which can be undefined.
@@ -153,9 +145,9 @@ export interface ICriteriaBase<
 
   /**
    * Gets the alias for the root entity of this criteria.
-   * @returns {CurrentAlias} The alias string.
+   * @returns {TSchema['alias']} The alias string.
    */
-  get alias(): CurrentAlias;
+  get alias(): TSchema['alias'];
 
   /**
    * Gets the source name (e.g., table name) for the root entity of this criteria.
@@ -217,29 +209,31 @@ export interface ICriteriaBase<
   /**
    * Adds a join to another criteria.
    * @template TJoinSchema - The schema of the entity to join.
-   * @template TJoinedCriteriaAlias - The alias for the joined entity.
-   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the joined alias.
-   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaAlias, TMatchingJoinConfig>} criteriaToJoin
-   * The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
-   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter
-   * The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for many-to-many).
+   * @template TJoinedCriteriaSourceName - The `source_name` of the entity being joined.
+   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the provided `joinAlias` and `criteriaToJoin.sourceName`.
+   * @param {TMatchingJoinConfig['alias']} joinAlias - The specific alias defined in the parent schema's `joins` array for this relation.
+   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaSourceName, TMatchingJoinConfig>} criteriaToJoin -
+   *   The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
+   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter -
+   *   The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for many-to-many).
    * @returns {this} The current criteria instance for chaining.
-   * @throws {Error} If the join configuration for the given alias is not found in the parent schema.
+   * @throws {Error} If the join configuration for the given `joinAlias` and `criteriaToJoin.sourceName` is not found in the parent schema.
    * @throws {Error} If `parent_field` in `joinParameter` is not defined in the parent schema.
    * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using simple join input for many-to-many).
    */
   join<
     TJoinSchema extends CriteriaSchema,
-    TJoinedCriteriaAlias extends SelectedAliasOf<TJoinSchema>,
+    TJoinedCriteriaSourceName extends TJoinSchema['source_name'],
     TMatchingJoinConfig extends SpecificMatchingJoinConfig<
       TSchema,
-      TJoinedCriteriaAlias
+      TJoinedCriteriaSourceName
     >,
   >(
+    joinAlias: TMatchingJoinConfig['alias'],
     criteriaToJoin: JoinCriteriaParameterType<
       TSchema,
       TJoinSchema,
-      TJoinedCriteriaAlias,
+      TJoinedCriteriaSourceName,
       TMatchingJoinConfig
     >,
     joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,

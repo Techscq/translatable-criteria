@@ -12,11 +12,12 @@ This guide will show you how to use `CriteriaFactory` and the fluent methods of 
   - [Logical Grouping (AND/OR)](#logical-grouping-andor)
   - [Advanced Filters (JSON, Array, Set)](#advanced-filters-json-array-set)
     - [Filtering JSON Fields (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)](#filtering-json-fields-json_contains-json_not_contains)
-    - [Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtering-array-fields-array_contains_element-array_contains_all_elements-array_contains_any_element-array_equals)
+    - [Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtering-array-fields-array_contains_element-etc)
     - [Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)](#filtering-set-fields-set_contains-set_not_contains-set_contains_any-set_contains_all)
     - [Filtering by Ranges (`BETWEEN`, `NOT_BETWEEN`)](#filtering-by-ranges-between-not_between)
     - [Filtering with Regular Expressions (`MATCHES_REGEX`)](#filtering-with-regular-expressions-matches_regex)
     - [Case-Insensitive Pattern Matching (`ILIKE`, `NOT_ILIKE`)](#case-insensitive-pattern-matching-ilike-not_ilike)
+  - [Filter Operator Reference](#filter-operator-reference)
 - 3. [Adding Joins](#3-adding-joins)
   - [Simple Joins (one-to-many, many-to-one, one-to-one)](#simple-joins-one-to-many-many-to-one-one-to-one)
   - [Joins with Pivot Table (many-to-many)](#joins-with-pivot-table-many-to-many)
@@ -36,23 +37,86 @@ This guide will show you how to use `CriteriaFactory` and the fluent methods of 
 
 ---
 
+## Example Schemas
+
+To make the examples in this guide self-contained, we will use the following simplified schemas:
+
+```typescript
+import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+
+export const UserSchema = GetTypedCriteriaSchema({
+  source_name: 'users',
+  alias: 'u',
+  fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
+  identifier_field: 'id',
+  joins: [
+    {
+      alias: 'posts',
+      target_source_name: 'posts',
+      relation_type: 'one_to_many',
+    },
+    {
+      alias: 'roles',
+      target_source_name: 'roles',
+      relation_type: 'many_to_many',
+    },
+  ],
+});
+
+export const PostSchema = GetTypedCriteriaSchema({
+  source_name: 'posts',
+  alias: 'p',
+  fields: [
+    'id',
+    'title',
+    'content',
+    'userId',
+    'createdAt',
+    'categories',
+    'metadata',
+  ],
+  identifier_field: 'id',
+  joins: [
+    {
+      alias: 'user',
+      target_source_name: 'users',
+      relation_type: 'many_to_one',
+    },
+  ],
+});
+
+export const RoleSchema = GetTypedCriteriaSchema({
+  source_name: 'roles',
+  alias: 'r',
+  fields: ['id', 'name'],
+  identifier_field: 'id',
+  joins: [],
+});
+
+export const ProductSchema = GetTypedCriteriaSchema({
+  source_name: 'products',
+  alias: 'prod',
+  fields: ['id', 'name', 'price', 'createdAt'],
+  identifier_field: 'id',
+  joins: [],
+});
+```
+
+---
+
 ## 1. Creating a `RootCriteria`
 
-Every query starts with a `RootCriteria`, which represents the main entity from which the query will begin. It is created using `CriteriaFactory.GetCriteria()`:
+Every query starts with a `RootCriteria`, which represents the main entity from which the query will begin. It is created using `CriteriaFactory.GetCriteria()`. The alias is now taken directly from the `alias` property of the provided schema.
 
 ```typescript
 import { CriteriaFactory } from '@nulledexp/translatable-criteria';
-import { UserSchema, PostSchema } from './path/to/your/schemas'; // Ensure the path is correct
+import { UserSchema, PostSchema } from './path/to/your/schemas';
 
-// Create Criteria for the User entity, using the 'users' alias
-const userCriteria = CriteriaFactory.GetCriteria(UserSchema, 'users');
-
-// Create Criteria for the Post entity, using the 'posts' alias
-const postCriteria = CriteriaFactory.GetCriteria(PostSchema, 'posts');
+const userCriteria = CriteriaFactory.GetCriteria(UserSchema);
+const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
 ```
 
-- The first argument is the entity's schema (`UserSchema`, `PostSchema`).
-- The second argument is one of the aliases defined in the `alias` array of that schema. Using the correct alias is crucial for proper interpretation by translators.
+---
 
 ## 2. Applying Filters
 
@@ -61,25 +125,26 @@ Filters are added using the `where()`, `andWhere()`, and `orWhere()` methods. Th
 ### Basic Filters
 
 ```typescript
-import { FilterOperator } from '@nulledexp/translatable-criteria';
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema, PostSchema } from './path/to/your/schemas';
 
-// Find users with a specific email
-userCriteria.where({
-  field: 'email', // Field from UserSchema
+const userEmailCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
+  field: 'email',
   operator: FilterOperator.EQUALS,
   value: 'test@example.com',
 });
 
-// Find posts whose title contains "TypeScript"
-postCriteria.where({
-  field: 'title', // Field from PostSchema
-  operator: FilterOperator.CONTAINS, // or FilterOperator.LIKE with '%'
-  value: '%TypeScript%',
+const postTitleCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
+  field: 'title',
+  operator: FilterOperator.CONTAINS,
+  value: 'TypeScript',
 });
 
-// Find posts created after a specific date
-postCriteria.where({
-  field: 'created_at',
+const postDateCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
+  field: 'createdAt',
   operator: FilterOperator.GREATER_THAN,
   value: new Date('2023-01-01'),
 });
@@ -91,8 +156,13 @@ postCriteria.where({
 - `orWhere()`: Adds a condition that, if met, makes the filter group true, even if previous conditions (grouped by AND) are not (logical OR). The library normalizes this to maintain a structure of `OR ( (cond1 AND cond2), (cond3) )`.
 
 ```typescript
-// Users whose username is 'admin' AND their email contains '@example.com'
-userCriteria
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema, PostSchema } from './path/to/your/schemas';
+
+const adminUserCriteria = CriteriaFactory.GetCriteria(UserSchema)
   .where({ field: 'username', operator: FilterOperator.EQUALS, value: 'admin' })
   .andWhere({
     field: 'email',
@@ -100,22 +170,19 @@ userCriteria
     value: '@example.com',
   });
 
-// Posts that contain "Tutorial" in the title OR in the post body
-postCriteria
+const tutorialPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
   .where({
     field: 'title',
     operator: FilterOperator.CONTAINS,
     value: 'Tutorial',
   })
   .orWhere({
-    field: 'body',
+    field: 'content',
     operator: FilterOperator.CONTAINS,
     value: 'Tutorial',
   });
 
-// More complex combination:
-// (username = 'editor' AND email LIKE '%@editor.com%') OR (username = 'guest')
-userCriteria
+const editorOrGuestCriteria = CriteriaFactory.GetCriteria(UserSchema)
   .where({
     field: 'username',
     operator: FilterOperator.EQUALS,
@@ -123,8 +190,8 @@ userCriteria
   })
   .andWhere({
     field: 'email',
-    operator: FilterOperator.LIKE,
-    value: '%@editor.com%',
+    operator: FilterOperator.CONTAINS,
+    value: '@editor.com',
   })
   .orWhere({
     field: 'username',
@@ -135,38 +202,31 @@ userCriteria
 
 ### Advanced Filters (JSON, Array, Set)
 
-The library supports operators for more complex data types like JSON, arrays, and SET-type fields.
+The library supports a wide range of operators for complex data types. For a full list, see the Core Concepts guide. Here are a few examples:
 
 #### Filtering JSON Fields (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)
 
 The value for these operators is an object where keys are JSON paths (the translator will determine if it needs `$.` at the beginning) and values are what is being searched for in that path.
 
 ```typescript
-// Assuming PostSchema has a 'metadata' field of JSON type
-// with a structure like: { tags: ["tech", "code"], views: 100 }
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
 
-// Find posts where metadata.tags contains "tech" AND metadata.views is 100
-postCriteria.where({
-  field: 'metadata', // The JSON field
+const jsonCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
+  field: 'metadata',
   operator: FilterOperator.JSON_CONTAINS,
   value: {
-    tags: 'tech', // Searches for "tech" within the metadata.tags array
-    views: 100, // Searches for metadata.views to be 100
-    // "extra.source": "import" // You can also nest paths
-  },
-});
-
-// Find posts where metadata.extra.quality IS NOT "low"
-postCriteria.where({
-  field: 'metadata',
-  operator: FilterOperator.JSON_NOT_CONTAINS,
-  value: {
-    'extra.quality': 'low',
+    tags: 'tech',
+    views: 100,
+    'extra.source': 'import',
   },
 });
 ```
 
-#### Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, `ARRAY_CONTAINS_ALL_ELEMENTS`, `ARRAY_CONTAINS_ANY_ELEMENT`, `ARRAY_EQUALS`)
+#### Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)
 
 These operators can be used for fields that are native arrays or arrays within JSON.
 
@@ -174,39 +234,16 @@ These operators can be used for fields that are native arrays or arrays within J
 - **For arrays within JSON:** The `value` is an object with a single key (the JSON path to the array) and the value is the element or array of elements.
 
 ```typescript
-// 1. Native Array Column: Find posts that have the "TypeScript" category
-postCriteria.where({
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
+
+const arrayCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
   field: 'categories',
-  operator: FilterOperator.ARRAY_CONTAINS_ELEMENT,
-  value: 'TypeScript',
-});
-
-// 2. Array within JSON: Find posts where metadata.tags contains "typeorm"
-postCriteria.where({
-  field: 'metadata', // Main JSON field
-  operator: FilterOperator.ARRAY_CONTAINS_ELEMENT,
-  value: { tags: 'typeorm' }, // { "path.to.array": element }
-});
-
-// 3. Native Array Column: Find posts that have ALL categories ["nestjs", "api"]
-postCriteria.where({
-  field: 'categories',
-  operator: FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS,
-  value: ['nestjs', 'api'],
-});
-
-// 4. Array within JSON: Find posts where metadata.ratings contains AT LEAST ONE of [4, 5]
-postCriteria.where({
-  field: 'metadata',
   operator: FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
-  value: { ratings: [4, 5] },
-});
-
-// 5. Native Array Column: Find posts whose categories are EXACTLY ["news", "updates"] (order matters)
-postCriteria.where({
-  field: 'categories',
-  operator: FilterOperator.ARRAY_EQUALS,
-  value: ['news', 'updates'],
+  value: ['nestjs', 'api'],
 });
 ```
 
@@ -215,28 +252,16 @@ postCriteria.where({
 Similar to `CONTAINS` but conceptually for fields representing a set of values (like MySQL's `SET` type or a delimited string).
 
 ```typescript
-// Assuming a 'flags' field in UserSchema which is a SET('active', 'verified', 'beta_tester')
-// or a text field 'tags' like "typescript,javascript,nodejs"
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema } from './path/to/your/schemas';
 
-// Find users who have the 'verified' flag
-userCriteria.where({
-  field: 'flags',
-  operator: FilterOperator.SET_CONTAINS,
-  value: 'verified',
-});
-
-// Find users who have AT LEAST ONE of the tags "typescript" or "javascript"
-userCriteria.where({
+const setCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
   field: 'tags',
   operator: FilterOperator.SET_CONTAINS_ANY,
-  value: ['typescript', 'javascript'], // Expects an array of values
-});
-
-// Find users who have ALL the flags "active" AND "beta_tester"
-userCriteria.where({
-  field: 'flags',
-  operator: FilterOperator.SET_CONTAINS_ALL,
-  value: ['active', 'beta_tester'], // Expects an array of values
+  value: ['typescript', 'javascript'],
 });
 ```
 
@@ -245,15 +270,21 @@ userCriteria.where({
 These operators allow you to check if a numeric or date value falls within or outside a specific range.
 
 ```typescript
-// Find posts created between two dates
-postCriteria.where({
-  field: 'created_at',
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema, ProductSchema } from './path/to/your/schemas';
+
+const betweenDatesCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
+  field: 'createdAt',
   operator: FilterOperator.BETWEEN,
-  value: [new Date('2023-01-01'), new Date('2023-03-31')], // [min, max]
+  value: [new Date('2023-01-01'), new Date('2023-03-31')],
 });
 
-// Find products whose price IS NOT between 100 and 200
-productCriteria.where({
+const notBetweenPriceCriteria = CriteriaFactory.GetCriteria(
+  ProductSchema,
+).where({
   field: 'price',
   operator: FilterOperator.NOT_BETWEEN,
   value: [100, 200],
@@ -265,12 +296,16 @@ productCriteria.where({
 Allows for more powerful pattern matching using regular expressions. The specific syntax of the regular expression may depend on the underlying database.
 
 ```typescript
-// Find users whose username starts with "admin" followed by numbers
-// (conceptual example, REGEX syntax varies)
-userCriteria.where({
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema } from './path/to/your/schemas';
+
+const regexCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
   field: 'username',
   operator: FilterOperator.MATCHES_REGEX,
-  value: '^admin[0-9]+', // The regular expression as a string
+  value: '^admin[0-9]+',
 });
 ```
 
@@ -279,109 +314,162 @@ userCriteria.where({
 Similar to `LIKE` and `NOT_LIKE`, but they ensure that pattern comparison is case-insensitive, regardless of the database's default collation.
 
 ```typescript
-// Find posts whose title contains "typescript" (case-insensitive)
-postCriteria.where({
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
+
+const ilikeCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
   field: 'title',
   operator: FilterOperator.ILIKE,
   value: '%typescript%',
 });
-
-// Find users whose email DOES NOT start with "test" (case-insensitive)
-userCriteria.where({
-  field: 'email',
-  operator: FilterOperator.NOT_ILIKE,
-  value: 'test%',
-});
 ```
+
+### Filter Operator Reference
+
+Here is a detailed list of the available `FilterOperator` values and the type of `value` they expect.
+
+#### Equality & Comparison
+
+- `EQUALS`: Checks for exact equality. Expects a primitive value (`string`, `number`, `boolean`, `Date`, `null`).
+- `NOT_EQUALS`: Checks for inequality. Expects a primitive value.
+- `GREATER_THAN`: Checks if a value is greater than the provided one. Expects a `number` or `Date`.
+- `GREATER_THAN_OR_EQUALS`: Checks if a value is greater than or equal to the provided one. Expects a `number` or `Date`.
+- `LESS_THAN`: Checks if a value is less than the provided one. Expects a `number` or `Date`.
+- `LESS_THAN_OR_EQUALS`: Checks if a value is less than or equal to the provided one. Expects a `number` or `Date`.
+
+#### Pattern Matching
+
+- `LIKE`: Matches a pattern (case-sensitivity depends on the database). Expects a `string`. The translator is responsible for handling wildcards (`%`, `_`).
+- `NOT_LIKE`: Checks if a value does not match a pattern. Expects a `string`.
+- `CONTAINS`: Checks if a string contains a substring. Expects a `string`. The translator will typically wrap the value with wildcards (e.g., `'%value%'`).
+- `NOT_CONTAINS`: Checks if a string does not contain a substring. Expects a `string`.
+- `STARTS_WITH`: Checks if a string starts with a specific substring. Expects a `string`. The translator will typically append a wildcard (e.g., `'value%'`).
+- `ENDS_WITH`: Checks if a string ends with a specific substring. Expects a `string`. The translator will typically prepend a wildcard (e.g., `'%value'`).
+- `ILIKE`: Case-insensitive version of `LIKE`. Expects a `string`.
+- `NOT_ILIKE`: Case-insensitive version of `NOT_LIKE`. Expects a `string`.
+
+#### Membership & Nullability
+
+- `IN`: Checks if a value is within a given array. Expects an `Array<string | number | boolean | Date>`.
+- `NOT_IN`: Checks if a value is not within a given array. Expects an `Array<string | number | boolean | Date>`.
+- `IS_NULL`: Checks if a value is `NULL`. The `value` property should be `null` or `undefined`.
+- `IS_NOT_NULL`: Checks if a value is not `NULL`. The `value` property should be `null` or `undefined`.
+
+#### Ranges & Regex
+
+- `BETWEEN`: Checks if a value is within a specified range (inclusive). Expects a tuple of two values: `[min, max]`.
+- `NOT_BETWEEN`: Checks if a value is outside a specified range. Expects a tuple of two values: `[min, max]`.
+- `MATCHES_REGEX`: Checks if a string value matches a regular expression. Expects a `string` representing the regex pattern.
+
+#### Complex Types (JSON, Array, SET)
+
+- **JSON Operators**
+- `JSON_CONTAINS`: Checks if a JSON document contains a specific structure or value at a given path. Expects an object where keys are JSON paths and values are the data to find (e.g., `{ "tags": "tech", "views": 100 }`).
+- `JSON_NOT_CONTAINS`: The inverse of `JSON_CONTAINS`.
+- **Array Operators**
+- `ARRAY_CONTAINS_ELEMENT`: Checks if an array contains a specific element. For native array columns, expects a primitive value. For JSON arrays, expects an object like `{ "path.to.array": elementValue }`.
+- `ARRAY_CONTAINS_ALL_ELEMENTS`: Checks if an array contains all elements from a given array. Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
+- `ARRAY_CONTAINS_ANY_ELEMENT`: Checks if an array contains at least one element from a given array. Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
+- `ARRAY_EQUALS`: Checks if an array is exactly equal to a given array (order and elements). Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
+- **SET Operators** (Conceptually for sets, often used on string or array fields)
+- `SET_CONTAINS`: Checks if a set contains a specific value. Expects a `string`.
+- `SET_NOT_CONTAINS`: The inverse of `SET_CONTAINS`.
+- `SET_CONTAINS_ANY`: Checks if a set contains at least one of the specified values. Expects an `Array<string>`.
+- `SET_CONTAINS_ALL`: Checks if a set contains all of the specified values. Expects an `Array<string>`.
+
+---
 
 ## 3. Adding Joins
 
-Joins are added with the `join()` method. This method takes two arguments:
+Joins are added with the `join()` method. This method's signature has been updated for clarity and type safety:
 
-1. An instance of a join `Criteria` (`InnerJoinCriteria`, `LeftJoinCriteria`, `OuterJoinCriteria`), also created with `CriteriaFactory`.
-2. A join parameters object that defines how the entities are related.
+`criteria.join(joinAlias, criteriaToJoin, joinParameters)`
+
+- **`joinAlias` (string):** This is the **alias of the relationship** as defined in the `joins` array within the _parent schema_. It acts as a unique identifier for that specific relationship configuration. The library uses this `joinAlias` along with the `source_name` of the `criteriaToJoin` (the schema of the entity being joined) to find the exact relationship definition in the parent schema.
+- **`criteriaToJoin` (JoinCriteria):** An instance of a join `Criteria` (`InnerJoinCriteria`, `LeftJoinCriteria`, etc.), created with `CriteriaFactory`.
+- **`joinParameters` (object):** An object that defines how the entities are related (`parent_field`, `join_field`, etc.).
 
 ### Simple Joins (one-to-many, many-to-one, one-to-one)
 
 For these relationships, the join parameters are `parent_field` and `join_field`.
 
 ```typescript
-// Get posts and their author (publisher)
-// PostSchema defines a 'publisher' join (many-to-one) with UserSchema
-const postsWithAuthorCriteria = CriteriaFactory.GetCriteria(
-  PostSchema,
-  'posts',
-).join(
-  CriteriaFactory.GetInnerJoinCriteria(UserSchema, 'publisher'), // 'publisher' is an alias in UserSchema
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { UserSchema, PostSchema } from './path/to/your/schemas';
+
+const postsWithAuthorCriteria = CriteriaFactory.GetCriteria(PostSchema).join(
+  'user',
+  CriteriaFactory.GetInnerJoinCriteria(UserSchema),
   {
-    parent_field: 'user_uuid', // FK field in PostSchema
-    join_field: 'uuid', // PK field in UserSchema (the 'publisher')
+    parent_field: 'userId',
+    join_field: 'id',
   },
 );
 
-// Get users and their posts
-// UserSchema defines a 'posts' join (one-to-many) with PostSchema
-const usersWithPostsCriteria = CriteriaFactory.GetCriteria(
-  UserSchema,
-  'users',
-).join(
-  CriteriaFactory.GetLeftJoinCriteria(PostSchema, 'posts'), // 'posts' is an alias in PostSchema
+const usersWithPostsCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
+  'posts',
+  CriteriaFactory.GetLeftJoinCriteria(PostSchema),
   {
-    parent_field: 'uuid', // PK field in UserSchema
-    join_field: 'user_uuid', // FK field in PostSchema
+    parent_field: 'id',
+    join_field: 'userId',
   },
 );
 ```
 
-**Note:** The `alias` used in `GetInnerJoinCriteria` (e.g., `'publisher'`) must be one of the `alias` defined in the schema of the entity being joined (in this case, `UserSchema`). The library validates this.
-
 ### Joins with Pivot Table (many-to-many)
 
-For `many_to_many` relationships, the join parameters require a more detailed object that includes `pivot_source_name` and objects for `parent_field` and `join_field` specifying both the field in the entity and the field in the pivot table.
+For `many_to_many` relationships, the join parameters require a more detailed object that includes `pivot_source_name` and objects for `parent_field` and `join_field`.
 
 ```typescript
-// Get users and their permissions
-// UserSchema defines a 'permissions' join (many-to-many) with PermissionSchema
-const usersWithPermissionsCriteria = CriteriaFactory.GetCriteria(
-  UserSchema,
-  'users',
-).join(CriteriaFactory.GetInnerJoinCriteria(PermissionSchema, 'permissions'), {
-  pivot_source_name: 'user_permission_pivot', // Name of your pivot table
-  parent_field: {
-    pivot_field: 'user_id_in_pivot', // FK of User in the pivot table
-    reference: 'uuid', // PK of User
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { UserSchema, RoleSchema } from './path/to/your/schemas';
+
+const usersWithRolesCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
+  'roles',
+  CriteriaFactory.GetInnerJoinCriteria(RoleSchema),
+  {
+    pivot_source_name: 'user_roles',
+    parent_field: { pivot_field: 'user_id', reference: 'id' },
+    join_field: { pivot_field: 'role_id', reference: 'id' },
   },
-  join_field: {
-    pivot_field: 'permission_id_in_pivot', // FK of Permission in the pivot table
-    reference: 'uuid', // PK of Permission
-  },
-});
+);
 ```
 
 ### Filtering on Joined Entities
 
-You can apply filters directly to the join `Criteria`:
+You can apply filters directly to the `JoinCriteria` instance before passing it to the `.join()` method.
 
 ```typescript
-// Get posts and only comments that DO NOT contain "spam"
-const postsWithFilteredComments = CriteriaFactory.GetCriteria(
-  PostSchema,
-  'posts',
-).join(
-  CriteriaFactory.GetLeftJoinCriteria(PostCommentSchema, 'comments').where({
-    // Filter applied to the JoinCriteria (comments)
-    field: 'comment_text',
-    operator: FilterOperator.NOT_CONTAINS,
-    value: 'spam',
-  }),
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema, UserSchema } from './path/to/your/schemas';
+
+const activeUserJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
+  UserSchema,
+).where({
+  field: 'isActive',
+  operator: FilterOperator.EQUALS,
+  value: true,
+});
+
+const postsFromActiveUsers = CriteriaFactory.GetCriteria(PostSchema).join(
+  'user',
+  activeUserJoinCriteria,
   {
-    parent_field: 'uuid',
-    join_field: 'post_uuid',
+    parent_field: 'userId',
+    join_field: 'id',
   },
 );
 ```
 
-These filters on the `JoinCriteria` typically translate to conditions in the `ON` clause of the JOIN (or `AND` after the `ON` for some translators/databases).
+These filters on the `JoinCriteria` typically translate to conditions in the `ON` clause of the JOIN.
+
+---
 
 ## 4. Ordering Results
 
@@ -390,12 +478,14 @@ Ordering is applied with the `orderBy()` method, which takes the field name and 
 ### Ordering by Root Entity Fields
 
 ```typescript
-// Get users ordered by email ascending
-userCriteria.orderBy('email', OrderDirection.ASC);
+import {
+  CriteriaFactory,
+  OrderDirection,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
 
-// Get posts ordered by creation date descending, then by title ascending
-postCriteria
-  .orderBy('created_at', OrderDirection.DESC)
+const postOrderCriteria = CriteriaFactory.GetCriteria(PostSchema)
+  .orderBy('createdAt', OrderDirection.DESC)
   .orderBy('title', OrderDirection.ASC);
 ```
 
@@ -404,22 +494,26 @@ postCriteria
 To order by a field from a joined entity, call `orderBy()` on the corresponding `JoinCriteria` instance.
 
 ```typescript
-// Get posts, ordered by the author's (publisher) username
-const postsOrderedByAuthorUsername = CriteriaFactory.GetCriteria(
-  PostSchema,
-  'posts',
-).join(
-  CriteriaFactory.GetInnerJoinCriteria(UserSchema, 'publisher').orderBy(
-    'username',
-    OrderDirection.ASC,
-  ), // Ordering on the JoinCriteria
-  { parent_field: 'user_uuid', join_field: 'uuid' },
+import {
+  CriteriaFactory,
+  OrderDirection,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema, UserSchema } from './path/to/your/schemas';
+
+const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
+  UserSchema,
+).orderBy('username', OrderDirection.ASC);
+
+const postsOrderedByAuthor = CriteriaFactory.GetCriteria(PostSchema).join(
+  'user',
+  userJoinCriteria,
+  { parent_field: 'userId', join_field: 'id' },
 );
 
-// You can also combine orderings from the root and joins.
-// The translator will handle applying the global order based on the internal `sequenceId` of each `Order`.
-postsOrderedByAuthorUsername.orderBy('created_at', OrderDirection.DESC);
+postsOrderedByAuthor.orderBy('createdAt', OrderDirection.DESC);
 ```
+
+---
 
 ## 5. Pagination
 
@@ -431,167 +525,170 @@ The library supports offset-based and cursor-based pagination.
 - `setSkip(count)`: Skips a number of results (SQL `OFFSET`).
 
 ```typescript
-// Get the first 10 posts
-postCriteria.setTake(10);
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
 
-// Get posts from page 3 (assuming 10 per page)
-postCriteria.setTake(10).setSkip(20); // (3-1) * 10
+const firstPageCriteria = CriteriaFactory.GetCriteria(PostSchema).setTake(10);
+
+const thirdPageCriteria = CriteriaFactory.GetCriteria(PostSchema)
+  .setTake(10)
+  .setSkip(20);
 ```
 
 ### Cursor-Based Pagination
 
-This is more efficient for large and frequently changing datasets. Use `setCursor()`.
+This is more efficient for large datasets. Use `setCursor()`.
 
-Requires:
-
-1. `cursorFilters`: An array with one or two `FilterPrimitive` objects (without the `operator`). These define the values of the last item from the previous page. The `value` for these filters can be `null` if the field itself is null, but it cannot be `undefined`.
-
-- If it's a single object, it's used for simple pagination over a unique field (usually an ordered and unique field, or a timestamp).
-- If there are two objects, it's used for composite pagination (keyset pagination), typically over a primary sort field (e.g., `created_at`) and a unique tie-breaker field (e.g., `uuid`).
-
-2. `operator`: `FilterOperator.GREATER_THAN` (for next page) or `FilterOperator.LESS_THAN` (for previous page, if order is inverted).
-3. `order`: The main `OrderDirection` in which pagination is occurring.
-
-**Important:** For cursor-based pagination to work, the `Criteria` (root and/or relevant joins) **must** have `orderBy()` defined for the same fields used in `cursorFilters` and in the same order. The translator will use this information.
+**Important:** For cursor-based pagination to work, the `Criteria` **must** have `orderBy()` defined for the same fields used in `setCursor()` and in the same order.
 
 ```typescript
-// Simple cursor pagination (e.g., on 'created_at')
-// Assume the last seen post had created_at = '2023-05-10T10:00:00.000Z'
-// And we are ordering by created_at ASC
-postCriteria
+import {
+  CriteriaFactory,
+  FilterOperator,
+  OrderDirection,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema } from './path/to/your/schemas';
+
+const simpleCursorCriteria = CriteriaFactory.GetCriteria(PostSchema)
   .setCursor(
-    [{ field: 'created_at', value: '2023-05-10T10:00:00.000Z' }], // Single filter for simple cursor
+    [{ field: 'createdAt', value: '2023-05-10T10:00:00.000Z' }],
     FilterOperator.GREATER_THAN,
     OrderDirection.ASC,
   )
-  .orderBy('created_at', OrderDirection.ASC) // orderBy must match
+  .orderBy('createdAt', OrderDirection.ASC)
   .setTake(10);
 
-// Composite cursor pagination (e.g., on 'created_at' and 'uuid')
-// Assume the last seen post had:
-// created_at = '2023-05-10T10:00:00.000Z'
-// uuid = 'some-last-uuid'
-// And we are ordering by created_at ASC, then uuid ASC
-postCriteria
+const compositeCursorCriteria = CriteriaFactory.GetCriteria(PostSchema)
   .setCursor(
     [
-      // Two filters for composite cursor
-      { field: 'created_at', value: '2023-05-10T10:00:00.000Z' },
-      { field: 'uuid', value: 'some-last-uuid' },
+      { field: 'createdAt', value: '2023-05-10T10:00:00.000Z' },
+      { field: 'id', value: 'some-last-id' },
     ],
     FilterOperator.GREATER_THAN,
     OrderDirection.ASC,
   )
-  .orderBy('created_at', OrderDirection.ASC) // Orderings must match
-  .orderBy('uuid', OrderDirection.ASC)
+  .orderBy('createdAt', OrderDirection.ASC)
+  .orderBy('id', OrderDirection.ASC)
   .setTake(10);
 ```
 
+---
+
 ## 6. Field Selection
 
-By default, a `Criteria` (root or join) will select all fields defined in its schema. You can modify this with `setSelect()` and `resetSelect()`.
+By default, a `Criteria` will select all fields defined in its schema. You can modify this with `setSelect()` and `resetSelect()`.
 
 ### Selection on the Root Entity
 
 ```typescript
-// Select only uuid and email from the user
-userCriteria.setSelect(['uuid', 'email']);
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { UserSchema } from './path/to/your/schemas';
+
+const userSelectCriteria = CriteriaFactory.GetCriteria(UserSchema).setSelect([
+  'id',
+  'email',
+]);
 ```
+
+**Note:** When `setSelect` is used, the `identifier_field` of the entity is always implicitly included.
 
 ### Selection on Joined Entities
 
 Call `setSelect()` on the `JoinCriteria` instance.
 
 ```typescript
-// Get posts and only the username of their author
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { PostSchema, UserSchema } from './path/to/your/schemas';
+
+const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
+  UserSchema,
+).setSelect(['username']);
+
 const postsWithAuthorUsernameOnly = CriteriaFactory.GetCriteria(
   PostSchema,
-  'posts',
-).join(
-  CriteriaFactory.GetInnerJoinCriteria(UserSchema, 'publisher').setSelect([
-    'username',
-  ]), // Select only 'username' from the publisher
-  { parent_field: 'user_uuid', join_field: 'uuid' },
-);
+).join('user', userJoinCriteria, { parent_field: 'userId', join_field: 'id' });
 ```
 
 ### Reverting to Select All Fields (`resetSelect`)
 
-If you previously used `setSelect()` and want to revert to the default behavior of selecting all fields from the schema for that `Criteria` instance (root or join):
+If you previously used `setSelect()` and want to revert to the default behavior:
 
 ```typescript
-userCriteria.setSelect(['uuid']); // Selects only uuid
-// ... other operations ...
-userCriteria.resetSelect(); // Now selects all fields from UserSchema again
+import { CriteriaFactory } from '@nulledexp/translatable-criteria';
+import { UserSchema } from './path/to/your/schemas';
+
+const userCriteria = CriteriaFactory.GetCriteria(UserSchema);
+userCriteria.setSelect(['id']);
+userCriteria.resetSelect();
 ```
 
-**Important Note:** If you use `orderBy()` or `setCursor()` on fields that are _not_ included in your `setSelect()`, some translators (like TypeORM's) might automatically add those fields to the selection to ensure correct database operation.
+---
 
 ## 7. Combining Everything
 
-You can chain all these methods to build complex queries:
+You can chain all these methods to build complex queries. The following example demonstrates how to combine multiple features, including nested joins, filtering on both root and joined entities, field selection, and cursor-based pagination, to construct a sophisticated query specification.
 
 ```typescript
-// Complex example:
-// Get the 5 most recent posts (ordered by created_at DESC)
-// that contain "TypeORM" in the title or body,
-// including their author's (publisher) username and only the text of their comments (if any),
-// and the author (publisher) has the email "author@example.com".
-// Also, paginate using cursor if 'lastPostCreatedAt' and 'lastPostUuid' are defined.
+import {
+  CriteriaFactory,
+  FilterOperator,
+  OrderDirection,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema, PostSchema, RoleSchema } from './path/to/your/schemas';
 
-let lastPostCreatedAt: string | undefined = undefined; // '2023-10-26T12:00:00.000Z';
-let lastPostUuid: string | undefined = undefined; // 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
+let lastPostCreatedAt: string | undefined = undefined;
+let lastPostUuid: string | undefined = undefined;
 
-const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema, 'posts')
-  .setSelect(['uuid', 'title', 'created_at']) // Select specific post fields
+// 1. Define the criteria for the innermost join (Roles)
+const roleJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(RoleSchema).where(
+  {
+    field: 'name',
+    operator: FilterOperator.EQUALS,
+    value: 'admin',
+  },
+);
+
+// 2. Define the criteria for the intermediate join (Users) and add the nested join to it
+const userWithRolesJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
+  UserSchema,
+).join('roles', roleJoinCriteria, {
+  pivot_source_name: 'user_roles',
+  parent_field: { pivot_field: 'user_id', reference: 'id' },
+  join_field: { pivot_field: 'role_id', reference: 'id' },
+});
+
+// 3. Build the main criteria (Posts)
+const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
+  .setSelect(['id', 'title', 'createdAt'])
   .where({
     field: 'title',
     operator: FilterOperator.CONTAINS,
     value: 'TypeORM',
   })
-  .orWhere({
-    field: 'body',
-    operator: FilterOperator.CONTAINS,
-    value: 'TypeORM',
+  // 4. Add the pre-configured user join to the main criteria
+  .join('user', userWithRolesJoinCriteria, {
+    parent_field: 'userId',
+    join_field: 'id',
   })
-  .join(
-    CriteriaFactory.GetInnerJoinCriteria(UserSchema, 'publisher')
-      .setSelect(['username']) // Only the author's username
-      .where({
-        field: 'email',
-        operator: FilterOperator.EQUALS,
-        value: 'author@example.com',
-      }),
-    { parent_field: 'user_uuid', join_field: 'uuid' },
-  )
-  .join(
-    CriteriaFactory.GetLeftJoinCriteria(
-      PostCommentSchema,
-      'comments',
-    ).setSelect(['comment_text']), // Only the comment text
-    { parent_field: 'uuid', join_field: 'post_uuid' },
-  )
-  .orderBy('created_at', OrderDirection.DESC) // Main order for cursor pagination
-  .orderBy('uuid', OrderDirection.DESC); // Tie-breaker for cursor pagination
+  .orderBy('createdAt', OrderDirection.DESC)
+  .orderBy('id', OrderDirection.DESC);
 
 if (lastPostCreatedAt && lastPostUuid) {
   complexPostCriteria.setCursor(
     [
-      { field: 'created_at', value: lastPostCreatedAt },
-      { field: 'uuid', value: lastPostUuid },
+      { field: 'createdAt', value: lastPostCreatedAt },
+      { field: 'id', value: lastPostUuid },
     ],
-    FilterOperator.LESS_THAN, // Because we order DESC for "most recent"
+    FilterOperator.LESS_THAN,
     OrderDirection.DESC,
   );
 }
 
 complexPostCriteria.setTake(5);
-
-// 'complexPostCriteria' is now ready to be passed to a translator.
 ```
 
 ## Next Steps
 
-With the criteria built, the next step is to use a `CriteriaTranslator` to convert these
-`Criteria` objects into a native query for your database. Refer to the guide on Developing
-Custom Translators or use an existing translator if available for your stack.
+With the criteria built, the next step is to use a [`CriteriaTranslator`](../developing-translators/en.md) to convert these
+`Criteria` objects into a native query for your database. [Refer to the guide on Developing
+Custom Translators](../developing-translators/en.md) or use an existing translator if available for your stack.

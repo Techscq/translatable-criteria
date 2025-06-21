@@ -4,82 +4,93 @@ import type { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { OuterJoinCriteria } from '../join/outer.join-criteria.js';
 import type { Filter } from '../filter/filter.js';
 import type { FilterGroup } from '../filter/filter-group.js';
-import type {
-  CriteriaSchema,
-  JoinRelationType,
-  SelectedAliasOf,
-} from './schema.types.js';
+import type { CriteriaSchema, JoinRelationType } from './schema.types.js';
 import type { PivotJoin, SimpleJoin } from './join-parameter.types.js';
 import type { FilterOperator } from './operator.types.js';
 
 /**
- * Visitor interface for traversing Criteria objects.
- * @template TranslationContext - The type of the context object passed during traversal.
- * @template TranslationOutput - The type of the result returned by visitor methods.
+ * Defines the contract for a visitor that traverses a Criteria object graph.
+ * @template TranslationContext The mutable context object (e.g., a query builder) passed through the traversal.
+ * @template TFilterVisitorOutput The specific type returned by `visitFilter`, typically an intermediate representation of a condition.
  */
 export interface ICriteriaVisitor<
   TranslationContext,
-  TranslationOutput = TranslationContext,
-  TFilterVisitorOutput extends any = any,
+  TFilterVisitorOutput = any,
 > {
-  visitRoot<
-    RootCSchema extends CriteriaSchema,
-    RootAlias extends SelectedAliasOf<RootCSchema>,
-  >(
-    criteria: RootCriteria<RootCSchema, RootAlias>,
+  /**
+   * Visits the root node of the Criteria tree.
+   */
+  visitRoot<RootCSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCSchema>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
+  /**
+   * Visits an Inner Join node.
+   */
   visitInnerJoin<
     ParentCSchema extends CriteriaSchema,
     JoinCSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCSchema>,
   >(
-    criteria: InnerJoinCriteria<JoinCSchema, JoinAlias>,
+    criteria: InnerJoinCriteria<JoinCSchema>,
     parameters:
       | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
       | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
+  /**
+   * Visits a Left Join node.
+   */
   visitLeftJoin<
     ParentCSchema extends CriteriaSchema,
     JoinCSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCSchema>,
   >(
-    criteria: LeftJoinCriteria<JoinCSchema, JoinAlias>,
+    criteria: LeftJoinCriteria<JoinCSchema>,
     parameters:
       | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
       | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
+  /**
+   * Visits an Outer Join node.
+   */
   visitOuterJoin<
     ParentCSchema extends CriteriaSchema,
     JoinCSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCSchema>,
   >(
-    criteria: OuterJoinCriteria<JoinCSchema, JoinAlias>,
+    criteria: OuterJoinCriteria<JoinCSchema>,
     parameters:
       | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
       | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
+  /**
+   * Visits a single Filter node and returns an intermediate representation.
+   */
   visitFilter<FieldType extends string>(
     filter: Filter<FieldType, FilterOperator>,
     currentAlias: string,
+    context: TranslationContext,
   ): TFilterVisitorOutput;
 
+  /**
+   * Visits a group of filters joined by a logical AND.
+   */
   visitAndGroup<FieldType extends string>(
     group: FilterGroup<FieldType>,
     currentAlias: string,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 
+  /**
+   * Visits a group of filters joined by a logical OR.
+   */
   visitOrGroup<FieldType extends string>(
     group: FilterGroup<FieldType>,
     currentAlias: string,
     context: TranslationContext,
-  ): TranslationOutput;
+  ): void;
 }

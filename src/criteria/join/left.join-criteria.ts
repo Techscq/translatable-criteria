@@ -1,7 +1,6 @@
 import type {
   CriteriaSchema,
   JoinRelationType,
-  SelectedAliasOf,
 } from '../types/schema.types.js';
 import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
 import { Criteria, type ValidSchema } from '../criteria.js';
@@ -15,8 +14,7 @@ import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
  */
 export class LeftJoinCriteria<
   CSchema extends CriteriaSchema,
-  Alias extends SelectedAliasOf<CSchema> = SelectedAliasOf<CSchema>,
-> extends Criteria<CSchema, Alias> {
+> extends Criteria<CSchema> {
   /**
    * Accepts a criteria visitor to process this left join criteria.
    * It first validates the join field against the schema before dispatching to the visitor.
@@ -28,28 +26,25 @@ export class LeftJoinCriteria<
    * @param {TranslationContext} context - The context object to be passed to the visitor.
    * @returns {TranslationOutput} The result of the visitor processing this join.
    */
-  accept<TranslationContext, TranslationOutput>(
-    visitor: ICriteriaVisitor<TranslationContext, TranslationOutput>,
+  accept<TranslationContext>(
+    visitor: ICriteriaVisitor<TranslationContext>,
     parameters:
       | PivotJoin<CriteriaSchema, CSchema, JoinRelationType>
       | SimpleJoin<CriteriaSchema, CSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput {
+  ): void {
     typeof parameters.join_field === 'object'
       ? this.assetFieldOnSchema(parameters.join_field.reference)
       : this.assetFieldOnSchema(parameters.join_field);
 
-    return visitor.visitLeftJoin(this, parameters, context);
+    visitor.visitLeftJoin(this, parameters, context);
   }
   /**
    * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
    * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
    * @returns {LeftJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
    */
-  resetCriteria(): LeftJoinCriteria<CSchema, Alias> {
-    return new LeftJoinCriteria(
-      this.schema as ValidSchema<CSchema>,
-      this._alias,
-    );
+  resetCriteria(): LeftJoinCriteria<CSchema> {
+    return new LeftJoinCriteria(this.schema as ValidSchema<CSchema>);
   }
 }

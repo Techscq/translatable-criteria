@@ -25,7 +25,6 @@ This section provides a detailed reference for the public classes, interfaces, t
   - [`CriteriaSchema`](#criteriaschema)
   - [`GetTypedCriteriaSchema`](#gettypedcriteriaschema)
   - [`FieldOfSchema`](#fieldofschema)
-  - [`SelectedAliasOf`](#selectedaliasof)
   - [`JoinRelationType`](#joinrelationtype)
   - [`SchemaJoins`](#schemajoins)
   - [`FilterPrimitive`](#filterprimitive)
@@ -51,47 +50,47 @@ This section provides a detailed reference for the public classes, interfaces, t
 
 ### `CriteriaFactory`
 
-Provides static methods for creating instances of different types of `Criteria`. It simplifies the creation of `Criteria` objects and ensures they are instantiated with the correct schema and alias configuration.
+Provides static methods for creating instances of different types of `Criteria`. It simplifies the creation of `Criteria` objects and ensures they are instantiated with the correct schema. The alias is now inferred directly from the schema.
 
 **Static Methods:**
 
-- **`GetCriteria<CSchema extends CriteriaSchema, Alias extends SelectedAliasOf<CSchema>>(schema: CSchema, alias: Alias): RootCriteria<CSchema, Alias>`**
+- **`GetCriteria<CSchema extends CriteriaSchema>(schema: CSchema): RootCriteria<CSchema>`**
+
   - Creates an instance of `RootCriteria`. This is the starting point for building a main query.
   - **Parameters:**
     - `schema`: An instance of `CriteriaSchema` that defines the structure of the root entity.
-    - `alias`: A valid alias (string) for the root entity, defined within the `schema`.
   - **Returns:** An instance of `RootCriteria`.
   - **Example:**
 
 ```typescript
 import { CriteriaFactory, UserSchema } from '@nulledexp/translatable-criteria';
-const userCriteria = CriteriaFactory.GetCriteria(UserSchema, 'users');
+const userCriteria = CriteriaFactory.GetCriteria(UserSchema);
 ```
 
-- **`GetInnerJoinCriteria<CSchema extends CriteriaSchema, Alias extends SelectedAliasOf<CSchema>>(schema: CSchema, alias: Alias): InnerJoinCriteria<CSchema, Alias>`**
+- **`GetInnerJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): InnerJoinCriteria<CSchema>`**
+
   - Creates an instance of `InnerJoinCriteria`. Used to define an `INNER JOIN` in a query.
   - **Parameters:**
     - `schema`: An instance of `CriteriaSchema` for the entity to be joined.
-    - `alias`: A valid alias for the joined entity, defined in its `schema`.
   - **Returns:** An instance of `InnerJoinCriteria`.
   - **Example:**
 
 ```typescript
 import { CriteriaFactory, PostSchema } from '@nulledexp/translatable-criteria';
-const postJoin = CriteriaFactory.GetInnerJoinCriteria(PostSchema, 'posts');
-// userCriteria.join(postJoin, { parent_field: 'id', join_field: 'user_id' });
+const postJoin = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
+// userCriteria.join('posts', postJoin, { parent_field: 'id', join_field: 'userId' });
 ```
 
-- **`GetLeftJoinCriteria<CSchema extends CriteriaSchema, Alias extends SelectedAliasOf<CSchema>>(schema: CSchema, alias: Alias): LeftJoinCriteria<CSchema, Alias>`**
+- **`GetLeftJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): LeftJoinCriteria<CSchema>`**
 
   - Creates an instance of `LeftJoinCriteria`. Used to define a `LEFT JOIN`.
   - **Returns:** An instance of `LeftJoinCriteria`.
 
-- **`GetOuterJoinCriteria<CSchema extends CriteriaSchema, Alias extends SelectedAliasOf<CSchema>>(schema: CSchema, alias: Alias): OuterJoinCriteria<CSchema, Alias>`**
+- **`GetOuterJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): OuterJoinCriteria<CSchema>`**
   - Creates an instance of `OuterJoinCriteria`. Used to define a `FULL OUTER JOIN`.
   - **Returns:** An instance of `OuterJoinCriteria`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `RootCriteria`
 
@@ -101,9 +100,9 @@ Instantiated via `CriteriaFactory.GetCriteria()`.
 **Main Methods (in addition to those inherited from `Criteria`):**
 
 - Implements `accept` for the Visitor pattern, calling `visitor.visitRoot()`.
-- `resetCriteria()`: Returns a new instance of `RootCriteria` with the same schema and alias configuration, but with all other states (filters, joins, etc.) reset.
+- `resetCriteria()`: Returns a new instance of `RootCriteria` with the same schema configuration, but with all other states (filters, joins, etc.) reset.
 
-Back to Index
+[Back to Index](#index)
 
 ### `InnerJoinCriteria`
 
@@ -115,7 +114,7 @@ Instantiated via `CriteriaFactory.GetInnerJoinCriteria()`.
 - Implements `accept` for the Visitor pattern, calling `visitor.visitInnerJoin()`.
 - `resetCriteria()`: Returns a new instance of `InnerJoinCriteria`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `LeftJoinCriteria`
 
@@ -127,7 +126,7 @@ Instantiated via `CriteriaFactory.GetLeftJoinCriteria()`.
 - Implements `accept` for the Visitor pattern, calling `visitor.visitLeftJoin()`.
 - `resetCriteria()`: Returns a new instance of `LeftJoinCriteria`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `OuterJoinCriteria`
 
@@ -139,7 +138,7 @@ Instantiated via `CriteriaFactory.GetOuterJoinCriteria()`.
 - Implements `accept` for the Visitor pattern, calling `visitor.visitOuterJoin()`.
 - `resetCriteria()`: Returns a new instance of `OuterJoinCriteria`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `Criteria` (Abstract Base Class)
 
@@ -155,8 +154,10 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - `joins: ReadonlyArray<StoredJoinDetails<TSchema>>`: Join configurations.
 - `rootFilterGroup: FilterGroup`: Root filter group.
 - `sourceName: TSchema['source_name']`: Source name from the schema.
-- `alias: CurrentAlias`: Current alias of the criteria.
+- `alias: TSchema['alias']`: The canonical alias from the schema.
 - `cursor: Cursor<...> | undefined`: Cursor configuration for pagination.
+- `identifierField: FieldOfSchema<TSchema>`: The name of the identifier field from the schema.
+- `schemaMetadata: TSchema['metadata']`: The metadata object from the schema.
 
 **Main Methods (chainable):**
 
@@ -168,10 +169,10 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - **`where<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Initializes the filter group with a condition.
 - **`andWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an AND condition to the current filter group.
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an OR condition, creating a new group if necessary.
-- **`join<...>(criteriaToJoin: ..., joinParameter: ...): this`**: Adds a join condition.
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object): this`**: Adds a join condition.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configures cursor-based pagination.
 
-Back to Index
+[Back to Index](#index)
 
 ### `Filter`
 
@@ -190,19 +191,14 @@ Represents an individual filter condition. Instantiated internally when using th
 
 **Methods:**
 
-- `accept(visitor: ICriteriaVisitor<...>, currentAlias: string): TFilterVisitorOutput`: For the Visitor pattern, calls `visitor.visitFilter()`.
+- `accept(visitor: ICriteriaVisitor<...>, currentAlias: string, context: ...): TFilterVisitorOutput`: For the Visitor pattern, calls `visitor.visitFilter()`.
 - `toPrimitive(): FilterPrimitive<T, Operator>`: Returns the primitive representation of the filter.
 
-Back to Index
+[Back to Index](#index)
 
 ### `FilterGroup`
 
-Represents a group of filters (`Filter` or nested `FilterGroup`) connected by a `LogicalOperator` (AND/OR). Instantiated and managed internally by `CriteriaFilterManager` when using `where`, `andWhere`, `orWhere` methods.
-
-**Constructor:**
-
-- `constructor(filterGroupPrimitive: FilterGroupPrimitive<T>)`
-  - Normalizes the primitive filter group (e.g., flattening nested AND groups).
+Represents a group of filters (`Filter` or nested `FilterGroup`) connected by a `LogicalOperator` (AND/OR). Instantiated and managed internally by `CriteriaFilterManager`.
 
 **Properties (getters):**
 
@@ -211,19 +207,14 @@ Represents a group of filters (`Filter` or nested `FilterGroup`) connected by a 
 
 **Methods:**
 
-- `accept(visitor: ICriteriaVisitor<...>, currentAlias: string, context: ...): TranslationOutput`: For the Visitor pattern, calls `visitor.visitAndGroup()` or `visitor.visitOrGroup()` based on the `logicalOperator`.
+- `accept(visitor: ICriteriaVisitor<...>, currentAlias: string, context: ...): void`: For the Visitor pattern, calls `visitor.visitAndGroup()` or `visitor.visitOrGroup()` based on the `logicalOperator`.
 - `toPrimitive(): FilterGroupPrimitive<T>`: Returns the primitive representation of the filter group.
 
-Back to Index
+[Back to Index](#index)
 
 ### `Order`
 
 Represents an ordering rule. Instantiated internally when using the `orderBy()` method of a `Criteria`.
-
-**Constructor:**
-
-- `constructor(direction: OrderDirection, field: T)`
-  - Assigns a globally unique `sequenceId` to maintain a stable order.
 
 **Properties (getters):**
 
@@ -235,29 +226,19 @@ Represents an ordering rule. Instantiated internally when using the `orderBy()` 
 
 - `toPrimitive(): OrderByPrimitive<T>`: Returns the primitive representation of the order rule.
 
-Back to Index
+[Back to Index](#index)
 
 ### `Cursor`
 
 Represents the configuration for cursor-based pagination. Instantiated internally when using the `setCursor()` method of a `Criteria`.
 
-**Constructor:**
-
-- `constructor(filterPrimitive: readonly [Omit<FilterPrimitive<...>, 'operator'>] | readonly [Omit<FilterPrimitive<...>, 'operator'>, Omit<FilterPrimitive<...>, 'operator'>], operator: FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN, order: OrderDirection)`
-  - Validates that cursor fields and values are defined and valid.
-  - Supports 1 or 2 `FilterPrimitive`s for simple or composite cursors.
-  - @throws {Error} If any cursor field is not defined.
-  - @throws {Error} If any cursor value is undefined (null is allowed).
-  - @throws {Error} If two cursor fields are provided and they are identical.
-  - @throws {Error} If no filter primitives are provided.
-
 **Properties (readonly):**
 
-- `filters: [Filter<TFields, Operator>] | [Filter<TFields, Operator>, Filter<TFields, Operator>]`: The filters defining the cursor.
+- `filters: [Filter<...>] | [Filter<...>, Filter<...>]`: The filters defining the cursor.
 - `order: OrderDirection`: The ordering direction of the cursor.
 - `operator: FilterOperator.GREATER_THAN | FilterOperator.LESS_THAN`: The cursor operator.
 
-Back to Index
+[Back to Index](#index)
 
 ---
 
@@ -269,32 +250,22 @@ Abstract class that serves as the base for creating specific translators for dif
 
 - **Generics:**
 
-  - `TranslationContext`: The type of the context object that is passed and modified during translation (e.g., a TypeORM `SelectQueryBuilder`).
+  - `TranslationContext`: The type of the mutable context object (e.g., a query builder) passed through the traversal.
   - `TranslationOutput` (optional, defaults to `TranslationContext`): The type of the final translation result.
-  - `TFilterVisitorOutput` (optional, defaults to `any`): The specific output type for the `visitFilter`, `visitAndGroup`, and `visitOrGroup` methods.
-
-- **Main Method (for the translator user):**
-
-  - **`translate(criteria: RootCriteria<...>, source: TranslationContext): TranslationOutput`**
-    - Main public method to start the translation process.
-    - **Parameters:**
-      - `criteria`: The `RootCriteria` instance to translate.
-      - `source`: The initial context for the translation (e.g., a `SelectQueryBuilder` instance).
-    - **Returns:** The `TranslationOutput` (e.g., the modified `SelectQueryBuilder` or an SQL string).
+  - `TFilterVisitorOutput` (optional, defaults to `any`): The specific output type for the `visitFilter` method.
 
 - **Abstract Methods (to be implemented by child classes):**
 
-  - `visitRoot(...)`
-  - `visitInnerJoin(...)`
-  - `visitLeftJoin(...)`
-  - `visitOuterJoin(...)`
-  - `visitFilter(...)`
-  - `visitAndGroup(...)`
-  - `visitOrGroup(...)`
+  - **`translate(criteria: RootCriteria<...>, source: TranslationContext): TranslationOutput`**: The main public entry point to start the translation process.
+  - `visitRoot(...): void`: Visits the root node of the Criteria tree to initialize the translation.
+  - `visitInnerJoin(...): void`: Visits an Inner Join node to apply its logic.
+  - `visitLeftJoin(...): void`: Visits a Left Join node to apply its logic.
+  - `visitOuterJoin(...): void`: Visits an Outer Join node to apply its logic.
+  - `visitFilter(...): TFilterVisitorOutput`: Visits a single Filter node and returns an intermediate representation of the condition.
+  - `visitAndGroup(...): void`: Visits a group of filters joined by a logical AND.
+  - `visitOrGroup(...): void`: Visits a group of filters joined by a logical OR.
 
-  These methods receive the specific `Criteria` component (e.g., `RootCriteria`, `Filter`), the current alias or join parameters, and the `TranslationContext`. They should return the `TranslationOutput` or `TFilterVisitorOutput` as appropriate.
-
-Back to Index
+[Back to Index](#index)
 
 ---
 
@@ -317,27 +288,27 @@ Enumeration defining the available comparison operators for filters.
   - `NOT_IN` (`NOT IN`): The value is not within a set of values.
   - `IS_NULL` (`IS NULL`): The value is NULL.
   - `IS_NOT_NULL` (`IS NOT NULL`): The value is not NULL.
-  - `CONTAINS` (`CONTAINS`): For substring search (often case-insensitive, depends on the DB).
+  - `CONTAINS` (`CONTAINS`): For substring search.
   - `STARTS_WITH` (`STARTS_WITH`): Starts with a specific substring.
   - `ENDS_WITH` (`ENDS_WITH`): Ends with a specific substring.
   - `NOT_CONTAINS` (`NOT_CONTAINS`): Does not contain a specific substring.
   - `SET_CONTAINS`: For SET-type fields or simple arrays, checks if the set contains a value.
-  - `SET_NOT_CONTAINS`: For SET-type fields or simple arrays, checks if the set does NOT contain a value.
-  - `SET_CONTAINS_ANY` (`SET_CONTAINS_ANY`): For SET-type fields or simple arrays, checks if the set contains AT LEAST ONE of the specified values. Expects an array of values.
-  - `SET_CONTAINS_ALL` (`SET_CONTAINS_ALL`): For SET-type fields or simple arrays, checks if the set contains ALL of the specified values. Expects an array of values.
-  - `BETWEEN` (`BETWEEN`): Checks if a value is within a specified range (inclusive). Expects an array or tuple of two values: `[min, max]`.
-  - `NOT_BETWEEN` (`NOT_BETWEEN`): Checks if a value is outside a specified range (inclusive). Expects an array or tuple of two values: `[min, max]`.
-  - `MATCHES_REGEX` (`MATCHES_REGEX`): Checks if a string value matches a regular expression pattern. The specific regex syntax may depend on the database. Expects a string representing the regular expression.
-  - `ILIKE` (`ILIKE`): Checks if a string value matches a pattern (case-insensitive). Expects a string for the pattern.
-  - `NOT_ILIKE` (`NOT_ILIKE`): Checks if a string value does not match a pattern (case-insensitive). Expects a string for the pattern.
-  - `JSON_CONTAINS`: For JSON fields, checks if the JSON contains a specific structure or value at a path.
-  - `JSON_NOT_CONTAINS`: For JSON fields, checks if the JSON does NOT contain a specific structure or value.
-  - `ARRAY_CONTAINS_ELEMENT`: For Array fields (native or JSON), checks if the array contains an element.
-  - `ARRAY_CONTAINS_ALL_ELEMENTS`: For Array fields, checks if the array contains all elements from a given array.
-  - `ARRAY_CONTAINS_ANY_ELEMENT`: For Array fields, checks if the array contains any of the elements from a given array.
-  - `ARRAY_EQUALS`: For Array fields, checks if the array is exactly equal to a given array (order and elements).
+  - `SET_NOT_CONTAINS`: The inverse of `SET_CONTAINS`.
+  - `SET_CONTAINS_ANY`: Checks if the set contains AT LEAST ONE of the specified values.
+  - `SET_CONTAINS_ALL`: Checks if the set contains ALL of the specified values.
+  - `BETWEEN` (`BETWEEN`): Checks if a value is within a specified range (inclusive).
+  - `NOT_BETWEEN` (`NOT_BETWEEN`): Checks if a value is outside a specified range.
+  - `MATCHES_REGEX` (`MATCHES_REGEX`): Checks if a string value matches a regular expression.
+  - `ILIKE` (`ILIKE`): Case-insensitive version of `LIKE`.
+  - `NOT_ILIKE` (`NOT_ILIKE`): Case-insensitive version of `NOT_ILIKE`.
+  - `JSON_CONTAINS`: For JSON fields, checks if the JSON contains a specific structure or value.
+  - `JSON_NOT_CONTAINS`: The inverse of `JSON_CONTAINS`.
+  - `ARRAY_CONTAINS_ELEMENT`: For Array fields, checks if the array contains an element.
+  - `ARRAY_CONTAINS_ALL_ELEMENTS`: Checks if the array contains all elements from a given array.
+  - `ARRAY_CONTAINS_ANY_ELEMENT`: Checks if the array contains any of the elements from a given array.
+  - `ARRAY_EQUALS`: Checks if the array is exactly equal to a given array.
 
-Back to Index
+[Back to Index](#index)
 
 ### `LogicalOperator`
 
@@ -347,7 +318,7 @@ Enumeration defining the logical operators for combining filter groups.
   - `AND` (`AND`): All conditions must be met.
   - `OR` (`OR`): At least one condition must be met.
 
-Back to Index
+[Back to Index](#index)
 
 ### `OrderDirection`
 
@@ -357,7 +328,7 @@ Enumeration defining the direction of ordering.
   - `ASC` (`ASC`): Ascending order.
   - `DESC` (`DESC`): Descending order.
 
-Back to Index
+[Back to Index](#index)
 
 ---
 
@@ -369,40 +340,40 @@ Interface defining the structure of an entity schema. Schemas are crucial for ty
 
 - **Properties:**
   - `source_name: string`: The actual name of the table or collection in the database.
-  - `alias: readonly string[]`: An array of possible aliases for this entity. The first is usually the primary one.
+  - `alias: string`: A single, canonical alias for this entity.
   - `fields: readonly string[]`: An array of the names of queryable fields for this entity.
+  - `identifier_field: string`: **(Mandatory)** The name of the field that uniquely identifies an entity of this schema. Must be one of the names in `fields`.
   - `joins: readonly SchemaJoins<string>[]` (optional): An array defining possible join relationships with other schemas.
-    - `SchemaJoins<AliasUnion extends string>`:
-      - `alias: AliasUnion`: The alias of the joined entity (must match an alias in the joined entity's schema).
-      - `relation_type: JoinRelationType`: The type of relationship (e.g., `'one_to_many'`).
-      - `metadata?: { [key: string]: any }`: Optional metadata associated with the specific join configuration.
-  - `metadata?: { [key: string]: any }`: Optional metadata associated with the entire schema definition. Can be used by translators for custom logic or hints.
+  - `metadata?: { [key: string]: any }`: Optional metadata associated with the entire schema definition.
 
-Back to Index
+[Back to Index](#index)
 
 ### `GetTypedCriteriaSchema`
 
 Helper function for defining schemas. It preserves the literal types of `fields` and `alias`, improving autocompletion and type validation.
 
-- **Function:** `GetTypedCriteriaSchema<T extends MinimalCriteriaSchema>(schema: T): T`
-  - **Parameters:**
-    - `schema`: An object conforming to the `MinimalCriteriaSchema` structure (a looser version of `CriteriaSchema` for input).
-  - **Returns:** The same input `schema` object, but with its literal types preserved.
-  - **Example:**
+- **Function:** `GetTypedCriteriaSchema<T extends CriteriaSchema>(schema: T): T`
+- **Example:**
 
 ```typescript
 import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
 
-const MyUserSchema = GetTypedCriteriaSchema({
-  source_name: 'user_table',
-  alias: ['user', 'u'],
+export const UserSchema = GetTypedCriteriaSchema({
+  source_name: 'users',
+  alias: 'u',
   fields: ['id', 'name', 'email'],
-  joins: [{ alias: 'orders', relation_type: 'one_to_many' }],
+  identifier_field: 'id',
+  joins: [
+    {
+      alias: 'posts',
+      target_source_name: 'posts',
+      relation_type: 'one_to_many',
+    },
+  ],
 });
-// MyUserSchema now has literal types for alias and fields.
 ```
 
-Back to Index
+[Back to Index](#index)
 
 ### `FieldOfSchema`
 
@@ -410,15 +381,7 @@ Helper type that extracts the valid field names from a given `CriteriaSchema`.
 
 - **Type:** `FieldOfSchema<T extends CriteriaSchema> = T['fields'][number];`
 
-Back to Index
-
-### `SelectedAliasOf`
-
-Helper type that extracts the valid aliases from a given `CriteriaSchema`.
-
-- **Type:** `SelectedAliasOf<T extends CriteriaSchema> = T['alias'][number];`
-
-Back to Index
+[Back to Index](#index)
 
 ### `JoinRelationType`
 
@@ -426,225 +389,173 @@ String union type representing the possible types of join relationships.
 
 - **Possible Values:** `'one_to_one' | 'one_to_many' | 'many_to_one' | 'many_to_many'`
 
-Back to Index
+[Back to Index](#index)
 
 ### `SchemaJoins`
 
 Interface defining the structure of a join configuration within the `joins` property of a `CriteriaSchema`.
 
 - **Properties:**
-  - `alias: AliasUnion`: The alias of the entity being joined to.
+  - `alias: string`: The alias for this specific join relation (e.g., `'posts'`, `'author'`).
   - `relation_type: JoinRelationType`: The type of relationship.
+  - `target_source_name: string`: The `source_name` of the schema being joined to.
   - `metadata?: { [key: string]: any }`: Optional metadata associated with this specific join configuration.
 
-Back to Index
+[Back to Index](#index)
 
 ### `FilterPrimitive`
 
 Interface defining the structure for an individual filter condition before it's instantiated as a `Filter` object.
 
-- **Generics:**
-  - `Field extends FieldOfSchema<CriteriaSchema>`: The type of valid fields.
-  - `Operator extends FilterOperator`: The specific filter operator.
 - **Properties:**
-  - `field: Field`: The field to apply the filter to.
-  - `operator: Operator`: The filter operator.
+  - `field: FieldOfSchema<...>`: The field to apply the filter to.
+  - `operator: FilterOperator`: The filter operator.
   - `value: FilterValue<Operator>`: The filter value, whose type depends on the `Operator`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `FilterGroupPrimitive`
 
 Interface defining the structure for a group of filters before it's instantiated as a `FilterGroup` object.
 
-- **Generics:**
-  - `Field extends string`: The type of valid fields.
 - **Properties:**
   - `logicalOperator: LogicalOperator`: The logical operator (`AND` or `OR`) joining the `items`.
-  - `items: ReadonlyArray<FilterPrimitive<Field, FilterOperator> | FilterGroupPrimitive<Field>>`: Array of filters or nested filter groups.
+  - `items: ReadonlyArray<FilterPrimitive<...> | FilterGroupPrimitive<...>>`: Array of filters or nested filter groups.
 
-Back to Index
+[Back to Index](#index)
 
 ### `FilterValue`
 
 Generic type representing the value associated with a filter, strongly typed according to the `FilterOperator` used.
 
-- **Definition (conceptual):**
-  - If `Operator` is `LIKE`, `CONTAINS`, etc. => `string`
-  - If `Operator` is `EQUALS`, `GREATER_THAN`, etc. => `PrimitiveFilterValue` (string | number | boolean | Date | null)
-  - If `Operator` is `IN`, `NOT_IN` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
-  - If `Operator` is `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL` => `Array<Exclude<PrimitiveFilterValue, null | undefined>>`
-  - If `Operator` is `BETWEEN`, `NOT_BETWEEN` => `[Exclude<PrimitiveFilterValue, null | undefined>, Exclude<PrimitiveFilterValue, null | undefined>]`
-  - If `Operator` is `MATCHES_REGEX`, `ILIKE`, `NOT_ILIKE` => `string`
-  - If `Operator` is `ARRAY_CONTAINS_ELEMENT` => `PrimitiveFilterValue | { [jsonPath: string]: PrimitiveFilterValue }`
-  - If `Operator` is `ARRAY_CONTAINS_ALL_ELEMENTS`, etc. => `Array<...> | { [jsonPath: string]: Array<...> }`
-  - If `Operator` is `IS_NULL`, `IS_NOT_NULL` => `null | undefined`
-  - If `Operator` is `JSON_CONTAINS`, etc. => `{ [jsonPath: string]: PrimitiveFilterValue | Array<any> | Record<string, any> }`
-
-Back to Index
+[Back to Index](#index)
 
 ### `OrderByPrimitive`
 
 Type defining the structure for an ordering rule before it's instantiated as an `Order` object.
 
-- **Generics:**
-  - `T extends string`: The type of valid fields.
 - **Properties:**
   - `direction: OrderDirection`: The ordering direction.
-  - `field: T`: The field to order by.
+  - `field: string`: The field to order by.
 
-Back to Index
+[Back to Index](#index)
 
 ### `PivotJoinInput`
 
 Type representing the input parameters for a `many-to-many` join via a pivot table, as provided by the user to the `.join()` method.
 
-- **Generics:**
-  - `ParentSchema extends CriteriaSchema`
-  - `JoinSchema extends CriteriaSchema`
 - **Properties:**
   - `pivot_source_name: string`: Name of the pivot table.
   - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`: Configuration of the parent entity's field referencing the pivot table.
   - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`: Configuration of the joined entity's field referencing the pivot table.
 
-Back to Index
+[Back to Index](#index)
 
 ### `SimpleJoinInput`
 
 Type representing the input parameters for a simple join (one-to-one, one-to-many, many-to-one), as provided by the user to the `.join()` method.
 
-- **Generics:**
-  - `ParentSchema extends CriteriaSchema`
-  - `JoinSchema extends CriteriaSchema`
 - **Properties:**
   - `parent_field: FieldOfSchema<ParentSchema>`: Field in the parent entity for the join condition.
   - `join_field: FieldOfSchema<JoinSchema>`: Field in the joined entity for the join condition.
 
-Back to Index
+[Back to Index](#index)
 
 ### `ICriteriaBase`
 
 Base interface defining common functionality for all criteria types.
 
-- **Generics:**
-  - `TSchema extends CriteriaSchema`
-  - `CurrentAlias extends SelectedAliasOf<TSchema>`
-- **Main Methods (see `Criteria` for details):**
-  - `resetSelect()`
-  - `setSelect(...)`
-  - `setTake(...)`
-  - `setSkip(...)`
-  - `orderBy(...)`
-  - `where(...)`
-  - `andWhere(...)`
-  - `orWhere(...)`
-  - `join(...)`
-  - `setCursor(...)`
-- **Properties (getters):** `select`, `selectAll`, `take`, `skip`, `orders`, `joins`, `rootFilterGroup`, `sourceName`, `alias`, `cursor`.
-
-Back to Index
+[Back to Index](#index)
 
 ### `ICriteriaVisitor`
 
 Interface for the Visitor pattern, implemented by `CriteriaTranslator`. Defines the `visit...` methods for each type of `Criteria` node.
 
-- **Generics:**
-  - `TranslationContext`
-  - `TranslationOutput`
-  - `TFilterVisitorOutput`
-- **Methods (see `CriteriaTranslator` for details):**
-  - `visitRoot(...)`
-  - `visitInnerJoin(...)`
-  - `visitLeftJoin(...)`
-  - `visitOuterJoin(...)`
-  - `visitFilter(...)`
-  - `visitAndGroup(...)`
-  - `visitOrGroup(...)`
+- **Methods (return `void` unless specified):**
+  - `visitRoot(...)`: Visits the root node of the Criteria tree to initialize the translation.
+  - `visitInnerJoin(...)`: Visits an Inner Join node to apply its logic.
+  - `visitLeftJoin(...)`: Visits a Left Join node to apply its logic.
+  - `visitOuterJoin(...)`: Visits an Outer Join node to apply its logic.
+  - `visitFilter(...): TFilterVisitorOutput`: Visits a single Filter node and returns an intermediate representation of the condition.
+  - `visitAndGroup(...)`: Visits a group of filters joined by a logical AND.
+  - `visitOrGroup(...)`: Visits a group of filters joined by a logical OR.
 
-Back to Index
+[Back to Index](#index)
 
 ### `IFilterExpression`
 
 Interface implemented by `Filter` and `FilterGroup`.
 
 - **Methods:**
-  - `toPrimitive(): FilterPrimitive<...> | FilterGroupPrimitive<...>`: Returns the primitive representation of the filter expression.
+  - `toPrimitive()`: Returns the primitive representation of the filter expression.
 
-Back to Index
+[Back to Index](#index)
 
 ### `StoredJoinDetails`
 
 Interface defining the structure for storing the details of a configured join internally.
 
-- **Generics:**
-  - `ParentSchema extends CriteriaSchema`
 - **Properties:**
   - `parameters: PivotJoin<...> | SimpleJoin<...>`: The resolved join parameters.
   - `criteria: AnyJoinCriteria<...>`: The `Criteria` instance of the joined entity.
 
-Back to Index
+[Back to Index](#index)
 
 ### `AnyJoinCriteria`
 
 Union type representing any type of join `Criteria` (`InnerJoinCriteria`, `LeftJoinCriteria`, `OuterJoinCriteria`).
 
-Back to Index
+[Back to Index](#index)
 
 ### `JoinCriteriaParameterType`
 
-Helper type that determines the type of the `Criteria` object to be passed to the `.join()` method, validating that the joined entity's alias is configured in the parent schema.
+Helper type that determines the type of the `Criteria` object to be passed to the `.join()` method, validating that the joined entity's `source_name` is configured in the parent schema.
 
-Back to Index
+[Back to Index](#index)
 
 ### `JoinParameterType`
 
-Helper type that determines the expected shape of the join parameters object for the `.join()` method, based on the `join_relation_type` defined in the parent schema.
+Helper type that determines the expected shape of the join parameters object for the `.join()` method, based on the `relation_type` defined in the parent schema.
 
-Back to Index
+[Back to Index](#index)
 
 ### `SpecificMatchingJoinConfig`
 
-Helper type that extracts the specific join configuration from a parent schema that matches a given joined entity alias.
+Helper type that extracts the specific join configuration from a parent schema that matches a given `target_source_name`.
 
-Back to Index
+[Back to Index](#index)
 
 ### `PivotJoin`
 
 Type representing the fully resolved parameters for a `many-to-many` join via a pivot table, used internally.
 
-- **Generics:**
-  - `ParentSchema extends CriteriaSchema`
-  - `JoinSchema extends CriteriaSchema`
-  - `TRelationType extends JoinRelationType`
 - **Properties:**
-  - `relation_type: TRelationType`: The type of relationship from the parent to the joined entity.
-  - `parent_source_name: ParentSchema['source_name']`
-  - `parent_alias: ParentSchema['alias'][number]`
+  - `relation_type: 'many_to_many'`
+  - `parent_source_name: string`
+  - `parent_alias: string`
+  - `join_alias: string`
+  - `parent_identifier: string`
   - `pivot_source_name: string`
-  - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`
-  - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`
-  - `parent_schema_metadata: { [key: string]: any }`: Optional metadata from the parent schema.
-  - `join_metadata: { [key: string]: any }`: Optional metadata from the specific join configuration.
+  - `parent_field: { pivot_field: string; reference: string }`
+  - `join_field: { pivot_field: string; reference: string }`
+  - `parent_schema_metadata: { [key: string]: any }`
+  - `join_metadata: { [key: string]: any }`
 
-Back to Index
+[Back to Index](#index)
 
 ### `SimpleJoin`
 
 Type representing the fully resolved parameters for a simple join (one-to-one, one-to-many, many-to-one), used internally.
 
-- **Generics:**
-  - `ParentSchema extends CriteriaSchema`
-  - `JoinSchema extends CriteriaSchema`
-  - `TRelationType extends JoinRelationType`
 - **Properties:**
-  - `relation_type: TRelationType`: The type of relationship from the parent to the joined entity.
-  - `parent_source_name: ParentSchema['source_name']`
-  - `parent_alias: ParentSchema['alias'][number]`
-  - `parent_field: FieldOfSchema<ParentSchema>`
-  - `join_field: FieldOfSchema<JoinSchema>`
-  - `parent_schema_metadata: { [key: string]: any }`: Optional metadata from the parent schema.
-  - `join_metadata: { [key: string]: any }`: Optional metadata from the specific join configuration.
+  - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
+  - `parent_source_name: string`
+  - `parent_alias: string`
+  - `join_alias: string`
+  - `parent_identifier: string`
+  - `parent_field: string`
+  - `join_field: string`
+  - `parent_schema_metadata: { [key: string]: any }`
+  - `join_metadata: { [key: string]: any }`
 
-Back to Index
-
----
+[Back to Index](#index)

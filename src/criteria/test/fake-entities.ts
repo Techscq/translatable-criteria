@@ -16,21 +16,24 @@ export interface User extends EntityBase {
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'user',
-  alias: ['users', 'user', 'publisher'],
+  alias: 'users',
   fields: ['uuid', 'email', 'username', 'created_at'],
   identifier_field: 'uuid',
   joins: [
     {
       alias: 'permissions',
       relation_type: 'many_to_many',
+      target_source_name: 'permission',
     },
     {
       alias: 'addresses',
       relation_type: 'one_to_many',
+      target_source_name: 'address',
     },
     {
       alias: 'posts',
       relation_type: 'one_to_many',
+      target_source_name: 'post',
     },
   ],
 });
@@ -52,7 +55,7 @@ export interface Post extends EntityBase {
 
 export const PostSchema = GetTypedCriteriaSchema({
   source_name: 'post',
-  alias: ['posts', 'post'],
+  alias: 'posts',
   identifier_field: 'uuid',
   fields: [
     'uuid',
@@ -64,8 +67,16 @@ export const PostSchema = GetTypedCriteriaSchema({
     'metadata',
   ],
   joins: [
-    { alias: 'comments', relation_type: 'one_to_many' },
-    { alias: 'publisher', relation_type: 'many_to_one' },
+    {
+      alias: 'comments',
+      relation_type: 'one_to_many',
+      target_source_name: 'post_comment',
+    },
+    {
+      alias: 'publisher',
+      relation_type: 'many_to_one',
+      target_source_name: 'user',
+    },
   ],
 });
 export type PostSchema = typeof PostSchema;
@@ -78,12 +89,12 @@ export interface Comment extends EntityBase {
 
 export const PostCommentSchema = GetTypedCriteriaSchema({
   source_name: 'post_comment',
-  alias: ['comments', 'comment'],
+  alias: 'comments',
   fields: ['uuid', 'comment_text', 'user_uuid', 'post_uuid', 'created_at'],
   identifier_field: 'uuid',
   joins: [
-    { alias: 'post', relation_type: 'many_to_one' },
-    { alias: 'user', relation_type: 'many_to_one' },
+    { alias: 'post', relation_type: 'many_to_one', target_source_name: 'post' },
+    { alias: 'user', relation_type: 'many_to_one', target_source_name: 'user' },
   ],
 });
 export type PostCommentSchema = typeof PostCommentSchema;
@@ -94,13 +105,14 @@ export interface Permission extends EntityBase {
 
 export const PermissionSchema = GetTypedCriteriaSchema({
   source_name: 'permission',
-  alias: ['permissions', 'permission'],
+  alias: 'permissions',
   fields: ['uuid', 'name', 'created_at'],
   identifier_field: 'uuid',
   joins: [
     {
       alias: 'users',
       relation_type: 'many_to_many',
+      target_source_name: 'user',
     },
   ],
 });
@@ -112,13 +124,14 @@ export interface Address extends EntityBase {
 
 export const AddressSchema = GetTypedCriteriaSchema({
   source_name: 'address',
-  alias: ['addresses', 'address'],
+  alias: 'addresses',
   fields: ['uuid', 'direction', 'user_uuid', 'created_at'],
   identifier_field: 'uuid',
   joins: [
     {
       alias: 'user',
       relation_type: 'many_to_one',
+      target_source_name: 'user',
     },
   ],
 });
@@ -168,7 +181,7 @@ export interface DomainEvent<T extends { [key: string]: any }> {
 
 export const DomainEventsSchema = GetTypedCriteriaSchema({
   source_name: 'event',
-  alias: ['event', 'events'],
+  alias: 'events',
   identifier_field: 'id',
   fields: [
     'id',

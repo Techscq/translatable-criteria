@@ -38,6 +38,8 @@
     "vitest.config.js",
     "vitest.config.js.map",
     "**/*.test.ts",
-    "**/test"
+    "**/test",
+    "src/docs",
+    "src/criteria/translator/example"
   ]
 }

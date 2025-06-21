@@ -13,13 +13,15 @@ export type JoinRelationType =
 
 /**
  * Describes the configuration for a joinable relation within a {@link CriteriaSchema}.
- * @template ValidAlias - A string literal type representing a valid alias for the join.
+ * @template ValidAlias - A string literal type representing the alias to be used for the joined entity in the query.
  */
 export type SchemaJoins<ValidAlias extends string> = {
-  /** The alias used to refer to this join in criteria construction. */
+  /** The alias to be used for the joined entity in the final query (e.g., 'p' for posts). */
   alias: ValidAlias;
   /** The type of relationship this join represents (e.g., 'one_to_many'). */
   relation_type: JoinRelationType;
+  /** The `source_name` of the schema that this relation targets. Used for robust validation. */
+  target_source_name: string;
   /**
    * Optional metadata associated with this specific join configuration.
    * This allows for storing arbitrary, translator-specific information
@@ -32,23 +34,23 @@ export type SchemaJoins<ValidAlias extends string> = {
 
 /**
  * Represents the schema definition for an entity, used by the Criteria system.
- * It defines the entity's source name (e.g., table name), available aliases,
+ * It defines the entity's source name (e.g., table name), a single canonical alias,
  * fields, and joinable relations.
  * @template TFields - A readonly array of string literal types representing the entity's field names.
- * @template TAliases - A readonly array of string literal types representing the entity's valid aliases.
+ * @template TAliase - A string literal type for the entity's canonical alias.
  * @template TSourceName - A string literal type for the entity's source name.
  * @template JoinsAlias - A string literal type representing valid aliases for its joinable relations.
  */
 export type CriteriaSchema<
   TFields extends ReadonlyArray<string> = ReadonlyArray<string>,
-  TAliases extends ReadonlyArray<string> = ReadonlyArray<string>,
+  TAliase extends string = string,
   TSourceName extends string = string,
   JoinsAlias extends string = string,
 > = {
   /** The source name of the entity (e.g., database table name). */
   source_name: TSourceName;
-  /** An array of valid aliases that can be used to refer to this entity. */
-  alias: TAliases;
+  /** The canonical alias used to refer to this entity in queries. */
+  alias: TAliase;
   /** An array of field names available for this entity. */
   fields: TFields;
   /** An array of configurations for entities that can be joined from this entity. */
@@ -80,10 +82,10 @@ export type CriteriaSchema<
  * @example
  * export const UserSchema = GetTypedCriteriaSchema({
  *   source_name: 'users_table',
- *   alias: ['user', 'u'],
+ *   alias: 'u', // Single alias
  *   fields: ['id', 'name', 'email'],
  *   identifier_field: 'id', // Must be one of 'id', 'name', or 'email'
- *   joins: [{ alias: 'posts', relation_type: 'one_to_many' }]
+ *   joins: [{ alias: 'posts', target_source_name: 'posts_table', relation_type: 'one_to_many' }]
  * });
  */
 export function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(
@@ -99,11 +101,3 @@ export function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(
  */
 export type FieldOfSchema<T extends CriteriaSchema> =
   T['fields'] extends ReadonlyArray<string> ? T['fields'][number] : never;
-
-/**
- * Extracts a union type of all valid aliases from a given {@link CriteriaSchema}.
- * @template T - The {@link CriteriaSchema} from which to extract aliases.
- * @example type UserAliases = SelectedAliasOf<typeof UserSchema>; // "user" | "u"
- */
-export type SelectedAliasOf<T extends CriteriaSchema> =
-  T['alias'] extends ReadonlyArray<string> ? T['alias'][number] : never;

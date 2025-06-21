@@ -1,5 +1,5 @@
 import { RootCriteria } from './root.criteria.js';
-import type { CriteriaSchema, SelectedAliasOf } from './types/schema.types.js';
+import type { CriteriaSchema } from './types/schema.types.js';
 import { InnerJoinCriteria } from './join/inner.join-criteria.js';
 import { LeftJoinCriteria } from './join/left.join-criteria.js';
 import { OuterJoinCriteria } from './join/outer.join-criteria.js';
@@ -24,11 +24,10 @@ export class CriteriaFactory {
    *
    * const userCriteria = CriteriaFactory.GetCriteria(UserSchema, 'users');
    */
-  static GetCriteria<
-    CSchema extends CriteriaSchema,
-    Alias extends SelectedAliasOf<CSchema>,
-  >(schema: ValidSchema<CSchema>, alias: Alias): RootCriteria<CSchema, Alias> {
-    return new RootCriteria(schema, alias);
+  static GetCriteria<CSchema extends CriteriaSchema>(
+    schema: ValidSchema<CSchema>,
+  ): RootCriteria<CSchema> {
+    return new RootCriteria(schema);
   }
 
   /**
@@ -45,14 +44,10 @@ export class CriteriaFactory {
    * const postJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(PostSchema, 'posts');
    * // postJoinCriteria can then be used in the .join() method of another Criteria
    */
-  static GetInnerJoinCriteria<
-    CSchema extends CriteriaSchema,
-    Alias extends SelectedAliasOf<CSchema>,
-  >(
+  static GetInnerJoinCriteria<CSchema extends CriteriaSchema>(
     schema: ValidSchema<CSchema>,
-    alias: Alias,
-  ): InnerJoinCriteria<CSchema, Alias> {
-    return new InnerJoinCriteria(schema, alias);
+  ): InnerJoinCriteria<CSchema> {
+    return new InnerJoinCriteria(schema);
   }
 
   /**
@@ -68,14 +63,10 @@ export class CriteriaFactory {
    *
    * const commentJoinCriteria = CriteriaFactory.GetLeftJoinCriteria(CommentSchema, 'comments');
    */
-  static GetLeftJoinCriteria<
-    CSchema extends CriteriaSchema,
-    Alias extends SelectedAliasOf<CSchema>,
-  >(
+  static GetLeftJoinCriteria<CSchema extends CriteriaSchema>(
     schema: ValidSchema<CSchema>,
-    alias: Alias,
-  ): LeftJoinCriteria<CSchema, Alias> {
-    return new LeftJoinCriteria(schema, alias);
+  ): LeftJoinCriteria<CSchema> {
+    return new LeftJoinCriteria(schema);
   }
 
   /**
@@ -91,13 +82,9 @@ export class CriteriaFactory {
    *
    * const profileJoinCriteria = CriteriaFactory.GetOuterJoinCriteria(ProfileSchema, 'profiles');
    */
-  static GetOuterJoinCriteria<
-    CSchema extends CriteriaSchema,
-    Alias extends SelectedAliasOf<CSchema>,
-  >(
+  static GetOuterJoinCriteria<CSchema extends CriteriaSchema>(
     schema: ValidSchema<CSchema>,
-    alias: Alias,
-  ): OuterJoinCriteria<CSchema, Alias> {
-    return new OuterJoinCriteria(schema, alias);
+  ): OuterJoinCriteria<CSchema> {
+    return new OuterJoinCriteria(schema);
   }
 }

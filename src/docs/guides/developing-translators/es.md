@@ -14,30 +14,28 @@ Esta guía te mostrará los pasos y conceptos clave para desarrollar tu propio `
   - 3.3. [`visitFilter`](#33-visitfilter)
   - 3.4. [`visitAndGroup`, `visitOrGroup`](#34-visitandgroup-visitorgroup)
 - 4. [Manejando Ordenamiento, Paginación y Selección](#4-manejando-ordenamiento-paginación-y-selección)
-  - 4.1. [Ordenamiento (`orderBy`)](#41-ordenamiento-orderby)
-  - 4.2. [Paginación Offset (`setTake`, `setSkip`)](#42-paginación-offset-settake-setskip)
-  - 4.3. [Paginación por Cursor (`setCursor`)](#43-paginación-por-cursor-setcursor)
-  - 4.4. [Selección de Campos (`setSelect`)](#44-selección-de-campos-setselect)
 - 5. [Gestión de Estado y Parámetros](#5-gestión-de-estado-y-parámetros)
-- 6. [Ejemplo Simplificado: Traductor a Pseudo-SQL](#6-ejemplo-simplificado-traductor-a-pseudo-sql)
+- 6. [Ejemplo Completo: Traductor a Pseudo-SQL](#6-ejemplo-completo-traductor-a-pseudo-sql)
+  - 6.1. [Implementación del Traductor](#61-implementación-del-traductor)
+  - 6.2. [Uso del Traductor](#62-uso-del-traductor)
 - 7. [Consideraciones Adicionales](#7-consideraciones-adicionales)
-- [Próximos Pasos](#próximos-pasos-traductores)
+- [Próximos Pasos](#próximos-pasos)
 
 ---
 
 ## 1. Entendiendo `CriteriaTranslator` y `ICriteriaVisitor`
 
-Como se mencionó en los Conceptos Clave, la librería utiliza el patrón de diseño Visitor.
+La librería utiliza el patrón de diseño Visitor.
 
 - **`CriteriaTranslator<TranslationContext, TranslationOutput, TFilterVisitorOutput>`**: Es una clase abstracta que debes extender.
 
-  - `TranslationContext`: El tipo del objeto de contexto que se pasa durante el recorrido del `Criteria` (ej. un constructor de consultas como el `SelectQueryBuilder` de TypeORM, o un objeto donde acumulas partes de una consulta MongoDB).
-  - `TranslationOutput`: El tipo del resultado final de la traducción (ej. el `SelectQueryBuilder` modificado, una cadena SQL, un objeto de consulta MongoDB).
-  - `TFilterVisitorOutput`: El tipo de salida específico para los métodos `visitFilter`, `visitAndGroup` y `visitOrGroup`. Esto permite que los filtros se procesen de manera diferente si es necesario (ej. generando una cadena de condición, o un objeto de filtro).
+  - `TranslationContext`: El tipo del objeto de contexto mutable que se pasa durante el recorrido del grafo de objetos `Criteria` (ej. una instancia de un constructor de consultas, o un objeto donde acumulas partes de una consulta). Este objeto es modificado directamente por los métodos `visit...`.
+  - `TranslationOutput` (opcional, por defecto `TranslationContext`): El tipo del resultado final devuelto por el método `translate()`. Típicamente es el mismo `TranslationContext`, pero puede ser un tipo diferente si tu traductor necesita devolver una versión procesada del contexto (ej. una cadena SQL final a partir de un constructor de consultas).
+  - `TFilterVisitorOutput` (opcional, por defecto `any`): El tipo de salida específico para el método `visitFilter`. Esto permite que los filtros devuelvan una representación intermedia (ej. una cadena de condición y sus parámetros) que luego puede ser integrada en el `TranslationContext` principal. Los métodos `visitAndGroup` y `visitOrGroup`, sin embargo, devuelven `void` y modifican directamente el `TranslationContext`.
 
 - **`ICriteriaVisitor`**: La interfaz que `CriteriaTranslator` implementa. Define todos los métodos `visit...` que tu traductor necesitará sobreescribir para manejar cada tipo de nodo en el árbol de `Criteria` (filtros, grupos de filtros, joins, etc.).
 
-El proceso de traducción generalmente comienza llamando al método `translate()` de tu traductor, el cual internamente llama a `criteria.accept(this, initialContext)`.
+El proceso de traducción se inicia llamando al método `translate()`, que es un **método abstracto que debes implementar**. Dentro de tu implementación de `translate`, eres responsable de iniciar el recorrido del visitor llamando a `criteria.accept(this, initialContext)`. El método `accept` de cada componente de `Criteria` llamará entonces al método `visit...` apropiado en tu traductor, pasándole el componente mismo y el `TranslationContext`. Por ejemplo, el método `accept` de un `RootCriteria` llamará a `visitor.visitRoot(...)`, mientras que el `accept` de un `Filter` llamará a `visitor.visitFilter(...)`. Este mecanismo de "doble despacho" es el núcleo del patrón Visitor.
 
 ---
 
@@ -45,670 +43,11 @@ El proceso de traducción generalmente comienza llamando al método `translate()
 
 El primer paso es crear una nueva clase que extienda `CriteriaTranslator`. Deberás definir los tipos genéricos según lo que tu traductor vaya a producir y necesitar.
 
-```typescript
-import {
-  CriteriaTranslator,
-  RootCriteria,
-  InnerJoinCriteria,
-  // ... otros imports necesarios
-  FilterOperator,
-  type CriteriaSchema,
-  type SelectedAliasOf,
-  type PivotJoin,
-  type SimpleJoin,
-  type JoinRelationType,
-  type Filter,
-  type FilterGroup,
-} from '@nulledexp/translatable-criteria';
+Para los ejemplos conceptuales en esta guía, utilizaremos los siguientes tipos para `TranslationContext` y `TFilterVisitorOutput`, que se alinean con el [`PseudoSqlTranslator`](../../../criteria/translator/example/pseudo-sql.translator.ts) ejemplo:
 
-// Define tus tipos para el contexto y la salida
-// Por ejemplo, si traduces a un constructor de consultas SQL:
-// type MyQueryBuilder = SomeSQLQueryBuilder;
-// type MyFilterCondition = string; // o un objeto de condición
-
-// Para este ejemplo, usaremos tipos simples
-type MyQueryBuilder = {
-  selectFields: string[];
-  fromTable?: string;
-  joins: string[];
-  conditions: string[];
-  orderBy: string[];
-  limit?: number;
-  offset?: number;
-  params: any[];
-};
-
-type MyFilterConditionOutput = {
-  condition: string;
-  params: any[];
-};
-
-export class MyCustomTranslator extends CriteriaTranslator<
-  MyQueryBuilder, // TranslationContext: El objeto que se modifica durante la traducción
-  MyQueryBuilder, // TranslationOutput: El resultado final de translate()
-  MyFilterConditionOutput // TFilterVisitorOutput: El resultado de visitar filtros/grupos
-> {
-  private paramCounter = 0;
-
-  private generateParamPlaceholder(): string {
-    // La lógica interna puede variar según el tipo de placeholder que necesites:
-    // Si usas placeholders nombrados como :p0, :p1 (común en TypeORM, por ejemplo)
-    // return `:p${this.paramCounter++}`;
-    // Si usas placeholders posicionales como ? (común en MySQL nativo, SQLite)
-    this.paramCounter++; // Solo para contar si es necesario, el placeholder es fijo
-    return `?`;
-    // O el placeholder específico de tu BD/ORM.
-  }
-
-  // Implementación de los métodos visit...
-  // ... (ver secciones siguientes)
-}
-```
-
-En este ejemplo:
-
-- `MyQueryBuilder`: Sería tu clase o interfaz para construir la consulta nativa.
-- `string`: El tipo de salida de los métodos `visitFilter` y `visitGroup`, asumiendo que generan fragmentos de condición SQL.
-
----
-
-## 3. Implementando Métodos `visit...`
-
-Ahora, debes implementar los métodos abstractos `visit...` de `CriteriaTranslator`.
-
-### 3.1. `visitRoot`
-
-Este es el punto de entrada principal para la traducción de un `RootCriteria`. Aquí es donde típicamente iniciarás tu consulta, procesarás los filtros principales, uniones, ordenamiento y paginación del `RootCriteria`.
+Aquí está la estructura básica de tu clase traductora personalizada, mostrando solo las firmas de los métodos públicos que necesitarás implementar:
 
 ```typescript
-  visitRoot<
-    RootCriteriaSchema extends CriteriaSchema,
-    RootAlias extends SelectedAliasOf<RootCriteriaSchema>,
-  >(
-    criteria: RootCriteria<RootCriteriaSchema, RootAlias>,
-    queryBuilder: MyQueryBuilder, // El contexto inicial
-  ): MyQueryBuilder {
-    this.paramCounter = 0; // Reiniciar contador de parámetros para cada traducción principal
-
-    // 1. FROM clause
-    queryBuilder.fromTable = `${criteria.sourceName} AS ${criteria.alias}`;
-
-    // 2. SELECT clause
-    queryBuilder.selectFields = criteria.select.map(
-      (field) => `${criteria.alias}.${String(field)}`,
-    );
-    if (criteria.selectAll && queryBuilder.selectFields.length === 0) {
-        queryBuilder.selectFields.push(`${criteria.alias}.*`);
-    }
-
-
-    // 3. JOINs
-    for (const joinDetail of criteria.joins) {
-      // El contexto (queryBuilder) se pasa y se modifica por los métodos visitJoin
-      joinDetail.criteria.accept(this, joinDetail.parameters, queryBuilder);
-    }
-
-    // 4. WHERE clause for RootCriteria
-    if (criteria.rootFilterGroup.items.length > 0) {
-      const rootFilterResult = criteria.rootFilterGroup.accept(
-        this,
-        criteria.alias,
-        queryBuilder, // El contexto aquí podría ser diferente si los filtros no modifican directamente el QB
-      );
-      if (rootFilterResult.condition) {
-        queryBuilder.conditions.push(rootFilterResult.condition);
-        queryBuilder.params.push(...rootFilterResult.params);
-      }
-    }
-
-    // 5. Cursor condition (si existe, se añade al WHERE)
-    if (criteria.cursor) {
-        const cursorFilters = criteria.cursor.filters;
-        const op = criteria.cursor.operator === FilterOperator.GREATER_THAN ? '>' : '<';
-        // const orderDir = criteria.cursor.order; // No usado directamente en este ejemplo de SQL simple
-
-        const primaryCursorFilter = cursorFilters[0]!;
-        const primaryParamName = this.generateParamPlaceholder(); // Usar un nombre de parámetro único
-        queryBuilder.params.push(primaryCursorFilter.value);
-        let cursorCondition = `(${criteria.alias}.${String(primaryCursorFilter.field)} ${op} :${primaryParamName}`;
-
-        if (cursorFilters.length === 2) {
-            const secondaryCursorFilter = cursorFilters[1]!;
-            const secondaryParamName = this.generateParamPlaceholder(); // Usar un nombre de parámetro único
-            queryBuilder.params.push(secondaryCursorFilter.value);
-            cursorCondition += ` OR (${criteria.alias}.${String(primaryCursorFilter.field)} = :${primaryParamName} AND ${criteria.alias}.${String(secondaryCursorFilter.field)} ${op} :${secondaryParamName}))`;
-        } else {
-            cursorCondition += `)`;
-        }
-        queryBuilder.conditions.push(cursorCondition);
-
-        // Asegurar que el orderBy del cursor se aplique
-        // En un traductor real, esto podría necesitar lógica más compleja para asegurar el orden correcto
-        // y evitar duplicados si ya están en criteria.orders.
-        // Por simplicidad, aquí los añadimos.
-        criteria.orders.forEach(order => { // Asumimos que los orders del cursor están en criteria.orders
-             queryBuilder.orderBy.push(`${criteria.alias}.${String(order.field)} ${order.direction}`);
-        });
-    }
-
-
-  // 6. ORDER BY
-  // La lógica de ordenamiento debe ser cuidadosa, especialmente con cursores.
-  // El traductor es responsable de:
-  //   a. Si hay un cursor, sus campos de ordenamiento DEBEN tener prioridad.
-  //   b. Luego, se aplican los demás `Order`s definidos en el `RootCriteria` y en los `JoinCriteria`s.
-  //   c. Todos los `Order`s (después de los del cursor) deben ser ordenados globalmente por su `sequenceId`
-  //      antes de ser aplicados, para mantener un ordenamiento determinista.
-  // (Ver la sección "4.1. Ordenamiento (orderBy)" y el ejemplo del PseudoSqlTranslator
-  // para una implementación más detallada de esta lógica).
-
-  // Ejemplo conceptual simplificado (la lógica real es más compleja y se muestra en la sección 4.1 y el ejemplo):
-  if (criteria.cursor) {
-    // Los orderBy del cursor se aplican primero.
-    // Ejemplo: criteria.cursor.filters.forEach(cf => queryBuilder.orderBy.push(`${criteria.alias}.${String(cf.field)} ${criteria.cursor.order}`));
-    // Luego, los demás orders, evitando duplicados y usando sequenceId.
-  } else {
-    // Si no hay cursor, aplicar todos los orders recolectados, ordenados por sequenceId.
-    // Ejemplo:
-    // const allOrders = []; // Recolectar de criteria.orders y de los joins
-    // allOrders.sort((a, b) => a.order.sequenceId - b.order.sequenceId);
-    // allOrders.forEach(({alias, order}) => queryBuilder.orderBy.push(`${alias}.${String(order.field)} ${order.direction}`));
-  }
-
-
-    // 7. LIMIT / OFFSET
-    if (criteria.take > 0) {
-      queryBuilder.limit = criteria.take;
-    }
-    if (criteria.skip > 0) {
-      queryBuilder.offset = criteria.skip;
-    }
-
-    return queryBuilder;
-  }
-```
-
-**Consideraciones para `visitRoot`:**
-
-- **Inicialización:** Configura la parte `FROM` de tu consulta usando `criteria.sourceName` y `criteria.alias`.
-- **Filtros:** Llama a `criteria.rootFilterGroup.accept(this, criteria.alias, context)` para procesar los filtros del `RootCriteria`. El `context` aquí podría ser tu `queryBuilder` o un objeto donde adjuntar las condiciones.
-- **Joins:** Itera sobre `criteria.joins` y llama a `joinDetail.criteria.accept(this, joinDetail.parameters, context)` para cada uno.
-- **Ordenamiento y Paginación:** Aplica la lógica de `orderBy`, `take`, `skip` y `cursor` al final.
-- **Selección de Campos:** Construye la cláusula `SELECT` basada en `criteria.select`.
-
-### 3.2. `visitInnerJoin`, `visitLeftJoin`, `visitOuterJoin`
-
-Estos métodos manejan los diferentes tipos de uniones. Reciben la instancia del `JoinCriteria`, los `parameters` del join (que incluyen información del padre y del hijo del join), y el `context`.
-
-```typescript
-  private applyJoin<
-    ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
-  >(
-    joinType: 'INNER' | 'LEFT' | 'OUTER',
-    criteria: // El JoinCriteria actual que se está visitando
-      | InnerJoinCriteria<JoinCriteriaSchema, JoinAlias>
-      | LeftJoinCriteria<JoinCriteriaSchema, JoinAlias>
-      | OuterJoinCriteria<JoinCriteriaSchema, JoinAlias>,
-    parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
-    queryBuilder: MyQueryBuilder, // Contexto: el query builder principal
-  ): MyQueryBuilder {
-    const joinTable = `${criteria.sourceName} AS ${criteria.alias}`;
-    let onCondition = '';
-
-    if ('pivot_source_name' in parameters) {
-      // Many-to-many join
-      const pivotAlias = `${parameters.parent_alias}_${criteria.alias}_pivot`;
-      const pivotTable = `${parameters.pivot_source_name} AS ${pivotAlias}`;
-
-      const firstJoin = `${joinType} JOIN ${pivotTable} ON ${parameters.parent_alias}.${String(parameters.parent_field.reference)} = ${pivotAlias}.${parameters.parent_field.pivot_field}`;
-      queryBuilder.joins.push(firstJoin);
-
-      onCondition = `${pivotAlias}.${parameters.join_field.pivot_field} = ${criteria.alias}.${String(parameters.join_field.reference)}`;
-      queryBuilder.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
-    } else {
-      // Simple join
-      onCondition = `${parameters.parent_alias}.${String(parameters.parent_field)} = ${criteria.alias}.${String(parameters.join_field)}`;
-      queryBuilder.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
-    }
-
-    // Filtros en el JOIN (se añaden a la cláusula ON o como AND después)
-    if (criteria.rootFilterGroup.items.length > 0) {
-      const joinFilterResult = criteria.rootFilterGroup.accept(
-        this,
-        criteria.alias,
-        queryBuilder,
-      );
-      if (joinFilterResult.condition) {
-        const lastJoinIndex = queryBuilder.joins.length -1;
-        if(queryBuilder.joins[lastJoinIndex]) {
-            queryBuilder.joins[lastJoinIndex] += ` AND (${joinFilterResult.condition})`;
-            queryBuilder.params.push(...joinFilterResult.params);
-        }
-      }
-    }
-
-    // Selección de campos del Join
-    criteria.select.forEach((field) => {
-      queryBuilder.selectFields.push(`${criteria.alias}.${String(field)}`);
-    });
-    if (criteria.selectAll && criteria.select.length === 0) {
-        queryBuilder.selectFields.push(`${criteria.alias}.*`);
-    }
-
-    // Recolectar OrderBy del join para aplicarlos globalmente
-    // (Esta lógica podría necesitar refinamiento para asegurar el orden global correcto)
-    criteria.orders.forEach(order => {
-        // Ejemplo: queryBuilder.orderBy.push(`${criteria.alias}.${String(order.field)} ${order.direction}`);
-        // O almacenarlos en una propiedad de la clase para aplicarlos al final en visitRoot.
-    });
-
-    // ***** INICIO DE LA MODIFICACIÓN PARA JOINS ANIDADOS *****
-    // Si este JoinCriteria (el 'criteria' actual) tiene sus propios joins definidos,
-    // los procesamos recursivamente.
-    for (const subJoinDetail of criteria.joins) {
-      // El 'queryBuilder' (contexto) se sigue pasando y modificando.
-      subJoinDetail.criteria.accept(this, subJoinDetail.parameters, queryBuilder);
-    }
-    // ***** FIN DE LA MODIFICACIÓN PARA JOINS ANIDADOS *****
-
-    return queryBuilder;
-  }
-
-  visitInnerJoin<
-    ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
-  >(
-    criteria: InnerJoinCriteria<JoinCriteriaSchema, JoinAlias>,
-    parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
-    context: MyQueryBuilder,
-  ): MyQueryBuilder {
-    return this.applyJoin('INNER', criteria, parameters, context);
-  }
-
-  visitLeftJoin<
-    ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
-  >(
-    criteria: LeftJoinCriteria<JoinCriteriaSchema, JoinAlias>,
-    parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
-    context: MyQueryBuilder,
-  ): MyQueryBuilder {
-    return this.applyJoin('LEFT', criteria, parameters, context);
-  }
-
-  visitOuterJoin<
-    ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
-  >(
-    criteria: OuterJoinCriteria<JoinCriteriaSchema, JoinAlias>,
-    parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
-    context: MyQueryBuilder,
-  ): MyQueryBuilder {
-    return this.applyJoin('OUTER', criteria, parameters, context);
-  }
-```
-
-**Consideraciones para los `visitJoin...`:**
-
-- **Tipo de Join:** Usa el tipo de join (`INNER JOIN`, `LEFT JOIN`, etc.) apropiado según el método `visit...` específico que se esté implementando.
-- **Tabla y Alias:** Usa `criteria.sourceName` y `criteria.alias` para la tabla a la que se está uniendo (el objeto `criteria` es la instancia de `JoinCriteria` pasada al método).
-- **Condición `ON`:**
-  - Para `SimpleJoin` (relaciones como 'one_to_one', 'one_to_many', 'many_to_one' según lo definido por `parameters.relation_type`): Construye la condición `ON` usando `parameters.parent_alias`.`parameters.parent_field` = `criteria.alias`.`parameters.join_field`.
-  - Para `PivotJoin` (relación 'many_to_many' según lo definido por `parameters.relation_type`): Típicamente necesitarás dos operaciones de join en tu consulta nativa. La primera une la tabla padre (identificada por `parameters.parent_alias`) con la tabla pivote (`parameters.pivot_source_name`) usando `parameters.parent_field.reference` (del padre) y `parameters.parent_field.pivot_field` (del pivote). La segunda une la tabla pivote con la tabla destino unida (`criteria.sourceName` con alias `criteria.alias`) usando `parameters.join_field.pivot_field` (del pivote) y `parameters.join_field.reference` (del destino).
-- **Accediendo a Metadatos:** El objeto `parameters` (de tipo `PivotJoin` o `SimpleJoin`) pasado a estos métodos de visita de join contiene:
-  - `parameters.parent_schema_metadata`: Metadatos del `CriteriaSchema` raíz del criteria padre.
-  - `parameters.join_metadata`: Metadatos de la configuración específica del join en el array `joins` del esquema padre.
-    Los traductores pueden usar estos metadatos para lógica personalizada, como aplicar pistas específicas de la base de datos o manejar condiciones de join personalizadas.
-- **Filtros en el Join:** Si `criteria.rootFilterGroup` (del `JoinCriteria` que se está visitando) tiene filtros, estos deben aplicarse como condiciones adicionales. Esto se hace típicamente añadiéndolos a la cláusula `ON` del join (ej. `... ON condicion AND (filtros_del_join)`) o como condiciones `WHERE` separadas si la base de datos/ORM lo maneja así para uniones externas. Llama a `criteria.rootFilterGroup.accept(this, criteria.alias, context)` para procesar estos filtros.
-- **Selección de Campos del Join:**
-  - Si `criteria.selectAll` (del `JoinCriteria`) es `true`, todos los campos de `criteria.schema.fields` deben añadirse a la selección de la consulta principal, prefijados con `criteria.alias`.
-  - Si `criteria.selectAll` es `false`, solo los campos en `criteria.select` deben añadirse, prefijados con `criteria.alias`.
-- **Ordenamiento del Join:** Si `criteria.orders` (del `JoinCriteria`) tiene reglas de ordenamiento, estas deben ser recolectadas. Todos los órdenes recolectados (de la raíz y de todos los joins) deben ser ordenados globalmente por su `sequenceId` al final del método `visitRoot` antes de ser aplicados a la consulta final, para asegurar un orden de clasificación determinista.
-- **Joins Anidados:** De manera crucial, si el `criteria` (el `JoinCriteria` que se está visitando) tiene a su vez `criteria.joins` definidos (es decir, joins encadenados a partir de un join), debes iterar sobre ellos y llamar recursivamente a `subJoinDetail.criteria.accept(this, subJoinDetail.parameters, context)` para procesar estos joins anidados. El `context` (ej. tu constructor de consultas) se pasa y se modifica.
-
-### 3.3. `visitFilter`
-
-Este método traduce un `Filter` individual a una condición de tu lenguaje de consulta.
-
-```typescript
-    visitFilter<
-FieldType extends string,
-        Operator extends FilterOperator,
->(
-        filter: Filter<FieldType, Operator>,
-        currentAlias: string,
-        // queryBuilder: MyQueryBuilder, // El contexto puede no ser necesario aquí si solo devolvemos la condición
-): MyFilterConditionOutput {
-  const fieldName = `${currentAlias}.${String(filter.field)}`;
-  // const paramName = this.generateParamPlaceholder(); // Generar placeholder único
-  let condition = '';
-  const params: any[] = []; // Array para recolectar parámetros
-
-  switch (filter.operator) {
-    case FilterOperator.EQUALS:
-      const eqParam = this.generateParamPlaceholder();
-      condition = `${fieldName} = ${eqParam}`; // Usar placeholder
-      params.push(filter.value);
-      break;
-    case FilterOperator.NOT_EQUALS:
-      const neqParam = this.generateParamPlaceholder();
-      condition = `${fieldName} != ${neqParam}`;
-      params.push(filter.value);
-      break;
-    case FilterOperator.LIKE:
-      const likeParam = this.generateParamPlaceholder();
-      condition = `${fieldName} LIKE ${likeParam}`;
-      params.push(filter.value); // Asume que el valor ya tiene '%'
-      break;
-    case FilterOperator.CONTAINS: // Podría ser igual que LIKE o usar una función específica
-      const containsParam = this.generateParamPlaceholder();
-      condition = `${fieldName} LIKE ${containsParam}`;
-      params.push(`%${filter.value}%`);
-      break;
-    case FilterOperator.IN:
-      if (Array.isArray(filter.value) && filter.value.length > 0) {
-        const inPlaceholders = filter.value
-                .map(() => this.generateParamPlaceholder())
-                .join(', ');
-        condition = `${fieldName} IN (${inPlaceholders})`;
-        params.push(...filter.value);
-      } else {
-        // Si el array está vacío o no es un array, la condición es usualmente falsa.
-        condition = '1=0'; // O la forma de tu BD para una condición siempre falsa
-      }
-      break;
-    case FilterOperator.IS_NULL:
-      condition = `${fieldName} IS NULL`;
-      // No hay parámetros para IS NULL
-      break;
-          // ... Implementar todos los FilterOperator necesarios
-    case FilterOperator.BETWEEN: // NUEVO CASO
-      if (Array.isArray(filter.value) && filter.value.length === 2) {
-        const paramMin = this.generateParamPlaceholder();
-        const paramMax = this.generateParamPlaceholder();
-        condition = `${fieldName} BETWEEN ${paramMin} AND ${paramMax}`;
-        params.push(filter.value[0], filter.value[1]);
-      } else {
-        // Manejar valor inválido para BETWEEN, quizás lanzar error o condición falsa
-        condition = '1=0'; // Condición que siempre es falsa
-      }
-      break;
-    case FilterOperator.MATCHES_REGEX: // NUEVO CASO
-      // La implementación dependerá de la base de datos (ej. REGEXP en MySQL, ~ en PostgreSQL)
-      const regexParam = this.generateParamPlaceholder();
-      condition = `${fieldName} REGEXP ${regexParam}`; // Ejemplo MySQL
-      params.push(filter.value);
-      break;
-    case FilterOperator.JSON_CONTAINS:
-      // ... (tu implementación existente para JSON_CONTAINS)
-      // Ejemplo conceptual para MySQL:
-      if (typeof filter.value === 'object' && filter.value !== null) {
-        const conditions: string[] = [];
-        for (const pathKey in filter.value) {
-          const pathValue = (filter.value as Record<string, any>)[pathKey];
-          const currentParamName = this.generateParamPlaceholder();
-          // Ejemplo: JSON_CONTAINS(metadata, '"tech"', '$.tags')
-          // O para igualdad de un valor en una ruta: JSON_EXTRACT(metadata, '$.views') = 100
-          conditions.push(
-                  `JSON_CONTAINS(${fieldName}, CAST(${this.generateParamPlaceholder()} AS JSON), '$.${pathKey}')`,
-          );
-          params.push(pathValue); // El traductor podría necesitar convertir pathValue a string JSON
-        }
-        condition = conditions.join(' AND ');
-      } else {
-        condition = '1=0';
-      }
-      break;
-    case FilterOperator.ARRAY_CONTAINS_ELEMENT:
-      // ... (tu implementación existente para ARRAY_CONTAINS_ELEMENT)
-      const arrayElemParam = this.generateParamPlaceholder();
-      if (
-              typeof filter.value === 'object' &&
-              filter.value !== null &&
-              !Array.isArray(filter.value)
-      ) {
-        const jsonPath = Object.keys(filter.value)[0]!;
-        const elementToFind = (filter.value as Record<string, any>)[
-                jsonPath
-                ];
-        condition = `JSON_CONTAINS(${fieldName}, CAST(${arrayElemParam} AS JSON), '$.${jsonPath}')`;
-        params.push(elementToFind);
-      } else {
-        condition = `${arrayElemParam} = ANY(${fieldName})`; // Ejemplo PostgreSQL
-        params.push(filter.value);
-      }
-      break;
-    default:
-      throw new Error(
-              `Traductor: Operador de filtro no soportado '${filter.operator}'`,
-      );
-  }
-  // Asegurarse de que los parámetros undefined se conviertan a null si es necesario
-  return { condition, params: params.map((p) => (p === undefined ? null : p)) };
-}
-```
-
-**Consideraciones para `visitFilter`:**
-
-- **Campo y Alias:** El `currentAlias` te indica a qué entidad pertenece el `filter.field`.
-- **Operador:** Implementa la lógica para cada `FilterOperator` que tu fuente de datos soporte.
-- **Valor:** El `filter.value` debe ser formateado o parametrizado adecuadamente. Para operadores como `IN`, `value` será un array. Para operadores JSON/Array, `value` puede ser un objeto o un array, y necesitarás interpretar la ruta JSON si aplica.
-- **Parametrización:** Es **crucial** usar consultas parametrizadas para prevenir inyección SQL. No concatenes directamente `filter.value` en la cadena de consulta. En su lugar, usa placeholders y pasa los valores a través del mecanismo de parámetros de tu constructor de consultas.
-
-### 3.4. `visitAndGroup`, `visitOrGroup`
-
-Estos métodos manejan grupos de filtros. Reciben un `FilterGroup` y deben iterar sobre sus `items`, procesándolos recursivamente y uniéndolos con el operador lógico apropiado (`AND` u `OR`).
-
-```typescript
-  visitAndGroup<FieldType extends string>(
-    group: FilterGroup<FieldType>,
-    currentAlias: string,
-    _context: MyQueryBuilder, // El contexto puede o no ser usado/modificado aquí
-  ): MyFilterConditionOutput {
-    const conditions: string[] = [];
-    const allParams: any[] = [];
-
-    group.items.forEach((item) => {
-      const result = item.accept(this, currentAlias, _context); // _context se pasa
-      if (result.condition) {
-        conditions.push(result.condition);
-        allParams.push(...result.params);
-      }
-    });
-
-    if (conditions.length === 0) return { condition: '', params: [] };
-    return {
-      condition: `(${conditions.join(' AND ')})`,
-      params: allParams,
-    };
-  }
-
-  visitOrGroup<FieldType extends string>(
-    group: FilterGroup<FieldType>,
-    currentAlias: string,
-    _context: MyQueryBuilder,
-  ): MyFilterConditionOutput {
-    const conditions: string[] = [];
-    const allParams: any[] = [];
-
-    group.items.forEach((item) => {
-      const result = item.accept(this, currentAlias, _context);
-      if (result.condition) {
-        conditions.push(result.condition);
-        allParams.push(...result.params);
-      }
-    });
-
-    if (conditions.length === 0) return { condition: '', params: [] };
-    return {
-      condition: `(${conditions.join(' OR ')})`,
-      params: allParams,
-    };
-  }
-```
-
-**Consideraciones para los `visit...Group`:**
-
-- **Recursión:** Cada `item` en `group.items` puede ser otro `FilterGroup` o un `Filter`. Llama a `item.accept(this, currentAlias, context)` para cada uno.
-- **Agrupación:** Asegúrate de que las condiciones generadas estén correctamente agrupadas con paréntesis si es necesario, especialmente al mezclar `AND` y `OR`.
-
----
-
-## 4. Manejando Ordenamiento, Paginación y Selección
-
-Estas lógicas generalmente se aplican en `visitRoot` después de que todas las uniones y filtros principales se hayan procesado.
-
-### 4.1. Ordenamiento (`orderBy`)
-
-El ordenamiento define cómo se deben clasificar los resultados de la consulta.
-
-- Durante la visita de cada `Criteria` (raíz o join) mediante sus respectivos métodos `visit...`, tu traductor debe **recolectar** todos los objetos `Order` que se hayan definido usando `.orderBy()`. Cada objeto `Order` contiene el campo, la dirección y un `sequenceId` interno único.
-- Al final del procesamiento en `visitRoot` (después de haber procesado todos los joins y antes de aplicar `LIMIT`/`OFFSET`):
-  1. Si existe un `criteria.cursor`, los campos definidos en `cursor.filters` deben usarse para generar las **primeras** cláusulas de `ORDER BY`, utilizando la dirección especificada en `cursor.order`.
-  2. Luego, toma todos los `Order` recolectados (de la raíz y de todos los joins).
-  3. Ordena esta colección global de `Order`s por su `sequenceId`. Esto asegura que el orden en que se definieron los `orderBy` a lo largo de la construcción del `Criteria` se respete secuencialmente.
-  4. Convierte estos `Order`s (ya ordenados por secuencia y después de los del cursor) en las cláusulas `ORDER BY` de tu consulta nativa. Asegúrate de evitar duplicar campos si ya fueron ordenados por la lógica del cursor.
-- El `order.sequenceId` es crucial para mantener un ordenamiento global determinista y predecible cuando se aplican múltiples `orderBy` en diferentes partes del `Criteria` (tanto en la raíz como en los joins anidados).
--
-
-### 4.2. Paginación Offset (`setTake`, `setSkip`)
-
-- Si `criteria.take > 0`, aplica un límite al número de resultados.
-- Si `criteria.skip > 0`, omite el número especificado de resultados.
-
-### 4.3. Paginación por Cursor (`setCursor`)
-
-Esta es más compleja y requiere una coordinación cuidadosa con el ordenamiento. Si `criteria.cursor` está definido:
-
-- `cursor.filters`: Proporciona uno o dos `Filter`s (sin el `operator`) que definen los campos y valores del último ítem de la página anterior.
-  - Un solo `Filter`: Para paginación simple sobre un campo (ej. `created_at`).
-  - Dos `Filter`s: Para paginación compuesta (ej. `created_at` y `uuid`).
-- `cursor.operator`: Será `FilterOperator.GREATER_THAN` (para página siguiente) o `FilterOperator.LESS_THAN` (para página anterior, si se invierte el orden principal).
-- `cursor.order`: La `OrderDirection` principal en la que se está paginando.
-
-**Responsabilidades del Traductor:**
-
-1.  **Construir la Condición `WHERE` del Cursor:**
-
-- Para un cursor simple: `WHERE (campo_cursor operador_cursor_traducido valor_cursor)`
-- Para un cursor compuesto: `WHERE ( (campo_orden_primario op_traducido valor_primario_cursor) OR (campo_orden_primario = valor_primario_cursor AND campo_desempate op_traducido valor_desempate_cursor) )`. Ajusta los operadores según la dirección.
-- **Nota sobre NULLs:** Si un `valor_cursor` es `null`, el traductor debe generar el SQL apropiado (ej. condiciones `IS NULL` o `IS NOT NULL`) en lugar de comparaciones directas como `campo = NULL`.
-
-2.  **Aplicar Ordenamiento del Cursor con Prioridad:**
-
-- Los campos definidos en `cursor.filters` **deben** ser los primeros en la cláusula `ORDER BY` final. La dirección para estos campos viene de `cursor.order`.
-- Por ejemplo, si `cursor.filters` son `[{field: 'created_at', ...}, {field: 'uuid', ...}]` y `cursor.order` es `ASC`, la consulta debe empezar con `ORDER BY created_at ASC, uuid ASC`.
-
-3.  **Aplicar Ordenamientos Adicionales:**
-
-- Después de los campos del cursor, añade los demás `orderBy` que se hayan definido en el `Criteria` (raíz y joins). Estos deben ser ordenados globalmente por su `sequenceId` antes de ser añadidos, y se deben omitir si el campo ya fue cubierto por el ordenamiento del cursor.
-- **Importante:** El `Criteria` **debe** tener `orderBy()` definidos para los mismos campos que se usan en `cursor.filters` y en la misma dirección que `cursor.order`. Aunque el traductor prioriza los campos del cursor para el `ORDER BY`, esta consistencia en la definición del `Criteria` es crucial para la lógica de paginación.
-
-### 4.4. Selección de Campos (`setSelect`)
-
-- En `visitRoot`, construye la cláusula `SELECT` inicial usando `criteria.select` (del `RootCriteria`).
-- En cada `visitJoin...`, si el `joinCriteria.select` tiene campos específicos, añádelos a la selección principal, usualmente prefijados con el alias del join (ej. `SELECT root.field1, joined_alias.fieldA`).
-- Si `criteria.selectAll` es `true` (o `criteria.select` está vacío y es el comportamiento por defecto), selecciona todos los campos del esquema correspondiente.
-
----
-
-## 5. Gestión de Estado y Parámetros
-
-Tu traductor probablemente necesitará gestionar algún estado:
-
-- **Parámetros de Consulta:** Mantén una lista o un objeto para los valores parametrizados. Cada vez que proceses un `filter.value` o un valor de paginación, añádelo a esta colección y usa un placeholder en la consulta.
-- **Contador de Parámetros:** Si usas placeholders numerados (ej. `$1, $2` o `?`), necesitarás un contador.
-- **Cláusulas Acumuladas:** Puedes tener propiedades en tu clase traductora para ir construyendo las diferentes partes de la consulta (SELECT, FROM, JOINs, WHERE, ORDER BY, etc.).
-
-```typescript
-// (Dentro de tu clase MyCustomTranslator)
-
-// Ejemplo de gestión de estado simple:
-// private collectedSelects: string[] = [];
-// private collectedFrom: string = '';
-// private collectedJoins: string[] = [];
-// private collectedWhere: string[] = [];
-// private collectedOrderBy: string[] = [];
-// private collectedLimit?: number;
-// private collectedOffset?: number;
-// private queryParams: any[] = [];
-// private paramCounter: number = 0;
-
-// constructor() {
-//   super();
-//   this.resetState();
-// }
-
-// private resetState(): void {
-//   this.collectedSelects = [];
-//   this.collectedFrom = '';
-//   // ... resetear todos los demás
-//   this.queryParams = [];
-//   this.paramCounter = 0;
-// }
-
-// private addQueryParam(value: any): string {
-//   this.queryParams.push(value);
-//   return `?`; // O $1, $2, etc., según tu DB
-// }
-
-// El método translate podría entonces ensamblar estas partes.
-// public translate(criteria: RootCriteria<any, any>, initialContext?: any): string {
-//   this.resetState();
-//   criteria.accept(this, initialContext || {}); // El contexto inicial podría ser un objeto vacío
-//
-//   let sql = `SELECT ${this.collectedSelects.join(', ') || '*'}`;
-//   sql += ` FROM ${this.collectedFrom}`;
-//   if (this.collectedJoins.length > 0) sql += ` ${this.collectedJoins.join(' ')}`;
-//   if (this.collectedWhere.length > 0) sql += ` WHERE ${this.collectedWhere.join(' AND ')}`; // Simplificado
-//   if (this.collectedOrderBy.length > 0) sql += ` ORDER BY ${this.collectedOrderBy.join(', ')}`;
-//   if (this.collectedLimit) sql += ` LIMIT ${this.collectedLimit}`;
-//   if (this.collectedOffset) sql += ` OFFSET ${this.collectedOffset}`;
-//   return sql;
-// }
-// public getParameters(): any[] {
-//    return this.queryParams;
-// }
-```
-
----
-
-## 6. Ejemplo Simplificado: Traductor a Pseudo-SQL
-
-Este ejemplo muy básico muestra la estructura, traduciendo a una cadena de pseudo-SQL.
-
-```typescript
-import {
-  CriteriaTranslator,
-  RootCriteria,
-  InnerJoinCriteria,
-  LeftJoinCriteria,
-  OuterJoinCriteria,
-  Filter,
-  FilterGroup,
-  FilterOperator,
-  OrderDirection,
-  type Order,
-  type CriteriaSchema,
-  type SelectedAliasOf,
-  type PivotJoin,
-  type SimpleJoin,
-  type JoinRelationType,
-} from '@nulledexp/translatable-criteria';
-
 type PseudoSqlParts = {
   select: string[];
   from: string;
@@ -725,406 +64,487 @@ type PseudoSqlFilterOutput = {
   params: any[];
 };
 
-type PseudoSqlTranslationResult = {
-  query: string;
-  params: any[];
-};
+export class MyCustomTranslator extends CriteriaTranslator<
+  PseudoSqlParts,
+  { query: string; params: any[] },
+  PseudoSqlFilterOutput
+> {
+  public override translate<RootCriteriaSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCriteriaSchema>,
+    source: PseudoSqlParts,
+  ): { query: string; params: any[] } {
+    return { query: '', params: [] };
+  }
 
+  public override visitRoot<RootCSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCSchema>,
+    context: PseudoSqlParts,
+  ): void {}
+
+  public override visitInnerJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: InnerJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {}
+
+  public override visitLeftJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: LeftJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {}
+
+  public override visitOuterJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: OuterJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {}
+
+  public override visitFilter<FieldType extends string>(
+    filter: Filter<FieldType, FilterOperator>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): PseudoSqlFilterOutput {
+    return { condition: '', params: [] };
+  }
+
+  public override visitAndGroup<FieldType extends string>(
+    group: FilterGroup<FieldType>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): void {}
+
+  public override visitOrGroup<FieldType extends string>(
+    group: FilterGroup<FieldType>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): void {}
+}
+```
+
+En este ejemplo:
+
+- `PseudoSqlParts`: Es nuestro `TranslationContext`, representando las partes acumuladas de la consulta SQL.
+- `{ query: string; params: any[] }`: Es nuestro `TranslationOutput`, el resultado final devuelto por el método `translate()`.
+- `PseudoSqlFilterOutput`: Es nuestro `TFilterVisitorOutput`, el resultado de visitar filtros individuales.
+
+---
+
+## Helper: `escapeField`
+
+Muchos traductores necesitarán una función de utilidad para escapar correctamente los nombres de campo y prevenir la inyección SQL o para ajustarse a la sintaxis del lenguaje de consulta objetivo. Este helper se utiliza en los ejemplos conceptuales a continuación.
+
+```typescript
 function escapeField(field: string, alias?: string): string {
   const escape = (str: string) => `\`${str.replace(/`/g, '``')}\``;
   return alias ? `${escape(alias)}.${escape(field)}` : escape(field);
 }
+```
 
-class PseudoSqlTranslator extends CriteriaTranslator<
-  PseudoSqlParts,
-  PseudoSqlTranslationResult,
-  PseudoSqlFilterOutput
-> {
-  private paramCounter = 0;
-  private collectedOrders: Array<{ alias: string; order: Order<string> }> = [];
+Esta función toma un nombre de campo y un alias opcional, y devuelve una cadena con el campo correctamente escapado y prefijado (ej. `` `alias`.`campo` ``).
 
-  private generateParamPlaceholder(): string {
-    this.paramCounter++;
-    return `?`;
-  }
+---
 
-  public translate(
-    criteria: RootCriteria<any, any>,
-  ): PseudoSqlTranslationResult {
-    this.paramCounter = 0;
-    this.collectedOrders = [];
+## 3. Implementando Métodos `visit...`
 
-    const initialSqlParts: PseudoSqlParts = {
-      select: [],
-      from: '',
-      joins: [],
-      where: [],
-      orderBy: [],
-      params: [],
-    };
+Ahora, debes implementar los métodos abstractos `visit...` de `CriteriaTranslator`.
 
-    const finalSqlParts = criteria.accept(this, initialSqlParts);
+### 3.1. `visitRoot`
 
-    let sqlString = `SELECT ${finalSqlParts.select.join(', ') || '*'}`;
-    sqlString += ` FROM ${finalSqlParts.from}`;
-    if (finalSqlParts.joins.length > 0)
-      sqlString += ` ${finalSqlParts.joins.join(' ')}`;
-    if (finalSqlParts.where.length > 0)
-      sqlString += ` WHERE ${finalSqlParts.where.join(' AND ')}`;
-    if (finalSqlParts.orderBy.length > 0)
-      sqlString += ` ORDER BY ${finalSqlParts.orderBy.join(', ')}`;
-    if (finalSqlParts.limit !== undefined)
-      sqlString += ` LIMIT ${finalSqlParts.limit}`;
-    if (finalSqlParts.offset !== undefined)
-      sqlString += ` OFFSET ${finalSqlParts.offset}`;
+Este es el punto de entrada principal para la traducción de un `RootCriteria`. Aquí es donde típicamente iniciarás tu consulta, procesarás los filtros principales, uniones, ordenamiento y paginación del `RootCriteria`.
 
-    return {
-      query: sqlString,
-      params: finalSqlParts.params,
-    };
-  }
+```typescript
+public override visitRoot<RootCSchema extends CriteriaSchema>(
+  criteria: RootCriteria<RootCSchema>,
+  context: PseudoSqlParts,
+): void {}
+```
 
-  visitRoot<
-    RootCriteriaSchema extends CriteriaSchema,
-    RootAlias extends SelectedAliasOf<RootCriteriaSchema>,
-  >(
-    criteria: RootCriteria<RootCriteriaSchema, RootAlias>,
-    sqlParts: PseudoSqlParts,
-  ): PseudoSqlParts {
-    sqlParts.from = `${escapeField(criteria.sourceName)} AS ${escapeField(
-      criteria.alias,
-    )}`;
-    sqlParts.select = criteria.select.map((f) =>
-      escapeField(String(f), criteria.alias),
-    );
-    if (criteria.selectAll && sqlParts.select.length === 0) {
-      sqlParts.select.push(`${escapeField(criteria.alias)}.*`);
-    }
+**Explicación:**
 
-    criteria.orders.forEach((order) =>
-      this.collectedOrders.push({ alias: criteria.alias, order }),
-    );
+Este método es el punto de partida del proceso de traducción. Recibe el objeto `RootCriteria` y el `TranslationContext` (nuestro objeto `sqlParts`). Sus responsabilidades principales son:
 
-    for (const joinDetail of criteria.joins) {
-      joinDetail.criteria.accept(this, joinDetail.parameters, sqlParts);
-    }
+- **Inicializar la cláusula `FROM`:** Utiliza `criteria.sourceName` y `criteria.alias` para configurar la tabla principal de la consulta.
+- **Procesar la selección de campos:** Mapea `criteria.select` a la cláusula `SELECT`, asegurándose de que los campos estén correctamente cualificados con el alias de la entidad.
+- **Manejar uniones:** Itera a través de `criteria.joins` y llama recursivamente a `accept` en cada `JoinCriteria` para procesar las uniones anidadas.
+- **Procesar filtros raíz:** Si `criteria.rootFilterGroup` contiene filtros, llama a `accept` en este grupo para traducirlos en condiciones `WHERE`.
+- **Aplicar paginación:** Comprueba `criteria.take` y `criteria.skip` para la paginación basada en offset, y `criteria.cursor` para la paginación basada en cursor, añadiendo las cláusulas `LIMIT`, `OFFSET` o `WHERE` complejas correspondientes.
+- **Recolectar reglas de ordenamiento:** Reúne los objetos `Order` de `criteria.orders` para ser aplicados más tarde.
 
-    if (criteria.rootFilterGroup.items.length > 0) {
-      const filterResult = criteria.rootFilterGroup.accept(
-        this,
-        criteria.alias,
-        sqlParts,
-      );
-      if (filterResult.condition) {
-        sqlParts.where.push(filterResult.condition);
-        sqlParts.params.push(...filterResult.params);
-      }
-    }
+**Propiedades `Criteria` disponibles:** `criteria.sourceName`, `criteria.alias`, `criteria.select`, `criteria.orders`, `criteria.joins`, `criteria.rootFilterGroup`, `criteria.cursor`, `criteria.take`, `criteria.skip`.
 
-    const finalOrderByStrings: string[] = [];
-    const appliedOrderFieldsForCursor = new Set<string>();
+Para una implementación completa, consulta el método `visitRoot` en `src/criteria/translator/example/pseudo-sql.translator.ts`.
 
-    if (criteria.cursor) {
-      const cursorFilters = criteria.cursor.filters;
-      const op =
-        criteria.cursor.operator === FilterOperator.GREATER_THAN ? '>' : '<';
-      let cursorWhereCondition = '';
+### 3.2. `visitInnerJoin`, `visitLeftJoin`, `visitOuterJoin`
 
-      if (cursorFilters.length === 1) {
-        const primaryFilter = cursorFilters[0]!;
-        const primaryPlaceholder = this.generateParamPlaceholder();
-        sqlParts.params.push(primaryFilter.value);
-        cursorWhereCondition = `(${escapeField(
-          String(primaryFilter.field),
-          criteria.alias,
-        )} ${op} ${primaryPlaceholder})`;
-      } else if (cursorFilters.length === 2) {
-        const primaryFilter = cursorFilters[0]!;
-        const secondaryFilter = cursorFilters[1]!;
-        const primaryPlaceholder = this.generateParamPlaceholder();
-        const secondaryPlaceholder = this.generateParamPlaceholder();
-        sqlParts.params.push(primaryFilter.value, secondaryFilter.value);
-        cursorWhereCondition = `((${escapeField(
-          String(primaryFilter.field),
-          criteria.alias,
-        )} ${op} ${primaryPlaceholder}) OR (${escapeField(
-          String(primaryFilter.field),
-          criteria.alias,
-        )} = ${primaryPlaceholder} AND ${escapeField(
-          String(secondaryFilter.field),
-          criteria.alias,
-        )} ${op} ${secondaryPlaceholder}))`;
-      }
+Estos métodos manejan los diferentes tipos de uniones. Reciben la instancia del `JoinCriteria`, los `parameters` del join (que incluyen información del padre y del hijo del join), y el `context`.
 
-      if (cursorWhereCondition) {
-        sqlParts.where.push(cursorWhereCondition);
-      }
+Para evitar la repetición de código, una práctica común es crear un método auxiliar privado (como `applyJoin` a continuación) que maneje la lógica compartida para todos los tipos de unión.
 
-      const cursorOrderDirection = criteria.cursor.order;
-      cursorFilters.forEach((cf) => {
-        const fieldKey = `${criteria.alias}.${String(cf.field)}`;
-        finalOrderByStrings.push(
-          `${escapeField(
-            String(cf.field),
-            criteria.alias,
-          )} ${cursorOrderDirection}`,
-        );
-        appliedOrderFieldsForCursor.add(fieldKey);
-      });
-    }
+```typescript
+private applyJoin<
+  ParentCSchema extends CriteriaSchema,
+  JoinCSchema extends CriteriaSchema,
+>(
+  joinType: 'INNER' | 'LEFT' | 'FULL OUTER',
+  criteria:
+    | InnerJoinCriteria<JoinCSchema>
+    | LeftJoinCriteria<JoinCSchema>
+    | OuterJoinCriteria<JoinCSchema>,
+  parameters:
+    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+  sqlParts: PseudoSqlParts,
+): void {}
+```
 
-    this.collectedOrders
-      .sort((a, b) => a.order.sequenceId - b.order.sequenceId)
-      .forEach(({ alias, order }) => {
-        const fieldKey = `${alias}.${String(order.field)}`;
-        if (!appliedOrderFieldsForCursor.has(fieldKey)) {
-          finalOrderByStrings.push(
-            `${escapeField(String(order.field), alias)} ${order.direction}`,
-          );
-        }
-      });
+```typescript
+public override visitInnerJoin<
+  ParentCSchema extends CriteriaSchema,
+  JoinCSchema extends CriteriaSchema,
+>(
+  criteria: InnerJoinCriteria<JoinCSchema>,
+  parameters:
+    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+  context: PseudoSqlParts,
+): void {}
+```
 
-    if (finalOrderByStrings.length > 0) {
-      sqlParts.orderBy = finalOrderByStrings;
-    }
+```typescript
+public override visitLeftJoin<
+  ParentCSchema extends CriteriaSchema,
+  JoinCSchema extends CriteriaSchema,
+>(
+  criteria: LeftJoinCriteria<JoinCSchema>,
+  parameters:
+    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+  context: PseudoSqlParts,
+): void {}
+```
 
-    if (criteria.take > 0) sqlParts.limit = criteria.take;
-    if (criteria.skip > 0) sqlParts.offset = criteria.skip;
+```typescript
+public override visitOuterJoin<
+  ParentCSchema extends CriteriaSchema,
+  JoinCSchema extends CriteriaSchema,
+>(
+  criteria: OuterJoinCriteria<JoinCSchema>,
+  parameters:
+    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+  context: PseudoSqlParts,
+): void {}
+```
 
-    return sqlParts;
-  }
+**Explicación (para `applyJoin` y los métodos `visit...Join`):**
 
-  private applyPseudoJoin<
-    ParentCSchema extends CriteriaSchema,
-    JoinCriteriaSchema extends CriteriaSchema,
-    JoinAlias extends SelectedAliasOf<JoinCriteriaSchema>,
-  >(
-    joinType: string,
-    criteria:
-      | InnerJoinCriteria<JoinCriteriaSchema, JoinAlias>
-      | LeftJoinCriteria<JoinCriteriaSchema, JoinAlias>
-      | OuterJoinCriteria<JoinCriteriaSchema, JoinAlias>,
-    parameters:
-      | PivotJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCriteriaSchema, JoinRelationType>,
-    sqlParts: PseudoSqlParts,
-  ): PseudoSqlParts {
-    const joinTable = `${escapeField(criteria.sourceName)} AS ${escapeField(
-      criteria.alias,
-    )}`;
-    let onCondition = '';
+Estos métodos son responsables de traducir las condiciones de unión al lenguaje de consulta objetivo. Cada método `visit...Join` simplemente llama al auxiliar `applyJoin`, pasando el `joinType` específico (ej. 'INNER', 'LEFT', 'FULL OUTER').
 
-    if ('pivot_source_name' in parameters) {
-      const pivotAlias = `${parameters.parent_alias}_${criteria.alias}_pivot`;
-      const pivotTable = `${escapeField(
-        parameters.pivot_source_name,
-      )} AS ${escapeField(pivotAlias)}`;
-      sqlParts.joins.push(
-        `${joinType} JOIN ${pivotTable} ON ${escapeField(
-          String(parameters.parent_field.reference),
-          parameters.parent_alias,
-        )} = ${escapeField(parameters.parent_field.pivot_field, pivotAlias)}`,
-      );
-      onCondition = `${escapeField(
-        parameters.join_field.pivot_field,
-        pivotAlias,
-      )} = ${escapeField(
-        String(parameters.join_field.reference),
-        criteria.alias,
-      )}`;
-      sqlParts.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
-    } else {
-      onCondition = `${escapeField(
-        String(parameters.parent_field),
-        parameters.parent_alias,
-      )} = ${escapeField(String(parameters.join_field), criteria.alias)}`;
-      sqlParts.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
-    }
+Las responsabilidades del auxiliar `applyJoin` incluyen:
 
-    if (criteria.rootFilterGroup.items.length > 0) {
-      const filterResult = criteria.rootFilterGroup.accept(
-        this,
-        criteria.alias,
-        sqlParts,
-      );
-      if (filterResult.condition) {
-        const lastJoinIndex = sqlParts.joins.length - 1;
-        if (sqlParts.joins[lastJoinIndex]) {
-          sqlParts.joins[lastJoinIndex] += ` AND (${filterResult.condition})`;
-          sqlParts.params.push(...filterResult.params);
-        }
-      }
-    }
+- **Construir la cláusula `JOIN`:** Utiliza `criteria.sourceName` (la tabla que se está uniendo) y `parameters.join_alias` (su alias en la consulta) para construir la parte `JOIN` de la consulta.
+- **Definir la condición `ON`:**
+- Para `SimpleJoin` (relaciones uno a uno, uno a muchos, muchos a uno), construye la condición `ON` utilizando `parameters.parent_alias`.`parameters.parent_field` = `parameters.join_alias`.`parameters.join_field`.
+- Para `PivotJoin` (relaciones muchos a muchos), típicamente implica dos operaciones `JOIN`: una desde el padre a la tabla pivote, y otra desde la tabla pivote a la tabla destino unida. Construye las condiciones `ON` para ambas.
+- **Aplicar filtros en la unión:** Si `criteria.rootFilterGroup` (del `JoinCriteria` que se está visitando) tiene filtros, los procesa llamando a `criteria.rootFilterGroup.accept(this, parameters.join_alias, context)` y añade sus condiciones a la cláusula `ON` utilizando `AND`.
+- **Seleccionar campos de la entidad unida:** Mapea `criteria.select` (del `JoinCriteria`) a la cláusula `SELECT` principal, asegurándose de que los campos estén prefijados con `parameters.join_alias`.
+- **Recolectar reglas de ordenamiento:** Añade `criteria.orders` (del `JoinCriteria`) a una colección global de órdenes (ej. `this.collectedOrders` en [`PseudoSqlTranslator`](../../../criteria/translator/example/pseudo-sql.translator.ts)) para ser procesadas más tarde en `visitRoot`.
+- **Procesar uniones anidadas:** Crucialmente, si el `JoinCriteria` que se está visitando tiene `criteria.joins` definidos (es decir, uniones encadenadas a partir de una unión), itera sobre ellos y llama recursivamente a `subJoinDetail.criteria.accept(this, subJoinDetail.parameters, context)` para procesarlos.
 
-    criteria.select.forEach((f) =>
-      sqlParts.select.push(escapeField(String(f), criteria.alias)),
-    );
-    if (criteria.selectAll && criteria.select.length === 0) {
-      sqlParts.select.push(`${escapeField(criteria.alias)}.*`);
-    }
+**Propiedades `Criteria` disponibles:** `criteria.sourceName`, `criteria.alias`, `criteria.select`, `criteria.orders`, `criteria.joins`, `criteria.rootFilterGroup`.
+**Propiedades `parameters` disponibles:** `parameters.parent_alias`, `parameters.join_alias`, `parameters.parent_field`, `parameters.join_field`, `parameters.pivot_source_name`, `parameters.parent_identifier`, `parameters.parent_schema_metadata`, `parameters.join_metadata`.
 
-    criteria.orders.forEach((order) =>
-      this.collectedOrders.push({ alias: criteria.alias, order }),
-    );
+Para una implementación completa, consulta los métodos `visitInnerJoin`, `visitLeftJoin`, `visitOuterJoin` y el auxiliar `applyPseudoJoin` en `src/criteria/translator/example/pseudo-sql.translator.ts`.
 
-    for (const subJoinDetail of criteria.joins) {
-      subJoinDetail.criteria.accept(this, subJoinDetail.parameters, sqlParts);
-    }
+### 3.3. `visitFilter`
 
-    return sqlParts;
-  }
+Este método traduce un `Filter` individual a una condición para tu lenguaje de consulta.
 
-  visitInnerJoin(
-    criteria: InnerJoinCriteria<any, any>,
-    parameters: any,
-    context: PseudoSqlParts,
-  ): PseudoSqlParts {
-    return this.applyPseudoJoin('INNER', criteria, parameters, context);
-  }
-  visitLeftJoin(
-    criteria: LeftJoinCriteria<any, any>,
-    parameters: any,
-    context: PseudoSqlParts,
-  ): PseudoSqlParts {
-    return this.applyPseudoJoin('LEFT', criteria, parameters, context);
-  }
-  visitOuterJoin(
-    criteria: OuterJoinCriteria<any, any>,
-    parameters: any,
-    context: PseudoSqlParts,
-  ): PseudoSqlParts {
-    return this.applyPseudoJoin('FULL OUTER', criteria, parameters, context);
-  }
+```typescript
+public override visitFilter<FieldType extends string>(
+  filter: Filter<FieldType, FilterOperator>,
+  currentAlias: string,
+  context: PseudoSqlParts,
+): PseudoSqlFilterOutput {
+  return { condition: '', params: [] };
+}
+```
 
-  visitFilter<FieldType extends string, Operator extends FilterOperator>(
-    filter: Filter<FieldType, Operator>,
-    currentAlias: string,
-  ): PseudoSqlFilterOutput {
-    const fieldName = escapeField(String(filter.field), currentAlias);
-    const params: any[] = [];
-    let condition = '';
+**Explicación:**
 
-    switch (filter.operator) {
-      case FilterOperator.EQUALS:
-        condition = `${fieldName} = ${this.generateParamPlaceholder()}`;
-        params.push(filter.value);
-        break;
-      case FilterOperator.NOT_EQUALS:
-        condition = `${fieldName} != ${this.generateParamPlaceholder()}`;
-        params.push(filter.value);
-        break;
-      case FilterOperator.LIKE:
-      case FilterOperator.CONTAINS:
-      case FilterOperator.STARTS_WITH:
-      case FilterOperator.ENDS_WITH:
-        let val = String(filter.value);
-        if (filter.operator === FilterOperator.CONTAINS) val = `%${val}%`;
-        else if (filter.operator === FilterOperator.STARTS_WITH)
-          val = `${val}%`;
-        else if (filter.operator === FilterOperator.ENDS_WITH) val = `%${val}`;
-        condition = `${fieldName} LIKE ${this.generateParamPlaceholder()}`;
-        params.push(val);
-        break;
-      case FilterOperator.IN:
-        if (!Array.isArray(filter.value) || filter.value.length === 0) {
-          condition = '1=0';
-        } else {
-          const placeholders = (filter.value as any[])
-            .map(() => this.generateParamPlaceholder())
-            .join(', ');
-          condition = `${fieldName} IN (${placeholders})`;
-          params.push(...(filter.value as any[]));
-        }
-        break;
-      case FilterOperator.IS_NULL:
-        condition = `${fieldName} IS NULL`;
-        break;
-      case FilterOperator.IS_NOT_NULL:
-        condition = `${fieldName} IS NOT NULL`;
-        break;
-      case FilterOperator.JSON_CONTAINS:
-        if (typeof filter.value === 'object' && filter.value !== null) {
-          const jsonConditions: string[] = [];
-          for (const path in filter.value) {
-            const pathValue = (filter.value as Record<string, any>)[path];
-            jsonConditions.push(
-              `JSON_CONTAINS(${fieldName}, '${JSON.stringify(
-                pathValue,
-              )}', '$.${path}')`,
-            );
-          }
-          condition = jsonConditions.join(' AND ');
-        } else {
-          condition = '1=0';
-        }
-        break;
-      default:
-        condition = `${fieldName} ${
-          filter.operator
-        } ${this.generateParamPlaceholder()}`;
-        params.push(filter.value);
-    }
-    return {
-      condition,
-      params: params.map((p) => (p === undefined ? null : p)),
-    };
-  }
+Este método es responsable de convertir un objeto `Filter` individual en una cadena de condición de consulta y de recolectar los parámetros necesarios.
 
-  visitAndGroup<FieldType extends string>(
-    group: FilterGroup<FieldType>,
-    currentAlias: string,
-    sqlParts: PseudoSqlParts,
-  ): PseudoSqlFilterOutput {
-    const conditions: string[] = [];
-    const allParams: any[] = [];
-    group.items.forEach((item) => {
-      const result = item.accept(this, currentAlias, sqlParts);
-      if (result.condition) {
-        conditions.push(result.condition);
-        allParams.push(...result.params);
-      }
-    });
-    if (conditions.length === 0) return { condition: '', params: [] };
-    return { condition: `(${conditions.join(' AND ')})`, params: allParams };
-  }
+- **Generar el nombre de campo:** Construye el nombre de campo completamente cualificado utilizando `currentAlias` y `filter.field` (ej. `` `alias`.`campo` ``).
+- **Parametrización:** Es **crucial** utilizar placeholders (ej. `?`, `$1`, `:nombreParam`) para `filter.value` para prevenir la inyección SQL. Añade `filter.value` a la lista de parámetros de tu `TranslationContext`.
+- **Implementar la lógica del operador:** Utiliza una sentencia `switch` o similar para manejar cada `FilterOperator`. La lógica para cada operador variará según el lenguaje de consulta objetivo y el tipo esperado de `filter.value` (ej. `BETWEEN` espera una tupla, `IN` espera un array, los operadores JSON esperan objetos).
+- **Devolver la condición:** Devuelve un objeto que contiene la cadena de condición generada y los parámetros recolectados.
 
-  visitOrGroup<FieldType extends string>(
-    group: FilterGroup<FieldType>,
-    currentAlias: string,
-    sqlParts: PseudoSqlParts,
-  ): PseudoSqlFilterOutput {
-    const conditions: string[] = [];
-    const allParams: any[] = [];
-    group.items.forEach((item) => {
-      const result = item.accept(this, currentAlias, sqlParts);
-      if (result.condition) {
-        conditions.push(result.condition);
-        allParams.push(...result.params);
-      }
-    });
-    if (conditions.length === 0) return { condition: '', params: [] };
-    return { condition: `(${conditions.join(' OR ')})`, params: allParams };
-  }
+**Propiedades `Filter` disponibles:** `filter.field`, `filter.operator`, `filter.value`.
+**Contexto disponible:** `currentAlias`.
+
+Para una implementación completa, consulta el método `visitFilter` en `src/criteria/translator/example/pseudo-sql.translator.ts`.
+
+### 3.4. `visitAndGroup`, `visitOrGroup`
+
+Estos métodos manejan grupos de filtros. Reciben un `FilterGroup` y deben iterar sobre sus `items`, procesándolos recursivamente y uniéndolos con el operador lógico apropiado (`AND` u `OR`).
+
+Un patrón común es utilizar un método auxiliar privado (como `_buildConditionFromGroup` a continuación) para manejar la lógica recursiva tanto para grupos `AND` como `OR`.
+
+```typescript
+private _buildConditionFromGroup(
+  group: FilterGroup<any>,
+  alias: string,
+  context: PseudoSqlParts,
+): PseudoSqlFilterOutput | undefined {
+  return undefined;
 }
 ```
 
 ```typescript
-// ... (definición de UserSchema, CriteriaFactory, etc.)
+public override visitAndGroup<FieldType extends string>(
+  group: FilterGroup<FieldType>,
+  currentAlias: string,
+  context: PseudoSqlParts,
+): void {}
+```
 
-// const userCriteria = CriteriaFactory.GetCriteria(UserSchema, 'users')
-//   .where({ field: 'email', operator: FilterOperator.CONTAINS, value: '@example.com' })
-//   .orderBy('username', OrderDirection.ASC)
-//   .setTake(10);
+```typescript
+public override visitOrGroup<FieldType extends string>(
+  group: FilterGroup<FieldType>,
+  currentAlias: string,
+  context: PseudoSqlParts,
+): void {}
+```
 
-// const pseudoTranslator = new PseudoSqlTranslator();
-// const { query: generatedSql, params: queryParams } = pseudoTranslator.translate(userCriteria);
+**Explicación (para `_buildConditionFromGroup` y los métodos `visit...Group`):**
 
-// console.log('Generated SQL:', generatedSql);
-// console.log('Parameters:', queryParams);
+Estos métodos son responsables de traducir los objetos `FilterGroup` en una condición de consulta combinada. Los métodos `visitAndGroup` y `visitOrGroup` típicamente llaman a un auxiliar como `_buildConditionFromGroup` y luego añaden la condición resultante al `TranslationContext`.
 
-// Salida esperada (ejemplo):
-// Generated SQL: SELECT `users`.`uuid`, `users`.`email`, `users`.`username`, `users`.`created_at` FROM `user` AS `users` WHERE (`users`.`email` LIKE ?) ORDER BY `users`.`username` ASC LIMIT ? OFFSET ?;
-// Parameters: [ '%@example.com%', 10, 0 ]
+Las responsabilidades del auxiliar `_buildConditionFromGroup` incluyen:
+
+- **Recorrido recursivo:** Itera sobre `group.items`. Para cada `item` (que puede ser un `Filter` o otro `FilterGroup`), llama recursivamente a `item.accept(this, currentAlias, context)`.
+- **Recolectar condiciones y parámetros:** Acumula las cadenas de condición y los parámetros devueltos por las llamadas recursivas a `accept`.
+- **Combinar condiciones:** Une las condiciones recolectadas utilizando el `group.logicalOperator` (`AND` u `OR`).
+- **Asegurar el agrupamiento:** Envuelve las condiciones combinadas entre paréntesis (ej. `(condicion1 AND condicion2)`) para asegurar la precedencia lógica correcta, especialmente al mezclar grupos `AND` y `OR`.
+- **Añadir al contexto:** Añade la condición final combinada y sus parámetros a la cláusula `where` del `TranslationContext`.
+
+**Propiedades `FilterGroup` disponibles:** `group.items`, `group.logicalOperator`.
+**Contexto disponible:** `currentAlias`.
+
+Para una implementación completa, consulta los métodos `visitAndGroup` y `visitOrGroup` y el auxiliar `_buildConditionFromGroup` en `src/criteria/translator/example/pseudo-sql.translator.ts`.
+
+---
+
+## 4. Manejando Ordenamiento, Paginación y Selección
+
+Estas lógicas generalmente se aplican en `visitRoot` después de que todas las uniones y filtros principales se hayan procesado.
+
+- **Ordenamiento (`orderBy`):** Tu traductor debe recolectar todos los objetos `Order` de la raíz y de todos los joins. Al final, ordena esta colección global por `order.sequenceId` para asegurar un orden de clasificación determinista, y luego aplícalos a la consulta.
+- **Paginación Offset (`setTake`, `setSkip`):** Si `criteria.take > 0` o `criteria.skip > 0`, aplica los correspondientes `LIMIT` y `OFFSET` a tu consulta.
+- **Paginación por Cursor (`setCursor`):** Esta es más compleja. El traductor debe construir una condición `WHERE` basada en `cursor.filters` y `cursor.operator`. Los campos de `cursor.filters` también deben ser los primeros campos en la cláusula `ORDER BY`, usando la dirección de `cursor.order`.
+- **Selección de Campos (`setSelect`):** En `visitRoot` y `visit...Join`, construye la cláusula `SELECT` basada en `criteria.select`. Si `criteria.selectAll` es `true`, selecciona todos los campos del esquema.
+
+---
+
+## 5. Gestión de Estado y Parámetros
+
+Dado que el método `translate` es abstracto, estás obligado a implementarlo. Esta implementación es donde gestionas todo el ciclo de vida de la traducción, incluyendo el estado y los parámetros. El patrón recomendado es encapsular esta lógica dentro de la clase del traductor y reiniciarla para cada llamada a `translate()`.
+
+El siguiente ejemplo muestra el patrón de implementación requerido para el método `translate`:
+
+```typescript
+class MyTranslatorWithState extends CriteriaTranslator<
+  PseudoSqlParts,
+  { query: string; params: any[] },
+  PseudoSqlFilterOutput
+> {
+  private paramCounter: number = 0;
+  private collectedOrders: Array<{ alias: string; order: Order<string> }> = [];
+
+  public override translate<RootCriteriaSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCriteriaSchema>,
+    source: PseudoSqlParts,
+  ): { query: string; params: any[] } {
+    this.paramCounter = 0;
+    this.collectedOrders = [];
+
+    const queryBuilder = source;
+
+    criteria.accept(this, queryBuilder);
+
+    let sqlString = `SELECT ${queryBuilder.select.join(', ') || '*'}`;
+    sqlString += ` FROM ${queryBuilder.from}`;
+    if (queryBuilder.joins.length > 0) {
+      sqlString += ` ${queryBuilder.joins.join(' ')}`;
+    }
+    if (queryBuilder.where.length > 0) {
+      sqlString += ` WHERE ${queryBuilder.where.join(' AND ')}`;
+    }
+    if (queryBuilder.orderBy.length > 0) {
+      sqlString += ` ORDER BY ${queryBuilder.orderBy.join(', ')}`;
+    }
+    if (queryBuilder.limit !== undefined) {
+      sqlString += ` LIMIT ${queryBuilder.limit}`;
+    }
+    if (queryBuilder.offset !== undefined) {
+      sqlString += ` OFFSET ${queryBuilder.offset}`;
+    }
+
+    return {
+      query: sqlString,
+      params: queryBuilder.params,
+    };
+  }
+
+  public override visitRoot<RootCSchema extends CriteriaSchema>(
+    criteria: RootCriteria<RootCSchema>,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+
+  public override visitInnerJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: InnerJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+
+  public override visitLeftJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: LeftJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+
+  public override visitOuterJoin<
+    ParentCSchema extends CriteriaSchema,
+    JoinCSchema extends CriteriaSchema,
+  >(
+    criteria: OuterJoinCriteria<JoinCSchema>,
+    parameters:
+      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+
+  public override visitFilter<FieldType extends string>(
+    filter: Filter<FieldType, FilterOperator>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): PseudoSqlFilterOutput {
+    // Implementation would go here...
+    return { condition: '', params: [] };
+  }
+
+  public override visitAndGroup<FieldType extends string>(
+    group: FilterGroup<FieldType>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+
+  public override visitOrGroup<FieldType extends string>(
+    group: FilterGroup<FieldType>,
+    currentAlias: string,
+    context: PseudoSqlParts,
+  ): void {
+    // Implementation would go here...
+  }
+}
+```
+
+**Explicación:**
+
+El método `translate` que implementas es el punto de entrada público. Es responsable de:
+
+1.  **Reiniciar el estado interno:** Asegura que cada traducción comience con un estado limpio (ej. `paramCounter` y `collectedOrders` se reinician).
+2.  **Inicializar el `TranslationContext`:** Crea el objeto inicial (ej. `queryBuilder`) que será modificado por los métodos `visit...`.
+3.  **Iniciar el recorrido:** Este es el paso crucial donde llamas a `criteria.accept(this, queryBuilder)` para comenzar el patrón Visitor. Todos los métodos `visit...` posteriores modificarán el objeto `queryBuilder` directamente.
+4.  **Ensamblar la consulta final:** Después de que el recorrido se complete, construye la cadena de consulta final (ej. SQL) combinando las partes acumuladas de `queryBuilder`.
+5.  **Devolver el resultado:** Devuelve la consulta final y sus parámetros.
+
+---
+
+## 6. Ejemplo Completo: Traductor a Pseudo-SQL
+
+### 6.1. Implementación del Traductor
+
+Para un ejemplo completo y funcional de una implementación de `CriteriaTranslator`, por favor consulta el archivo [`PseudoSqlTranslator`](../../../criteria/translator/example/pseudo-sql.translator.ts) en el repositorio. Este archivo contiene el código completo de la clase [`PseudoSqlTranslator`](../../../criteria/translator/example/pseudo-sql.translator.ts), que traduce objetos `Criteria` a una cadena de pseudo-SQL.
+
+### 6.2. Uso del Traductor
+
+Así es como usarías el [`PseudoSqlTranslator`](../../../criteria/translator/example/pseudo-sql.translator.ts):
+
+```typescript
+import {
+  CriteriaFactory,
+  FilterOperator,
+  OrderDirection,
+} from '@nulledexp/translatable-criteria';
+import { UserSchema } from './path/to/your/schemas';
+import {
+  PseudoSqlTranslator,
+  type PseudoSqlParts,
+} from './path/to/your/pseudo-sql.translator';
+
+const userCriteria = CriteriaFactory.GetCriteria(UserSchema)
+  .where({
+    field: 'email',
+    operator: FilterOperator.CONTAINS,
+    value: '@example.com',
+  })
+  .orderBy('username', OrderDirection.ASC)
+  .setTake(10);
+
+const pseudoTranslator = new PseudoSqlTranslator();
+
+const initialParts: PseudoSqlParts = {
+  select: [],
+  from: '',
+  joins: [],
+  where: [],
+  orderBy: [],
+  params: [],
+};
+
+const { query: generatedSql, params: queryParams } = pseudoTranslator.translate(
+  userCriteria,
+  initialParts,
+);
+
+console.log('Generated SQL:', generatedSql);
+console.log('Parameters:', queryParams);
 ```
 
 ---
@@ -1134,10 +554,9 @@ class PseudoSqlTranslator extends CriteriaTranslator<
 - **Errores y Validación:** Decide cómo manejar operadores o configuraciones no soportadas por tu fuente de datos. Puedes lanzar errores o ignorarlos.
 - **Optimización:** Considera las optimizaciones específicas de tu fuente de datos.
 - **Pruebas:** Escribe pruebas unitarias y de integración exhaustivas para tu traductor. Usa `CriteriaFactory` para construir diversos escenarios de `Criteria` y verifica que la salida de tu traductor sea la esperada.
-- **Documentación:** Si compartes tu traductor, documenta claramente qué características soporta y cómo usarlo.
 
 ---
 
-## Próximos Pasos Traductores
+## Próximos Pasos
 
-Con esta guía, tienes las bases para empezar a desarrollar tus propios traductores. Revisa los traductores existentes (si los hay) como referencia y no dudes en experimentar.
+Con esta guía, tienes las bases para empezar a desarrollar tus propios traductores. Para una referencia detallada de todas las clases y tipos, consulta la Referencia de API.

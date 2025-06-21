@@ -1,7 +1,6 @@
 import type {
   CriteriaSchema,
   JoinRelationType,
-  SelectedAliasOf,
 } from '../types/schema.types.js';
 import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
 import { Criteria, type ValidSchema } from '../criteria.js';
@@ -10,46 +9,39 @@ import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 /**
  * Represents an OUTER JOIN (typically FULL OUTER JOIN) criteria.
  * It extends the base {@link Criteria} and defines how it's visited by a {@link ICriteriaVisitor}.
- * Note: Full OUTER JOIN support can vary between database systems.
  * @template CSchema - The {@link CriteriaSchema} of the entity being joined.
  * @template Alias - The selected alias for the joined entity from its schema.
  */
 export class OuterJoinCriteria<
   CSchema extends CriteriaSchema,
-  Alias extends SelectedAliasOf<CSchema> = SelectedAliasOf<CSchema>,
-> extends Criteria<CSchema, Alias> {
+> extends Criteria<CSchema> {
   /**
    * Accepts a criteria visitor to process this outer join criteria.
-   * It first validates the join field against the schema before dispatching to the visitor.
-   * @template TranslationContext - The type of the context object passed during traversal.
-   * @template TranslationOutput - The type of the result returned by visitor methods.
-   * @param {ICriteriaVisitor<TranslationContext, TranslationOutput>} visitor - The visitor instance.
-   * @param {PivotJoin<CriteriaSchema, CSchema, JoinRelationType> | SimpleJoin<CriteriaSchema, CSchema, JoinRelationType>} parameters -
-   *   The fully resolved parameters for this join, including parent and join field details.
-   * @param {TranslationContext} context - The context object to be passed to the visitor.
-   * @returns {TranslationOutput} The result of the visitor processing this join.
+   * @template TranslationContext The type of the context object passed during traversal.
+   * @template TOuterJoinVisitorOutput The specific return type expected from the visitor's `visitOuterJoin` method.
+   * @param visitor The visitor instance.
+   * @param parameters The fully resolved parameters for this join.
+   * @param context The context object to be passed to the visitor.
+   * @returns The result of the visitor processing this join.
    */
-  accept<TranslationContext, TranslationOutput>(
-    visitor: ICriteriaVisitor<TranslationContext, TranslationOutput>,
+  public accept<TranslationContext>(
+    visitor: ICriteriaVisitor<TranslationContext>,
     parameters:
       | PivotJoin<CriteriaSchema, CSchema, JoinRelationType>
       | SimpleJoin<CriteriaSchema, CSchema, JoinRelationType>,
     context: TranslationContext,
-  ): TranslationOutput {
+  ): void {
     typeof parameters.join_field === 'object'
       ? this.assetFieldOnSchema(parameters.join_field.reference)
       : this.assetFieldOnSchema(parameters.join_field);
-    return visitor.visitOuterJoin(this, parameters, context);
+    visitor.visitOuterJoin(this, parameters, context);
   }
   /**
-   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
-   * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
-   * @returns {OuterJoinCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   * Returns a new instance of `OuterJoinCriteria` with the same schema and alias configuration,
+   * but with all other states reset to their defaults.
+   * @returns {OuterJoinCriteria<CSchema, Alias>} A new, reset `OuterJoinCriteria` instance.
    */
-  resetCriteria(): OuterJoinCriteria<CSchema, Alias> {
-    return new OuterJoinCriteria(
-      this.schema as ValidSchema<CSchema>,
-      this._alias,
-    );
+  public resetCriteria(): OuterJoinCriteria<CSchema> {
+    return new OuterJoinCriteria(this.schema as ValidSchema<CSchema>);
   }
 }

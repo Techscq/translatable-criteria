@@ -2,7 +2,6 @@ import type {
   CriteriaSchema,
   FieldOfSchema,
   SchemaJoins,
-  SelectedAliasOf,
 } from './types/schema.types.js';
 
 import { CriteriaFilterManager } from './criteria-filter-manager.js';
@@ -35,13 +34,9 @@ export type ValidSchema<CSchema extends CriteriaSchema> =
  * Concrete criteria types (e.g., RootCriteria, JoinCriteria) will extend this class.
  *
  * @template TSchema - The schema definition for the entity this criteria operates on.
- * @template CurrentAlias - The selected alias for the entity from its schema.
  */
-export abstract class Criteria<
-  const TSchema extends CriteriaSchema,
-  const CurrentAlias extends
-    SelectedAliasOf<TSchema> = SelectedAliasOf<TSchema>,
-> implements ICriteriaBase<TSchema, CurrentAlias>
+export abstract class Criteria<const TSchema extends CriteriaSchema>
+  implements ICriteriaBase<TSchema>
 {
   private readonly _filterManager = new CriteriaFilterManager<TSchema>();
   private readonly _joinManager = new CriteriaJoinManager<TSchema>();
@@ -68,23 +63,14 @@ export abstract class Criteria<
   protected readonly _schema: TSchema;
   /**
    * Initializes a new instance of the Criteria class.
-   * @param {TSchema} schema - The schema definition for the entity.
-   * @param {CurrentAlias} _alias - The alias to use for this entity in the query.
-   * @throws {Error} If the provided alias is not supported by the schema.
+   * @param {ValidSchema<TSchema>} schema - The schema definition for the entity.
    * @throws {Error} If the schema's identifier_field is not one of its defined fields.
    * @protected
    */
-  constructor(
-    schema: ValidSchema<TSchema>,
-    protected _alias: CurrentAlias,
-  ) {
+  constructor(schema: ValidSchema<TSchema>) {
     if (typeof schema === 'string') {
       throw new Error(`Invalid Schema: ${schema}`);
     }
-    if (!schema.alias.includes(this._alias))
-      throw new Error(
-        `Unsupported alia ${this._alias} for schema ${schema.source_name}`,
-      );
     if (!schema.fields.includes(schema.identifier_field)) {
       throw new Error(
         `Schema identifier_field '${String(schema.identifier_field)}' must be one of the schema's defined fields. Schema: ${schema.source_name}`,
@@ -216,8 +202,8 @@ export abstract class Criteria<
    * Gets the alias used for the entity of this criteria.
    * @returns {CurrentAlias} The alias string.
    */
-  get alias(): CurrentAlias {
-    return this._alias;
+  get alias(): TSchema['alias'] {
+    return this.schema.alias;
   }
   /**
    * Sets the maximum number of records to return (LIMIT).
@@ -324,35 +310,36 @@ export abstract class Criteria<
   /**
    * Adds a join to another criteria.
    * @template TJoinSchema - The schema of the entity to join.
-   * @template TJoinedCriteriaAlias - The alias for the joined entity.
-   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the joined
-   *   alias.
-   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaAlias, TMatchingJoinConfig>} criteriaToJoin
-   * The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
-   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter
-   * The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for
+   * @template TJoinedCriteriaSourceName - The `source_name` of the entity being joined.
+   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the provided `joinAlias` and `criteriaToJoin.sourceName`.
+   * @param {TMatchingJoinConfig['alias']} joinAlias - The specific alias defined in the parent schema's `joins` array for this relation.
+   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaSourceName, TMatchingJoinConfig>} criteriaToJoin -
+   *   The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
+   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter -
+   *   The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for
    *   many-to-many).
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If `criteriaToJoin` is a string (which is invalid).
    * @throws {Error} If `parent_field` in `joinParameter` (or `parent_field.reference` for pivot joins) is not defined
    *   in the parent schema.
-   * @throws {Error} If the join configuration for the given `criteriaToJoin.alias` is not found in the parent schema's
+   * @throws {Error} If the join configuration for the given `joinAlias` and `criteriaToJoin.sourceName` is not found in the parent schema's
    *   `joins` array.
    * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using
    *   simple join input for many-to-many or vice-versa).
    */
   join<
     TJoinSchema extends CriteriaSchema,
-    TJoinedCriteriaAlias extends SelectedAliasOf<TJoinSchema>,
+    TJoinedCriteriaSourceName extends TJoinSchema['source_name'],
     TMatchingJoinConfig extends SpecificMatchingJoinConfig<
       TSchema,
-      TJoinedCriteriaAlias
+      TJoinedCriteriaSourceName
     >,
   >(
+    joinAlias: TMatchingJoinConfig['alias'],
     criteriaToJoin: JoinCriteriaParameterType<
       TSchema,
       TJoinSchema,
-      TJoinedCriteriaAlias,
+      TJoinedCriteriaSourceName,
       TMatchingJoinConfig
     >,
     joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
@@ -366,11 +353,13 @@ export abstract class Criteria<
       : this.assetFieldOnSchema(joinParameter.parent_field);
 
     const joinConfig = this.schema.joins.find(
-      (join) => join.alias === criteriaToJoin.alias,
+      (join) =>
+        join.target_source_name === criteriaToJoin.sourceName &&
+        join.alias === joinAlias,
     );
     if (!joinConfig) {
       throw new Error(
-        `Join configuration for alias '${String(criteriaToJoin.alias)}' not found in schema '${this.schema.source_name}'.`,
+        `Join configuration for '${String(joinAlias)}' of '${String(criteriaToJoin.sourceName)}' not found in schema '${this.schema.source_name}'.`,
       );
     }
 
@@ -383,9 +372,13 @@ export abstract class Criteria<
       parent_alias: this.alias,
       parent_source_name: this.sourceName,
       relation_type: joinConfig.relation_type,
+      join_alias: joinAlias,
       join_metadata:
-        this.schema.joins.find((join) => join.alias === criteriaToJoin.alias)
-          ?.metadata ?? {},
+        this.schema.joins.find(
+          (join) =>
+            join.alias === joinAlias &&
+            join.target_source_name === criteriaToJoin.sourceName,
+        )?.metadata ?? {},
       parent_schema_metadata: this.schema.metadata ?? {},
       parent_identifier: this.identifierField,
     };

@@ -8,8 +8,8 @@ import { UserSchema, PostSchema } from './fake-entities.js';
 describe('CriteriaFactory', () => {
   describe('GetCriteria', () => {
     it('should create a RootCriteria instance with correct sourceName and alias', () => {
-      const alias = UserSchema.alias[0]!;
-      const criteria = CriteriaFactory.GetCriteria(UserSchema, alias);
+      const alias = UserSchema.alias;
+      const criteria = CriteriaFactory.GetCriteria(UserSchema);
 
       expect(criteria).toBeInstanceOf(RootCriteria);
       expect(criteria.sourceName).toBe(UserSchema.source_name);
@@ -19,8 +19,8 @@ describe('CriteriaFactory', () => {
 
   describe('GetInnerJoinCriteria', () => {
     it('should create an InnerJoinCriteria instance with correct sourceName and alias', () => {
-      const alias = PostSchema.alias[0]!;
-      const criteria = CriteriaFactory.GetInnerJoinCriteria(PostSchema, alias);
+      const alias = PostSchema.alias;
+      const criteria = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
 
       expect(criteria).toBeInstanceOf(InnerJoinCriteria);
       expect(criteria.sourceName).toBe(PostSchema.source_name);
@@ -30,8 +30,8 @@ describe('CriteriaFactory', () => {
 
   describe('GetLeftJoinCriteria', () => {
     it('should create a LeftJoinCriteria instance with correct sourceName and alias', () => {
-      const alias = PostSchema.alias[0]!;
-      const criteria = CriteriaFactory.GetLeftJoinCriteria(PostSchema, alias);
+      const alias = PostSchema.alias;
+      const criteria = CriteriaFactory.GetLeftJoinCriteria(PostSchema);
 
       expect(criteria).toBeInstanceOf(LeftJoinCriteria);
       expect(criteria.sourceName).toBe(PostSchema.source_name);
@@ -41,8 +41,8 @@ describe('CriteriaFactory', () => {
 
   describe('GetOuterJoinCriteria', () => {
     it('should create an OuterJoinCriteria instance with correct sourceName and alias', () => {
-      const alias = PostSchema.alias[0]!;
-      const criteria = CriteriaFactory.GetOuterJoinCriteria(PostSchema, alias);
+      const alias = PostSchema.alias;
+      const criteria = CriteriaFactory.GetOuterJoinCriteria(PostSchema);
 
       expect(criteria).toBeInstanceOf(OuterJoinCriteria);
       expect(criteria.sourceName).toBe(PostSchema.source_name);

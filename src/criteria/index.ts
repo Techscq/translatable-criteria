@@ -19,7 +19,6 @@ export { GetTypedCriteriaSchema } from './types/schema.types.js';
 export type {
   CriteriaSchema,
   FieldOfSchema,
-  SelectedAliasOf,
   JoinRelationType,
   SchemaJoins,
 } from './types/schema.types.js';

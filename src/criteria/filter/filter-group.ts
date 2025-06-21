@@ -36,7 +36,7 @@ export class FilterGroup<T extends string = string>
     return this._logicalOperator;
   }
 
-  static createInitial<T extends string = string>(
+  public static createInitial<T extends string = string>(
     filterPrimitive: FilterPrimitive<T, FilterOperator>,
   ): FilterGroup<T> {
     return new FilterGroup({
@@ -45,14 +45,16 @@ export class FilterGroup<T extends string = string>
     });
   }
 
-  toPrimitive(): FilterGroupPrimitive<T> {
+  public toPrimitive(): FilterGroupPrimitive<T> {
     return {
       logicalOperator: this._logicalOperator,
       items: this._items.map((item) => item.toPrimitive()),
     };
   }
 
-  addAnd(filterPrimitive: FilterPrimitive<T, FilterOperator>): FilterGroup<T> {
+  public addAnd(
+    filterPrimitive: FilterPrimitive<T, FilterOperator>,
+  ): FilterGroup<T> {
     if (this._logicalOperator === LogicalOperator.AND) {
       return new FilterGroup({
         logicalOperator: LogicalOperator.AND,
@@ -88,7 +90,9 @@ export class FilterGroup<T extends string = string>
     });
   }
 
-  addOr(filterPrimitive: FilterPrimitive<T, FilterOperator>): FilterGroup<T> {
+  public addOr(
+    filterPrimitive: FilterPrimitive<T, FilterOperator>,
+  ): FilterGroup<T> {
     const currentItems = this._items.map((item) => item.toPrimitive());
 
     if (this._logicalOperator === LogicalOperator.AND) {
@@ -123,13 +127,21 @@ export class FilterGroup<T extends string = string>
     });
   }
 
-  accept<TranslationContext, TranslationOutput = TranslationContext>(
-    visitor: ICriteriaVisitor<TranslationContext, TranslationOutput>,
+  /**
+   * Accepts a visitor and calls the appropriate visit method based on the logical operator.
+   * @param visitor The visitor implementation.
+   * @param currentAlias The alias of the current entity being processed.
+   * @param context The mutable context object for the translation.
+   */
+  public accept<TranslationContext>(
+    visitor: ICriteriaVisitor<TranslationContext>,
     currentAlias: string,
     context: TranslationContext,
-  ): TranslationOutput {
-    return this.logicalOperator === LogicalOperator.AND
-      ? visitor.visitAndGroup(this, currentAlias, context)
-      : visitor.visitOrGroup(this, currentAlias, context);
+  ): void {
+    if (this.logicalOperator === LogicalOperator.AND) {
+      visitor.visitAndGroup(this, currentAlias, context);
+    } else {
+      visitor.visitOrGroup(this, currentAlias, context);
+    }
   }
 }

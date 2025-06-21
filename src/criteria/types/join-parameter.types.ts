@@ -23,6 +23,7 @@ export type PivotJoin<
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
   parent_alias: ParentSchema['alias'][number];
+  join_alias: ParentSchema['joins'][number]['alias'];
   parent_identifier: FieldOfSchema<ParentSchema>;
   /** The source name (table name) of the pivot table. */
   pivot_source_name: string;
@@ -82,6 +83,7 @@ export type SimpleJoin<
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
   parent_alias: ParentSchema['alias'][number];
+  join_alias: ParentSchema['joins'][number]['alias'];
   parent_identifier: FieldOfSchema<ParentSchema>;
   /**
    * The field name in the parent schema used for the join condition.

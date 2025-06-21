@@ -10,38 +10,40 @@ datos complejas en tus aplicaciones TypeScript.
 (filtrado, ordenamiento, uniones, paginación, etc.) de una manera abstracta y agnóstica a la
 fuente de datos.
 
-Con `@nulledexp/translatable-criteria` , defines estos criterios como objetos estructurados y con
-seguridad de tipos. Esto contrasta con la escritura directa de SQL, el uso de la sintaxis de un
+Con `@nulledexp/translatable-criteria`, defines estos criterios como objetos estructurados y con
+seguridad de tipos. La librería ha evolucionado para ofrecer una validación de esquemas aún más
+robusta y proporcionar información contextual más rica a los traductores, simplificando aún más
+el desarrollo de integraciones sofisticadas con fuentes de datos.
+Esto contrasta con la escritura directa de SQL, el uso de la sintaxis de un
 ORM específico directamente en los casos de uso, o el desarrollo de múltiples métodos con
 lógica compleja y fuertemente acoplada en los repositorios.
 
 La idea central es que estos "criterios traducibles" puedan ser luego procesados por un
 **Traductor** específico (que tú o la comunidad pueden implementar) para generar la consulta
-nativa para tu base de datos o fuente de datos particular (por ejemplo, SQL para TypeORM,  
-consultas para MongoDB, etc.).
+nativa para tu base de datos o fuente de datos particular (por ejemplo, SQL para TypeORM, consultas para MongoDB, etc.).
 
 - **[Traductor TypeOrm(MySql)](https://www.npmjs.com/package/@nulledexp/typeorm-mysql-criteria-translator)**
-  - Author: [Nelson Cabrera](https://github.com/Techscq)
+  - Autor: [Nelson Cabrera](https://github.com/Techscq)
 
 ## ¿Qué Problema Resuelve?
 
-En muchas aplicaciones, la lógica para consultar datos se encuentra mezclada con el código de  
-negocio o fuertemente acoplada a un ORM o base de datos específica. Esto puede llevar a:
+Muchas aplicaciones se enfrentan al desafío de crear una lógica de acceso a datos flexible y reutilizable. Un síntoma común es la **proliferación de métodos de consulta especializados** como `getUserByUuid`, `getUserByEmail` o `getPostByUuidAndTitleAndCategories`. Este enfoque se convierte rápidamente en un cuello de botella para el mantenimiento.
 
-- **Dificultad para cambiar de base de datos o ORM:** Si decides migrar, gran parte de tu código
-  de consulta necesita ser reescrito.
-- **Complejidad en la lógica de negocio:** Las consultas complejas pueden volverse difíciles de
-  leer, mantener y probar.
-- **Repetición de código:** Lógicas de filtrado o paginación similares pueden estar duplicadas
-  en diferentes partes de la aplicación.
-- **Menor testeabilidad:** Probar la lógica de consulta de forma aislada se vuelve complicado.
+Este problema se agrava porque el "contexto" de una consulta puede cambiar. Por ejemplo, obtener un post para un usuario regular no es lo mismo que obtenerlo para su autor, un moderador o un servicio de analítica. Cada contexto puede requerir diferentes campos, uniones o filtros. Esto conduce a:
 
-`@nulledexp/translatable-criteria` aborda estos problemas al:
+- **Explosión de Métodos:** Una necesidad constante de escribir nuevos métodos para cada pequeña variación en el filtrado, acoplando la capa de acceso a datos a casos de uso específicos.
+- **Carga de Mantenimiento:** Los nuevos requisitos de negocio a menudo obligan a los desarrolladores a crear más y más métodos, aumentando la complejidad y el riesgo de errores.
+- **Acoplamiento Fuerte:** La lógica de la aplicación se acopla fuertemente a una fuente de datos u ORM específico, dificultando futuras migraciones o cambios.
+- **Complejidad Contextual:** La lógica para manejar diferentes contextos de acceso (ej. usuario vs. administrador) se dispersa y duplica.
 
-- **Desacoplar la definición de la consulta de su ejecución:** Define _qué_ datos necesitas, no _cómo_ obtenerlos de una fuente específica.
-- **Promover la reutilización:** Los criterios pueden ser construidos, combinados y reutilizados.
-- **Mejorar la seguridad de tipos:** Gracias a los esquemas, puedes construir criterios con validación en tiempo de compilación y ejecución.
-- **Facilitar las pruebas:** Puedes probar la lógica de construcción de criterios de forma independiente.
+`@nulledexp/translatable-criteria` proporciona una solución más abstracta e ideal. Al permitirte construir especificaciones de consulta de forma dinámica, aborda estos problemas al:
+
+- **Desacoplar la definición de la consulta de su ejecución:** Define _qué_ datos necesitas, no _cómo_ obtenerlos.
+- **Promover la reutilización:** Un único método de consulta puede manejar innumerables variaciones al aceptar un objeto `Criteria`.
+- **Mejorar la seguridad de tipos:** Construye criterios con una fuerte validación en tiempo de compilación.
+- **Facilitar las pruebas:** Prueba la lógica de construcción de consultas independientemente de la base de datos.
+
+Si bien adoptar cualquier librería introduce un grado de acoplamiento, `@nulledexp/translatable-criteria` ofrece una compensación estratégica. Acoplas tu aplicación a un flujo de construcción de consultas predecible y mantenible a cambio de **desacoplar tu lógica de negocio de la fuente de datos subyacente y su implementación específica**. Esto resulta en una arquitectura más manejable, predecible y adaptable a largo plazo.
 
 ## ¿Para Quién es Esta Librería?
 
@@ -55,11 +57,11 @@ Esta librería es ideal para desarrolladores y equipos que:
 
 ## Principales Beneficios
 
-- **Seguridad de Tipos Mejorada:** Construye consultas con una interfaz fluida y fuertemente tipada.
-- **Filtrado Potente:** Define lógica de filtrado intrincada con múltiples operadores y agrupación.
-- **Sistema de Uniones (Joins) Flexible:** Soporte para varios tipos de join y configuraciones de tablas pivote.
-- **Paginación Avanzada:** Soporte para paginación basada en offset y en cursor.
-- **Arquitectura Extensible:** Crea tus propios traductores para cualquier fuente de datos.
+- **[Seguridad de Tipos Mejorada](../guides/schema-definitions/es.md):** Construye consultas con una interfaz fluida y fuertemente tipada, incluyendo validación de esquemas robusta y valores de filtro tipados.
+- **[Filtrado Potente](../guides/building-criteria/es.md#2-aplicando-filtros):** Define lógica de filtrado intrincada con una amplia gama de operadores (incluyendo para JSON, arrays, sets, rangos y regex) y agrupación lógica.
+- **[Sistema de Uniones (Joins) Flexible](../guides/building-criteria/es.md#3-añadiendo-uniones-joins):** Soporte para varios tipos de join y configuraciones de tablas pivote, con contexto mejorado para los traductores.
+- **[Paginación Avanzada](../guides/building-criteria/es.md#5-paginación):** Soporte para paginación basada en offset y en cursor.
+- **[Arquitectura Extensible](../guides/developing-translators/es.md):** Crea tus propios traductores para cualquier fuente de datos, ayudado por información de join más completa.
 
 ## ¿Cómo se Estructura esta Documentación?
 
@@ -70,7 +72,7 @@ Para ayudarte a sacar el máximo provecho de `@nulledexp/translatable-criteria`,
   fundamentales como
   `Criteria`,
   `CriteriaFactory`, `Schemas`, y la interfaz `CriteriaTranslator`.
-- [**Guías Prácticas:**](../guides/)
+- **Guías Prácticas:**
   - [Definición de Esquemas.](../guides/schema-definitions/es.md)
   - [Construcción de Criterios (filtros, joins, ordenamiento, paginación).](../guides/building-criteria/es.md)
   - [Desarrollo de Traductores Personalizados.](../guides/developing-translators/es.md)
