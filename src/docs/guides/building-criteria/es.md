@@ -11,12 +11,12 @@ Esta guía te mostrará cómo utilizar `CriteriaFactory` y los métodos fluidos 
   - [Filtros Básicos](#filtros-básicos)
   - [Agrupación Lógica (AND/OR)](#agrupación-lógica-andor)
   - [Filtros Avanzados (JSON, Array, Set)](#filtros-avanzados-json-array-set)
-    - [Filtrando Campos JSON (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)](#filtrando-campos-json-json_contains-json_not_contains)
-    - [Filtrando Campos Array (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtrando-campos-array-array_contains_element-etc)
-    - [Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)](#filtrando-campos-set-set_contains-set_not_contains-set_contains_any-set_contains_all)
-    - [Filtrando por Rangos (`BETWEEN`, `NOT_BETWEEN`)](#filtrando-por-rangos-between-not_between)
-    - [Filtrando con Expresiones Regulares (`MATCHES_REGEX`)](#filtrando-con-expresiones-regulares-matches_regex)
-    - [Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas (`ILIKE`, `NOT_ILIKE`)](#coincidencia-de-patrones-insensible-a-mayúsculasminúsculas-ilike-not_ilike)
+    - [Filtrando Campos JSON](#filtrando-campos-json)
+    - [Filtrando Campos Array](#filtrando-campos-array)
+    - [Filtrando Campos SET](#filtrando-campos-set)
+    - [Filtrando por Rangos](#filtrando-por-rangos)
+    - [Filtrando con Expresiones Regulares](#filtrando-con-expresiones-regulares)
+    - [Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas](#coincidencia-de-patrones-insensible-a-mayúsculasminúsculas)
   - [Referencia de Operadores de Filtro](#referencia-de-operadores-de-filtro)
 - 3. [Añadiendo Uniones (Joins)](#3-añadiendo-uniones-joins)
   - [Uniones Simples (one-to-many, many-to-one, one-to-one)](#uniones-simples-one-to-many-many-to-one-one-to-one)
@@ -202,183 +202,39 @@ const editorOrGuestCriteria = CriteriaFactory.GetCriteria(UserSchema)
 
 ### Filtros Avanzados (JSON, Array, Set)
 
-La librería soporta una amplia gama de operadores para tipos de datos complejos. Para una lista completa, consulta la guía de Conceptos Clave. Aquí tienes algunos ejemplos:
+La librería soporta una amplia gama de operadores para tipos de datos complejos, incluyendo potentes capacidades de negación. Esta sección proporciona una visión general de alto nivel sobre cómo filtrar campos que almacenan datos estructurados. Para una lista completa de todos los operadores de filtro disponibles y su uso detallado, por favor consulta la sección [Referencia de Operadores de Filtro](#referencia-de-operadores-de-filtro) a continuación.
 
-#### Filtrando Campos JSON (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)
+#### Filtrando Campos JSON
 
-El valor para estos operadores es un objeto donde las claves son rutas JSON (el traductor determinará si necesita `$.` al inicio) y los valores son lo que se busca en esa ruta.
+Los campos JSON pueden almacenar datos complejos y anidados. La librería proporciona operadores para consultar valores en rutas específicas, comprobar la contención de fragmentos JSON o verificar la presencia de múltiples valores.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
+#### Filtrando Campos Array
 
-const jsonCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'metadata',
-  operator: FilterOperator.JSON_CONTAINS,
-  value: {
-    tags: 'tech',
-    views: 100,
-    'extra.source': 'import',
-  },
-});
-```
+Los campos que almacenan arrays (ya sean tipos de array nativos de la base de datos o arrays dentro de documentos JSON) pueden filtrarse según la presencia o ausencia de elementos, o comparando el contenido completo de los arrays.
 
-#### Filtrando Campos Array (`ARRAY_CONTAINS_ELEMENT`, etc.)
+#### Filtrando Campos SET
 
-Estos operadores pueden usarse para campos que son arrays nativos o arrays dentro de JSON.
+Para campos que representan un conjunto de valores (por ejemplo, el tipo `SET` de MySQL o una cadena delimitada), puedes comprobar la presencia de elementos individuales o combinaciones de elementos.
 
-- **Para columnas de array nativo:** El `value` es el elemento o array de elementos a buscar.
-- **Para arrays dentro de JSON:** El `value` es un objeto con una única clave (la ruta JSON al array) y el valor es el elemento o array de elementos.
-
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
-
-const arrayCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'categories',
-  operator: FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
-  value: ['nestjs', 'api'],
-});
-```
-
-#### Filtrando Campos SET (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)
-
-Similar a `CONTAINS` pero conceptualmente para campos que representan un conjunto de valores (como el tipo `SET` de MySQL o un string delimitado).
-
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { UserSchema } from './path/to/your/schemas';
-
-const setCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
-  field: 'tags',
-  operator: FilterOperator.SET_CONTAINS_ANY,
-  value: ['typescript', 'javascript'],
-});
-```
-
-#### Filtrando por Rangos (`BETWEEN`, `NOT_BETWEEN`)
+#### Filtrando por Rangos
 
 Estos operadores permiten verificar si un valor numérico o de fecha se encuentra dentro o fuera de un rango específico.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema, ProductSchema } from './path/to/your/schemas';
-
-const betweenDatesCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'createdAt',
-  operator: FilterOperator.BETWEEN,
-  value: [new Date('2023-01-01'), new Date('2023-03-31')],
-});
-
-const notBetweenPriceCriteria = CriteriaFactory.GetCriteria(
-  ProductSchema,
-).where({
-  field: 'price',
-  operator: FilterOperator.NOT_BETWEEN,
-  value: [100, 200],
-});
-```
-
-#### Filtrando con Expresiones Regulares (`MATCHES_REGEX`)
+#### Filtrando con Expresiones Regulares
 
 Permite realizar búsquedas de patrones más potentes utilizando expresiones regulares. La sintaxis específica de la expresión regular puede depender de la base de datos subyacente.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { UserSchema } from './path/to/your/schemas';
-
-const regexCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
-  field: 'username',
-  operator: FilterOperator.MATCHES_REGEX,
-  value: '^admin[0-9]+',
-});
-```
-
-#### Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas (`ILIKE`, `NOT_ILIKE`)
+#### Coincidencia de Patrones Insensible a Mayúsculas/Minúsculas
 
 Similares a `LIKE` y `NOT_LIKE`, pero garantizan que la comparación de patrones sea insensible a mayúsculas y minúsculas, independientemente de la configuración por defecto de la base de datos.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
-
-const ilikeCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'title',
-  operator: FilterOperator.ILIKE,
-  value: '%typescript%',
-});
-```
-
 ### Referencia de Operadores de Filtro
 
-Aquí tienes una lista detallada de los valores de `FilterOperator` disponibles y el tipo de `value` que esperan.
+La librería proporciona un conjunto completo de operadores para todas tus necesidades de filtrado, desde simples comprobaciones de igualdad hasta operaciones complejas en campos JSON y de tipo array.
 
-#### Igualdad y Comparación
+Para una lista detallada de todos los valores de `FilterOperator` disponibles, su propósito, el tipo de `value` que esperan, y un ejemplo de código para cada uno, por favor consulta nuestra guía dedicada:
 
-- `EQUALS`: Comprueba la igualdad exacta. Espera un valor primitivo (`string`, `number`, `boolean`, `Date`, `null`).
-- `NOT_EQUALS`: Comprueba la desigualdad. Espera un valor primitivo.
-- `GREATER_THAN`: Comprueba si un valor es mayor que el proporcionado. Espera un `number` o `Date`.
-- `GREATER_THAN_OR_EQUALS`: Comprueba si un valor es mayor o igual que el proporcionado. Espera un `number` o `Date`.
-- `LESS_THAN`: Comprueba si un valor es menor que el proporcionado. Espera un `number` o `Date`.
-- `LESS_THAN_OR_EQUALS`: Comprueba si un valor es menor o igual que el proporcionado. Espera un `number` o `Date`.
-
-#### Coincidencia de Patrones
-
-- `LIKE`: Coincide con un patrón (la sensibilidad a mayúsculas/minúsculas depende de la base de datos). Espera un `string`. El traductor es responsable de manejar los comodines (`%`, `_`).
-- `NOT_LIKE`: Comprueba si un valor no coincide con un patrón. Espera un `string`.
-- `CONTAINS`: Comprueba si una cadena contiene una subcadena. Espera un `string`. El traductor típicamente envolverá el valor con comodines (ej. `'%valor%'`).
-- `NOT_CONTAINS`: Comprueba si una cadena no contiene una subcadena. Espera un `string`.
-- `STARTS_WITH`: Comprueba si una cadena comienza con una subcadena específica. Espera un `string`. El traductor típicamente añadirá un comodín al final (ej. `'valor%'`).
-- `ENDS_WITH`: Comprueba si una cadena termina con una subcadena específica. Espera un `string`. El traductor típicamente añadirá un comodín al principio (ej. `'%valor'`).
-- `ILIKE`: Versión de `LIKE` insensible a mayúsculas/minúsculas. Espera un `string`.
-- `NOT_ILIKE`: Versión de `NOT_LIKE` insensible a mayúsculas/minúsculas. Espera un `string`.
-
-#### Pertenencia y Nulidad
-
-- `IN`: Comprueba si un valor está dentro de un array dado. Espera un `Array<string | number | boolean | Date>`.
-- `NOT_IN`: Comprueba si un valor no está dentro de un array dado. Espera un `Array<string | number | boolean | Date>`.
-- `IS_NULL`: Comprueba si un valor es `NULL`. La propiedad `value` debe ser `null` o `undefined`.
-- `IS_NOT_NULL`: Comprueba si un valor no es `NULL`. La propiedad `value` debe ser `null` o `undefined`.
-
-#### Rangos y Regex
-
-- `BETWEEN`: Comprueba si un valor está dentro de un rango especificado (inclusivo). Espera una tupla de dos valores: `[min, max]`.
-- `NOT_BETWEEN`: Comprueba si un valor está fuera de un rango especificado. Espera una tupla de dos valores: `[min, max]`.
-- `MATCHES_REGEX`: Comprueba si un valor de tipo string coincide con una expresión regular. Espera un `string` que representa el patrón de la regex.
-
-#### Tipos Complejos (JSON, Array, SET)
-
-- **Operadores JSON**
-- `JSON_CONTAINS`: Comprueba si un documento JSON contiene una estructura o valor específico en una ruta dada. Espera un objeto donde las claves son rutas JSON y los valores son los datos a encontrar (ej. `{ "tags": "tech", "views": 100 }`).
-- `JSON_NOT_CONTAINS`: La inversa de `JSON_CONTAINS`.
-- **Operadores de Array**
-- `ARRAY_CONTAINS_ELEMENT`: Comprueba si un array contiene un elemento específico. Para columnas de array nativo, espera un valor primitivo. Para arrays en JSON, espera un objeto como `{ "ruta.al.array": valorElemento }`.
-- `ARRAY_CONTAINS_ALL_ELEMENTS`: Comprueba si un array contiene todos los elementos de un array dado. Espera un `Array<primitivo>` o `{ "ruta.al.array": [elementos] }`.
-- `ARRAY_CONTAINS_ANY_ELEMENT`: Comprueba si un array contiene al menos un elemento de un array dado. Espera un `Array<primitivo>` o `{ "ruta.al.array": [elementos] }`.
-- `ARRAY_EQUALS`: Comprueba si un array es exactamente igual a un array dado (orden y elementos). Espera un `Array<primitivo>` o `{ "ruta.al.array": [elementos] }`.
-- **Operadores SET** (Conceptualmente para conjuntos, a menudo usados en campos de string o array)
-- `SET_CONTAINS`: Comprueba si un conjunto contiene un valor específico. Espera un `string`.
-- `SET_NOT_CONTAINS`: La inversa de `SET_CONTAINS`.
-- `SET_CONTAINS_ANY`: Comprueba si un conjunto contiene al menos uno de los valores especificados. Espera un `Array<string>`.
-- `SET_CONTAINS_ALL`: Comprueba si un conjunto contiene todos los valores especificados. Espera un `Array<string>`.
+- **[-> Ir a la Guía de Referencia de Operadores de Filtro](../filter-operators/es.md)**
 
 ---
 

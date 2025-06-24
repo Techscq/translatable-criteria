@@ -11,12 +11,12 @@ This guide will show you how to use `CriteriaFactory` and the fluent methods of 
   - [Basic Filters](#basic-filters)
   - [Logical Grouping (AND/OR)](#logical-grouping-andor)
   - [Advanced Filters (JSON, Array, Set)](#advanced-filters-json-array-set)
-    - [Filtering JSON Fields (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)](#filtering-json-fields-json_contains-json_not_contains)
-    - [Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)](#filtering-array-fields-array_contains_element-etc)
-    - [Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)](#filtering-set-fields-set_contains-set_not_contains-set_contains_any-set_contains_all)
-    - [Filtering by Ranges (`BETWEEN`, `NOT_BETWEEN`)](#filtering-by-ranges-between-not_between)
-    - [Filtering with Regular Expressions (`MATCHES_REGEX`)](#filtering-with-regular-expressions-matches_regex)
-    - [Case-Insensitive Pattern Matching (`ILIKE`, `NOT_ILIKE`)](#case-insensitive-pattern-matching-ilike-not_ilike)
+    - [Filtering JSON Fields](#filtering-json-fields)
+    - [Filtering Array Fields](#filtering-array-fields)
+    - [Filtering SET Fields](#filtering-set-fields)
+    - [Filtering by Ranges](#filtering-by-ranges)
+    - [Filtering with Regular Expressions](#filtering-with-regular-expressions)
+    - [Case-Insensitive Pattern Matching](#case-insensitive-pattern-matching)
   - [Filter Operator Reference](#filter-operator-reference)
 - 3. [Adding Joins](#3-adding-joins)
   - [Simple Joins (one-to-many, many-to-one, one-to-one)](#simple-joins-one-to-many-many-to-one-one-to-one)
@@ -202,183 +202,39 @@ const editorOrGuestCriteria = CriteriaFactory.GetCriteria(UserSchema)
 
 ### Advanced Filters (JSON, Array, Set)
 
-The library supports a wide range of operators for complex data types. For a full list, see the Core Concepts guide. Here are a few examples:
+The library supports a wide range of operators for complex data types, including powerful negation capabilities. This section provides a high-level overview of how to filter fields that store structured data. For a comprehensive list of all available filter operators and their detailed usage, please refer to the [Filter Operator Reference](#filter-operator-reference) section below.
 
-#### Filtering JSON Fields (`JSON_CONTAINS`, `JSON_NOT_CONTAINS`)
+#### Filtering JSON Fields
 
-The value for these operators is an object where keys are JSON paths (the translator will determine if it needs `$.` at the beginning) and values are what is being searched for in that path.
+JSON fields can store complex, nested data. The library provides operators to query values at specific paths, check for the containment of JSON fragments, or verify the presence of multiple values.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
+#### Filtering Array Fields
 
-const jsonCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'metadata',
-  operator: FilterOperator.JSON_CONTAINS,
-  value: {
-    tags: 'tech',
-    views: 100,
-    'extra.source': 'import',
-  },
-});
-```
+Fields storing arrays (either native database array types or arrays within JSON documents) can be filtered based on the presence or absence of elements, or by comparing entire array contents.
 
-#### Filtering Array Fields (`ARRAY_CONTAINS_ELEMENT`, etc.)
+#### Filtering SET Fields
 
-These operators can be used for fields that are native arrays or arrays within JSON.
+For fields representing a set of values (e.g., MySQL's `SET` type or a delimited string), you can check for the presence of individual elements or combinations of elements.
 
-- **For native array columns:** The `value` is the element or array of elements to search for.
-- **For arrays within JSON:** The `value` is an object with a single key (the JSON path to the array) and the value is the element or array of elements.
-
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
-
-const arrayCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'categories',
-  operator: FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
-  value: ['nestjs', 'api'],
-});
-```
-
-#### Filtering SET Fields (`SET_CONTAINS`, `SET_NOT_CONTAINS`, `SET_CONTAINS_ANY`, `SET_CONTAINS_ALL`)
-
-Similar to `CONTAINS` but conceptually for fields representing a set of values (like MySQL's `SET` type or a delimited string).
-
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { UserSchema } from './path/to/your/schemas';
-
-const setCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
-  field: 'tags',
-  operator: FilterOperator.SET_CONTAINS_ANY,
-  value: ['typescript', 'javascript'],
-});
-```
-
-#### Filtering by Ranges (`BETWEEN`, `NOT_BETWEEN`)
+#### Filtering by Ranges
 
 These operators allow you to check if a numeric or date value falls within or outside a specific range.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema, ProductSchema } from './path/to/your/schemas';
-
-const betweenDatesCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'createdAt',
-  operator: FilterOperator.BETWEEN,
-  value: [new Date('2023-01-01'), new Date('2023-03-31')],
-});
-
-const notBetweenPriceCriteria = CriteriaFactory.GetCriteria(
-  ProductSchema,
-).where({
-  field: 'price',
-  operator: FilterOperator.NOT_BETWEEN,
-  value: [100, 200],
-});
-```
-
-#### Filtering with Regular Expressions (`MATCHES_REGEX`)
+#### Filtering with Regular Expressions
 
 Allows for more powerful pattern matching using regular expressions. The specific syntax of the regular expression may depend on the underlying database.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { UserSchema } from './path/to/your/schemas';
-
-const regexCriteria = CriteriaFactory.GetCriteria(UserSchema).where({
-  field: 'username',
-  operator: FilterOperator.MATCHES_REGEX,
-  value: '^admin[0-9]+',
-});
-```
-
-#### Case-Insensitive Pattern Matching (`ILIKE`, `NOT_ILIKE`)
+#### Case-Insensitive Pattern Matching
 
 Similar to `LIKE` and `NOT_LIKE`, but they ensure that pattern comparison is case-insensitive, regardless of the database's default collation.
 
-```typescript
-import {
-  CriteriaFactory,
-  FilterOperator,
-} from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
-
-const ilikeCriteria = CriteriaFactory.GetCriteria(PostSchema).where({
-  field: 'title',
-  operator: FilterOperator.ILIKE,
-  value: '%typescript%',
-});
-```
-
 ### Filter Operator Reference
 
-Here is a detailed list of the available `FilterOperator` values and the type of `value` they expect.
+The library provides a comprehensive set of operators for all your filtering needs, from simple equality checks to complex operations on JSON and array fields.
 
-#### Equality & Comparison
+For a detailed list of all available `FilterOperator` values, their purpose, the type of `value` they expect, and a code example for each, please refer to our dedicated guide:
 
-- `EQUALS`: Checks for exact equality. Expects a primitive value (`string`, `number`, `boolean`, `Date`, `null`).
-- `NOT_EQUALS`: Checks for inequality. Expects a primitive value.
-- `GREATER_THAN`: Checks if a value is greater than the provided one. Expects a `number` or `Date`.
-- `GREATER_THAN_OR_EQUALS`: Checks if a value is greater than or equal to the provided one. Expects a `number` or `Date`.
-- `LESS_THAN`: Checks if a value is less than the provided one. Expects a `number` or `Date`.
-- `LESS_THAN_OR_EQUALS`: Checks if a value is less than or equal to the provided one. Expects a `number` or `Date`.
-
-#### Pattern Matching
-
-- `LIKE`: Matches a pattern (case-sensitivity depends on the database). Expects a `string`. The translator is responsible for handling wildcards (`%`, `_`).
-- `NOT_LIKE`: Checks if a value does not match a pattern. Expects a `string`.
-- `CONTAINS`: Checks if a string contains a substring. Expects a `string`. The translator will typically wrap the value with wildcards (e.g., `'%value%'`).
-- `NOT_CONTAINS`: Checks if a string does not contain a substring. Expects a `string`.
-- `STARTS_WITH`: Checks if a string starts with a specific substring. Expects a `string`. The translator will typically append a wildcard (e.g., `'value%'`).
-- `ENDS_WITH`: Checks if a string ends with a specific substring. Expects a `string`. The translator will typically prepend a wildcard (e.g., `'%value'`).
-- `ILIKE`: Case-insensitive version of `LIKE`. Expects a `string`.
-- `NOT_ILIKE`: Case-insensitive version of `NOT_LIKE`. Expects a `string`.
-
-#### Membership & Nullability
-
-- `IN`: Checks if a value is within a given array. Expects an `Array<string | number | boolean | Date>`.
-- `NOT_IN`: Checks if a value is not within a given array. Expects an `Array<string | number | boolean | Date>`.
-- `IS_NULL`: Checks if a value is `NULL`. The `value` property should be `null` or `undefined`.
-- `IS_NOT_NULL`: Checks if a value is not `NULL`. The `value` property should be `null` or `undefined`.
-
-#### Ranges & Regex
-
-- `BETWEEN`: Checks if a value is within a specified range (inclusive). Expects a tuple of two values: `[min, max]`.
-- `NOT_BETWEEN`: Checks if a value is outside a specified range. Expects a tuple of two values: `[min, max]`.
-- `MATCHES_REGEX`: Checks if a string value matches a regular expression. Expects a `string` representing the regex pattern.
-
-#### Complex Types (JSON, Array, SET)
-
-- **JSON Operators**
-- `JSON_CONTAINS`: Checks if a JSON document contains a specific structure or value at a given path. Expects an object where keys are JSON paths and values are the data to find (e.g., `{ "tags": "tech", "views": 100 }`).
-- `JSON_NOT_CONTAINS`: The inverse of `JSON_CONTAINS`.
-- **Array Operators**
-- `ARRAY_CONTAINS_ELEMENT`: Checks if an array contains a specific element. For native array columns, expects a primitive value. For JSON arrays, expects an object like `{ "path.to.array": elementValue }`.
-- `ARRAY_CONTAINS_ALL_ELEMENTS`: Checks if an array contains all elements from a given array. Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
-- `ARRAY_CONTAINS_ANY_ELEMENT`: Checks if an array contains at least one element from a given array. Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
-- `ARRAY_EQUALS`: Checks if an array is exactly equal to a given array (order and elements). Expects an `Array<primitive>` or `{ "path.to.array": [elements] }`.
-- **SET Operators** (Conceptually for sets, often used on string or array fields)
-- `SET_CONTAINS`: Checks if a set contains a specific value. Expects a `string`.
-- `SET_NOT_CONTAINS`: The inverse of `SET_CONTAINS`.
-- `SET_CONTAINS_ANY`: Checks if a set contains at least one of the specified values. Expects an `Array<string>`.
-- `SET_CONTAINS_ALL`: Checks if a set contains all of the specified values. Expects an `Array<string>`.
+- **[-> Go to the Filter Operator Reference Guide](../filter-operators/en.md)**
 
 ---
 

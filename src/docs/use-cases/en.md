@@ -38,6 +38,7 @@ type getPostByCriteriaRequest = {
   };
   publisher_uuid?: string;
   categories?: string[];
+  excludedCategories?: string[];
 };
 ```
 
@@ -138,17 +139,41 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
   if (request.categories) {
     dynamicFilterApplierHelper(postCriteria, {
       field: 'categories',
-      operator: FilterOperator.SET_CONTAINS_ANY,
+      operator: FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
       value: request.categories,
     });
   }
 
-  if (request.metadata) {
+  if (request.excludedCategories && request.excludedCategories.length > 0) {
     dynamicFilterApplierHelper(postCriteria, {
-      field: 'metadata',
-      operator: FilterOperator.JSON_CONTAINS,
-      value: request.metadata,
+      field: 'categories',
+      operator: FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT,
+      value: request.excludedCategories,
     });
+  }
+
+  if (request.metadata) {
+    if (request.metadata.tags && request.metadata.tags.length > 0) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.JSON_CONTAINS_ALL,
+        value: { tags: request.metadata.tags },
+      });
+    }
+    if (request.metadata.views !== undefined) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.JSON_PATH_VALUE_EQUALS,
+        value: { views: request.metadata.views },
+      });
+    }
+    if (request.metadata.ratings && request.metadata.ratings.length > 0) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS,
+        value: { ratings: request.metadata.ratings },
+      });
+    }
   }
 
   if (request.publisher_uuid) {
@@ -167,14 +192,19 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
   }
 
   if (request.cursor) {
+    const cursorOperator =
+      request.cursor.order === 'ASC'
+        ? FilterOperator.GREATER_THAN
+        : FilterOperator.LESS_THAN;
+
     postCriteria
       .setCursor(
         [
           { field: 'created_at', value: request.cursor.created_at },
           { field: 'uuid', value: request.cursor.uuid },
         ],
-        FilterOperator.GREATER_THAN,
-        'ASC',
+        cursorOperator,
+        request.cursor.order,
       )
       .orderBy('created_at', request.cursor.order)
       .orderBy('uuid', request.cursor.order);
@@ -196,7 +226,7 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
 **Criteria Breakdown:**
 
 - **Initialization:** We start with a base `RootCriteria` for `PostSchema`.
-- **Conditional Filters:** Each `if (request.field)` block checks for a parameter's existence. If present, it uses a helper function (`dynamicFilterApplierHelper`) to apply the corresponding filter.
+- **Conditional Filters:** Each `if (request.field)` block checks for a parameter's existence. If present, it uses a helper function (`dynamicFilterApplierHelper`) to apply the corresponding filter. Note the use of `FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT` for `excludedCategories`, which efficiently filters out posts belonging to any of the specified categories in a single operation.
 - **Conditional Join:** The `JOIN` to the `publisher` (User) is only added if a `publisher_uuid` is provided for filtering. This ensures that the join is not performed unnecessarily.
 - **Conditional Pagination:** The logic handles three scenarios: applying cursor-based pagination if a cursor is present, falling back to offset-based pagination if an offset is provided, or applying a default ordering if neither is specified.
 - **Global Limit:** A `setTake()` is applied at the end, which serves as a default page size for both pagination methods.

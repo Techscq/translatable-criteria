@@ -40,6 +40,6 @@
     "**/*.test.ts",
     "**/test",
     "src/docs",
-    "src/criteria/translator/example"
+    "src/docs/guides/developing-translators/example"
   ]
 }

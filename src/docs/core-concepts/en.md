@@ -186,11 +186,13 @@ Filters allow you to specify the conditions that data must meet to be selected.
 - **`Filter`**: Represents a single filter condition (`field`, `operator`, `value`).
 - **`FilterGroup`**: Allows grouping multiple `Filter` or even other `FilterGroup` instances using logical operators (`AND` or `OR`).
 - **`FilterOperator`**: An enumeration that defines the various comparison operators available, which can be broadly categorized:
-- **Equality & Comparison:** `EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, etc.
-- **Pattern Matching:** `LIKE`, `CONTAINS`, `STARTS_WITH`, `ILIKE` (case-insensitive version of LIKE).
-- **Membership & Nullability:** `IN`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`.
-- **Ranges & Regex:** `BETWEEN`, `NOT_BETWEEN`, `MATCHES_REGEX`.
-- **Complex Types:** A rich set of operators for `JSON`, `ARRAY`, and `SET` data types (e.g., `JSON_CONTAINS`, `ARRAY_CONTAINS_ANY_ELEMENT`).
+  - **Equality & Comparison:** `EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, etc.
+  - **Pattern Matching:** `LIKE`, `CONTAINS`, `STARTS_WITH`, `ILIKE` (case-insensitive version of LIKE).
+  - **Membership & Nullability:** `IN`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`.
+  - **Ranges & Regex:** `BETWEEN`, `NOT_BETWEEN`, `MATCHES_REGEX`.
+  - **Complex Types:** A rich set of operators for `JSON`, `ARRAY`, and `SET` data types (e.g., `JSON_CONTAINS`, `ARRAY_NOT_CONTAINS_ELEMENT`, `SET_CONTAINS_ANY`).
+
+For a detailed explanation of each operator, its expected value, and code examples, please refer to the [Filter Operator Reference](../guides/filter-operators/en.md).
 
 Filters are added to a `Criteria` using the `where()`, `andWhere()`, and `orWhere()` methods. The library automatically normalizes the `FilterGroup` structure to maintain consistency.
 

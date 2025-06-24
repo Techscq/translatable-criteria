@@ -8,7 +8,7 @@ import {
   type ICriteriaBase,
 } from '../../../criteria/index.js';
 
-type getPostByCriteriaRequest = {
+export type getPostByCriteriaRequest = {
   offset?: { page: number; order: 'ASC' | 'DESC' };
   cursor?: {
     uuid: string;
@@ -25,6 +25,7 @@ type getPostByCriteriaRequest = {
   };
   publisher_uuid?: string;
   categories?: string[];
+  excludedCategories?: string[];
 };
 
 export interface EntityBase {
@@ -87,19 +88,12 @@ export const PostSchema = GetTypedCriteriaSchema({
 });
 export type PostSchema = typeof PostSchema;
 
-const maxPostPerPage = 5;
-function getPostsPaginatedByCriteria(
-  request: getPostByCriteriaRequest,
-  // repository: PostRepository,
-  // actualDataSourceProcessor: DataSourceProcessor,
-) {
-  const postCriteria = buildPostPaginatedCriteria(request);
-  // repository.matchingMany(postCriteria);
-  // const [query, params] = translator.translate(postCriteria);
-  // actualDataSourceProcessor.execute(query,params);
-}
-
-function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
+/**
+ * Builds a paginated criteria for posts based on the provided request parameters.
+ * @param request The request object containing filter, join, and pagination parameters.
+ * @returns A Criteria object configured for fetching posts.
+ */
+export function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
   const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
 
   if (request.title) {
@@ -121,17 +115,41 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
   if (request.categories) {
     dynamicFilterApplierHelper(postCriteria, {
       field: 'categories',
-      operator: FilterOperator.SET_CONTAINS_ANY,
+      operator: FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
       value: request.categories,
     });
   }
 
-  if (request.metadata) {
+  if (request.excludedCategories && request.excludedCategories.length > 0) {
     dynamicFilterApplierHelper(postCriteria, {
-      field: 'metadata',
-      operator: FilterOperator.JSON_CONTAINS,
-      value: request.metadata,
+      field: 'categories',
+      operator: FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT,
+      value: request.excludedCategories,
     });
+  }
+
+  if (request.metadata) {
+    if (request.metadata.tags && request.metadata.tags.length > 0) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.JSON_CONTAINS_ALL,
+        value: { tags: request.metadata.tags },
+      });
+    }
+    if (request.metadata.views !== undefined) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.JSON_PATH_VALUE_EQUALS,
+        value: { views: request.metadata.views },
+      });
+    }
+    if (request.metadata.ratings && request.metadata.ratings.length > 0) {
+      dynamicFilterApplierHelper(postCriteria, {
+        field: 'metadata',
+        operator: FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS,
+        value: { ratings: request.metadata.ratings },
+      });
+    }
   }
 
   if (request.publisher_uuid) {
@@ -150,31 +168,39 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
   }
 
   if (request.cursor) {
+    const cursorOperator =
+      request.cursor.order === 'ASC'
+        ? FilterOperator.GREATER_THAN
+        : FilterOperator.LESS_THAN;
+
     postCriteria
       .setCursor(
         [
           { field: 'created_at', value: request.cursor.created_at },
           { field: 'uuid', value: request.cursor.uuid },
         ],
-        FilterOperator.GREATER_THAN,
-        'ASC',
+        cursorOperator,
+        request.cursor.order,
       )
       .orderBy('created_at', request.cursor.order)
       .orderBy('uuid', request.cursor.order);
   } else if (request.offset) {
-    postCriteria.setSkip(
-      Math.max(0, (request.offset.page - 1) * maxPostPerPage),
-    );
+    postCriteria.setSkip(Math.max(0, (request.offset.page - 1) * 5));
     postCriteria.orderBy('created_at', request.offset.order);
   } else {
     postCriteria.orderBy('created_at', 'DESC');
   }
 
-  postCriteria.setTake(maxPostPerPage);
+  postCriteria.setTake(5);
 
   return postCriteria;
 }
 
+/**
+ * Helper function to apply filters to a criteria object, handling the initial `where` call.
+ * @param criteria The criteria object to apply the filter to.
+ * @param filterPrimitive The filter primitive to apply.
+ */
 function dynamicFilterApplierHelper<
   TSchema extends CriteriaSchema,
   Operator extends FilterOperator,

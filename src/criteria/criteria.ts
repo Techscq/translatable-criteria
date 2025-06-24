@@ -335,7 +335,9 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
       TJoinedCriteriaSourceName
     >,
   >(
-    joinAlias: TMatchingJoinConfig['alias'],
+    joinAlias: TMatchingJoinConfig['alias'] extends never
+      ? `Error: The joined parent source name '${TJoinedCriteriaSourceName}' is not configured for join in '${TSchema['source_name']}'.`
+      : TMatchingJoinConfig['alias'],
     criteriaToJoin: JoinCriteriaParameterType<
       TSchema,
       TJoinSchema,

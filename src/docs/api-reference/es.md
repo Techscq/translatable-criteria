@@ -76,7 +76,6 @@ const userCriteria = CriteriaFactory.GetCriteria(UserSchema);
 ```typescript
 import { CriteriaFactory, PostSchema } from '@nulledexp/translatable-criteria';
 const postJoin = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
-// userCriteria.join('posts', postJoin, { parent_field: 'id', join_field: 'userId' });
 ```
 
 - **`GetLeftJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): LeftJoinCriteria<CSchema>`**
@@ -272,39 +271,33 @@ Clase abstracta que sirve como base para crear traductores específicos para dif
 ### `FilterOperator`
 
 Enumeración que define los operadores de comparación disponibles para los filtros.
+Para una explicación detallada de cada operador, su valor esperado y ejemplos de código, por favor consulta la guía de [Referencia de Operadores de Filtro](../guides/filter-operators/es.md).
 
-- **Values:**
-  - `EQUALS` (`=`): Equal to.
-  - `NOT_EQUALS` (`!=`): Not equal to.
-  - `GREATER_THAN` (`>`): Greater than.
-  - `GREATER_THAN_OR_EQUALS` (`>=`): Greater than or equal to.
-  - `LESS_THAN` (`<`): Less than.
-  - `LESS_THAN_OR_EQUALS` (`<=`): Less than or equal to.
-  - `LIKE` (`LIKE`): Matches a pattern (case sensitivity depends on the DB).
-  - `NOT_LIKE` (`NOT LIKE`): Does not match a pattern.
-  - `IN` (`IN`): The value is within a set of values.
-  - `NOT_IN` (`NOT IN`): The value is not within a set of values.
-  - `IS_NULL` (`IS NULL`): The value is NULL.
-  - `IS_NOT_NULL` (`IS NOT NULL`): The value is not NULL.
-  - `CONTAINS` (`CONTAINS`): For substring search.
-  - `STARTS_WITH` (`STARTS_WITH`): Starts with a specific substring.
-  - `ENDS_WITH` (`ENDS_WITH`): Ends with a specific substring.
-  - `NOT_CONTAINS` (`NOT_CONTAINS`): Does not contain a specific substring.
-  - `SET_CONTAINS`: For SET-type fields or simple arrays, checks if the set contains a value.
-  - `SET_NOT_CONTAINS`: The inverse of `SET_CONTAINS`.
-  - `SET_CONTAINS_ANY`: Checks if the set contains AT LEAST ONE of the specified values.
-  - `SET_CONTAINS_ALL`: Checks if the set contains ALL of the specified values.
-  - `BETWEEN` (`BETWEEN`): Checks if a value is within a specified range (inclusive).
-  - `NOT_BETWEEN` (`NOT_BETWEEN`): Checks if a value is outside a specified range.
-  - `MATCHES_REGEX` (`MATCHES_REGEX`): Checks if a string value matches a regular expression.
-  - `ILIKE` (`ILIKE`): Case-insensitive version of `LIKE`.
-  - `NOT_ILIKE` (`NOT_ILIKE`): Case-insensitive version of `NOT_ILIKE`.
-  - `JSON_CONTAINS`: For JSON fields, checks if the JSON contains a specific structure or value.
-  - `JSON_NOT_CONTAINS`: The inverse of `JSON_CONTAINS`.
-  - `ARRAY_CONTAINS_ELEMENT`: For Array fields, checks if the array contains an element.
-  - `ARRAY_CONTAINS_ALL_ELEMENTS`: Checks if the array contains all elements from a given array.
-  - `ARRAY_CONTAINS_ANY_ELEMENT`: Checks if the array contains any of the elements from a given array.
-  - `ARRAY_EQUALS`: Checks if the array is exactly equal to a given array.
+- **Valores:**
+  - `EQUALS` / `NOT_EQUALS`: Comprueba la igualdad o desigualdad.
+  - `GREATER_THAN` / `GREATER_THAN_OR_EQUALS`: Comprueba si un valor es mayor que o mayor o igual que otro.
+  - `LESS_THAN` / `LESS_THAN_OR_EQUALS`: Comprueba si un valor es menor que o menor o igual que otro.
+  - `LIKE` / `NOT_LIKE`: Coincide o no coincide con un patrón (la sensibilidad a mayúsculas/minúsculas depende de la BD).
+  - `ILIKE` / `NOT_ILIKE`: Versión insensible a mayúsculas/minúsculas de `LIKE` / `NOT_LIKE`.
+  - `CONTAINS` / `NOT_CONTAINS`: Comprueba si una cadena contiene o no contiene una subcadena específica.
+  - `STARTS_WITH`: Comprueba si una cadena comienza con una subcadena específica.
+  - `ENDS_WITH`: Comprueba si una cadena termina con una subcadena específica.
+  - `MATCHES_REGEX`: Comprueba si un valor de tipo string coincide con un patrón de expresión regular.
+  - `IN` / `NOT_IN`: Comprueba si un valor está o no está dentro de un conjunto de valores especificados.
+  - `IS_NULL` / `IS_NOT_NULL`: Comprueba si un valor es o no es NULL.
+  - `BETWEEN` / `NOT_BETWEEN`: Comprueba si un valor está dentro o fuera de un rango especificado (inclusivo).
+  - `JSON_PATH_VALUE_EQUALS` / `JSON_PATH_VALUE_NOT_EQUALS`: Para campos JSON, comprueba si el valor en una ruta JSON específica es igual o no igual a un valor primitivo.
+  - `JSON_CONTAINS` / `JSON_NOT_CONTAINS`: Comprueba si un documento JSON contiene o NO contiene un valor JSON especificado.
+  - `JSON_CONTAINS_ANY` / `JSON_NOT_CONTAINS_ANY`: Comprueba si un documento JSON contiene AL MENOS UNO o NO contiene AL MENOS UNO de los valores JSON especificados.
+  - `JSON_CONTAINS_ALL` / `JSON_NOT_CONTAINS_ALL`: Comprueba si un documento JSON contiene TODOS o NO contiene TODOS los valores JSON especificados.
+  - `ARRAY_CONTAINS_ELEMENT` / `ARRAY_NOT_CONTAINS_ELEMENT`: Comprueba si un array contiene o NO contiene un elemento específico.
+  - `ARRAY_CONTAINS_ANY_ELEMENT` / `ARRAY_NOT_CONTAINS_ANY_ELEMENT`: Comprueba si un array contiene AL MENOS UN o NO contiene AL MENOS UN elemento de un array dado.
+  - `ARRAY_CONTAINS_ALL_ELEMENTS` / `ARRAY_NOT_CONTAINS_ALL_ELEMENTS`: Comprueba si un array contiene TODOS o NO contiene TODOS los elementos de un array dado.
+  - `ARRAY_EQUALS`: Comprueba si un array es igual a un array dado (insensible al orden).
+  - `ARRAY_EQUALS_STRICT`: Comprueba si un array es exactamente igual a un array dado (sensible al orden).
+  - `SET_CONTAINS` / `SET_NOT_CONTAINS`: Comprueba si un campo de colección contiene o NO contiene un valor específico.
+  - `SET_CONTAINS_ANY` / `SET_NOT_CONTAINS_ANY`: Comprueba si un campo de colección contiene AL MENOS UNO o NO contiene AL MENOS UNO de los valores especificados.
+  - `SET_CONTAINS_ALL` / `SET_NOT_CONTAINS_ALL`: Comprueba si un campo de colección contiene TODOS o NO contiene TODOS los valores especificados.
 
 [Volver al Índice](#índice)
 

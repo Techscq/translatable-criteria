@@ -11,6 +11,15 @@ import type {
 export type PrimitiveFilterValue = string | number | boolean | Date | null;
 
 /**
+ * Represents any valid JSON value that can be stored in a JSON column.
+ * This type is recursive to allow for nested objects and arrays.
+ */
+type JsonValue =
+  | PrimitiveFilterValue
+  | { [key: string]: JsonValue }
+  | Array<JsonValue>;
+
+/**
  * Represents the value associated with a filter, strongly typed based on the {@link FilterOperator}.
  * @template Operator - The specific filter operator.
  */
@@ -40,15 +49,17 @@ export type FilterValue<Operator extends FilterOperator> =
           | FilterOperator.LESS_THAN_OR_EQUALS
       ? /** Expected value: A primitive value (string, number, boolean, Date, or null) for comparison. */
         PrimitiveFilterValue
-      : // Array-based operators (for IN, NOT_IN, SET_CONTAINS_ANY, SET_CONTAINS_ALL)
+      : // Array-based operators (for IN, NOT_IN, SET_CONTAINS_ANY, SET_CONTAINS_ALL, SET_NOT_CONTAINS_ANY, SET_NOT_CONTAINS_ALL)
         Operator extends
             | FilterOperator.IN
             | FilterOperator.NOT_IN
             | FilterOperator.SET_CONTAINS_ANY
             | FilterOperator.SET_CONTAINS_ALL
+            | FilterOperator.SET_NOT_CONTAINS_ANY
+            | FilterOperator.SET_NOT_CONTAINS_ALL
         ? /** Expected value: An array of primitive values (excluding null/undefined). */
           Array<Exclude<PrimitiveFilterValue, null | undefined>>
-        : // Range operators: BETWEEN, NOT_BETWEEN (Nuevos)
+        : // Range operators: BETWEEN, NOT_BETWEEN
           Operator extends FilterOperator.BETWEEN | FilterOperator.NOT_BETWEEN
           ? /** Expected value: A tuple of two primitive values [min, max] (excluding null/undefined). */
             [
@@ -56,7 +67,9 @@ export type FilterValue<Operator extends FilterOperator> =
               Exclude<PrimitiveFilterValue, null | undefined>,
             ]
           : // Array element operators
-            Operator extends FilterOperator.ARRAY_CONTAINS_ELEMENT
+            Operator extends
+                | FilterOperator.ARRAY_CONTAINS_ELEMENT
+                | FilterOperator.ARRAY_NOT_CONTAINS_ELEMENT
             ? /**
                * Expected value:
                * 1. A primitive value for direct array column comparison.
@@ -68,6 +81,8 @@ export type FilterValue<Operator extends FilterOperator> =
                   | FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS
                   | FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT
                   | FilterOperator.ARRAY_EQUALS
+                  | FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS
+                  | FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT
               ? /**
                  * Expected value:
                  * 1. An array of primitive values for direct array column comparison.
@@ -88,18 +103,58 @@ export type FilterValue<Operator extends FilterOperator> =
                   null | undefined
                 : // JSON operators
                   Operator extends
-                      | FilterOperator.JSON_CONTAINS
-                      | FilterOperator.JSON_NOT_CONTAINS
+                      | FilterOperator.JSON_PATH_VALUE_EQUALS
+                      | FilterOperator.JSON_PATH_VALUE_NOT_EQUALS
                   ? /**
                      * Expected value: An object where keys are JSON path strings
                      * and values are the candidates to search for at that path.
                      */
                     {
-                      [key: string]: // JSON path
-                      PrimitiveFilterValue | Array<any> | Record<string, any>;
+                      [key: string]: JsonValue;
                     }
-                  : // Fallback
-                    never;
+                  : Operator extends
+                        | FilterOperator.JSON_CONTAINS
+                        | FilterOperator.JSON_NOT_CONTAINS
+                    ? /**
+                       * Expected value: An object where keys are JSON path strings
+                       * and values are the JSON data (scalar, array, or object) to find/exclude.
+                       */
+                      {
+                        [key: string]: JsonValue;
+                      }
+                    : Operator extends
+                          | FilterOperator.JSON_CONTAINS_ANY
+                          | FilterOperator.JSON_CONTAINS_ALL
+                          | FilterOperator.JSON_NOT_CONTAINS_ANY
+                          | FilterOperator.JSON_NOT_CONTAINS_ALL
+                      ? /**
+                         * Expected value: An object where keys are JSON path strings
+                         * and values are arrays of JSON data (scalar, array, or object) to find.
+                         */
+                        {
+                          [key: string]: Array<JsonValue>;
+                        }
+                      : // Strict Array Equality
+                        Operator extends FilterOperator.ARRAY_EQUALS_STRICT
+                        ? /**
+                           * Expected value:
+                           * 1. An array of primitive values for direct array column comparison (order-sensitive).
+                           * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
+                           *    for checking an array at a specific path inside a JSON column (order-sensitive).
+                           */
+                          | Array<
+                                Exclude<PrimitiveFilterValue, null | undefined>
+                              >
+                            | {
+                                [key: string]: Array<
+                                  Exclude<
+                                    PrimitiveFilterValue,
+                                    null | undefined
+                                  >
+                                >;
+                              }
+                        : // Fallback
+                          never;
 
 /**
  * Defines the structure for a single filter condition.

@@ -10,7 +10,9 @@ import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 export class Filter<T extends string, Operator extends FilterOperator>
   implements IFilterExpression
 {
-  constructor(private readonly primitive: FilterPrimitive<T, Operator>) {
+  protected readonly primitive: FilterPrimitive<T, Operator>;
+  constructor(primitive: FilterPrimitive<T, Operator>) {
+    this.primitive = { ...primitive };
     this.validatePrimitiveValueForOperator(primitive.operator);
   }
 
@@ -26,15 +28,6 @@ export class Filter<T extends string, Operator extends FilterOperator>
     return this.primitive.value;
   }
 
-  /**
-   * Accepts a visitor and calls the appropriate visit method.
-   * @template TranslationContext The type of the context object.
-   * @template TFilterVisitorOutput The specific return type expected from `visitFilter`.
-   * @param visitor The visitor implementation.
-   * @param currentAlias The alias of the current entity being processed.
-   * @param context The mutable context object for the translation.
-   * @returns The result of the visitor processing this filter.
-   */
   public accept<TranslationContext, TFilterVisitorOutput extends any>(
     visitor: ICriteriaVisitor<TranslationContext, TFilterVisitorOutput>,
     currentAlias: string,
@@ -99,6 +92,7 @@ export class Filter<T extends string, Operator extends FilterOperator>
           );
         break;
       case FilterOperator.ARRAY_CONTAINS_ELEMENT:
+      case FilterOperator.ARRAY_NOT_CONTAINS_ELEMENT:
         if (
           !this.isPrimitiveFilterValue(this.value) &&
           !this.isValidSingleKeyObjectWithValue(this.value, (val) =>
@@ -106,13 +100,16 @@ export class Filter<T extends string, Operator extends FilterOperator>
           )
         ) {
           throw new Error(
-            'For ARRAY_CONTAINS_ELEMENT, value must be a PrimitiveFilterValue or an object like { "path.to.array": elementValue }',
+            `For operator ${operator}, value must be a PrimitiveFilterValue or an object like { "path.to.array": elementValue }`,
           );
         }
         break;
       case FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS:
       case FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT:
       case FilterOperator.ARRAY_EQUALS:
+      case FilterOperator.ARRAY_EQUALS_STRICT:
+      case FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS:
+      case FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT:
         if (
           !this.isArrayOfPrimitives(this.value) &&
           !this.isValidSingleKeyObjectWithValue(this.value, (val) =>
@@ -120,7 +117,7 @@ export class Filter<T extends string, Operator extends FilterOperator>
           )
         ) {
           throw new Error(
-            'For ARRAY_CONTAINS_ALL/ANY/EQUALS, value must be an Array<Primitive> or an object like { "path.to.array": [elements] }',
+            `For operator ${operator}, value must be an Array<Primitive> or an object like { "path.to.array": [elements] }`,
           );
         }
         break;
@@ -128,6 +125,8 @@ export class Filter<T extends string, Operator extends FilterOperator>
       case FilterOperator.NOT_IN:
       case FilterOperator.SET_CONTAINS_ANY:
       case FilterOperator.SET_CONTAINS_ALL:
+      case FilterOperator.SET_NOT_CONTAINS_ANY:
+      case FilterOperator.SET_NOT_CONTAINS_ALL:
         if (!this.isArrayOfPrimitives(this.value))
           throw new Error(
             `Filter value for operator ${operator} must be an array of string, number, boolean, Date`,
@@ -148,19 +147,32 @@ export class Filter<T extends string, Operator extends FilterOperator>
             `Filter value for operator ${operator} must be null or undefined`,
           );
         break;
+      case FilterOperator.JSON_PATH_VALUE_EQUALS:
+      case FilterOperator.JSON_PATH_VALUE_NOT_EQUALS:
       case FilterOperator.JSON_CONTAINS:
       case FilterOperator.JSON_NOT_CONTAINS:
         if (
           !this.isObject(this.value) ||
+          !Object.values(this.value).every((val) => this.isJsonValue(val))
+        ) {
+          throw new Error(
+            `Filter value for operator ${operator} must be an object where each value is a valid JSON structure (primitive, object, or array).`,
+          );
+        }
+        break;
+      case FilterOperator.JSON_CONTAINS_ANY:
+      case FilterOperator.JSON_CONTAINS_ALL:
+      case FilterOperator.JSON_NOT_CONTAINS_ANY:
+      case FilterOperator.JSON_NOT_CONTAINS_ALL:
+        if (
+          !this.isObject(this.value) ||
           !Object.values(this.value).every(
             (val) =>
-              this.isPrimitiveFilterValue(val) ||
-              Array.isArray(val) ||
-              this.isRecord(val),
+              Array.isArray(val) && val.every((item) => this.isJsonValue(item)),
           )
         ) {
           throw new Error(
-            'Filter value must be an object where each value is a string, number, boolean, Date, null, an Array, or a Record<string,any>',
+            `Filter value for operator ${operator} must be an object where each value is an array of valid JSON structures.`,
           );
         }
         break;
@@ -230,12 +242,16 @@ export class Filter<T extends string, Operator extends FilterOperator>
     );
   }
 
-  private isRecord(value: any): value is Record<string, any> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value) &&
-      Object.keys(value).every((key) => typeof key === 'string')
-    );
+  private isJsonValue(value: any): boolean {
+    if (this.isPrimitiveFilterValue(value)) {
+      return true;
+    }
+    if (Array.isArray(value)) {
+      return value.every((item) => this.isJsonValue(item));
+    }
+    if (this.isObject(value)) {
+      return Object.values(value).every((item) => this.isJsonValue(item));
+    }
+    return false;
   }
 }

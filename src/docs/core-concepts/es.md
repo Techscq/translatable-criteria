@@ -186,11 +186,13 @@ Los filtros permiten especificar las condiciones que deben cumplir los datos par
 - **`Filter`**: Representa una condición de filtro individual (`field`, `operator`, `value`).
 - **`FilterGroup`**: Permite agrupar múltiples `Filter` o incluso otros `FilterGroup` utilizando operadores lógicos (`AND` u `OR`).
 - **`FilterOperator`**: Es una enumeración que define los diversos operadores de comparación disponibles, que se pueden clasificar a grandes rasgos:
-- **Igualdad y Comparación:** `EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, etc.
-- **Coincidencia de Patrones:** `LIKE`, `CONTAINS`, `STARTS_WITH`, `ILIKE` (versión de LIKE insensible a mayúsculas/minúsculas).
-- **Pertenencia y Nulidad:** `IN`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`.
-- **Rangos y Regex:** `BETWEEN`, `NOT_BETWEEN`, `MATCHES_REGEX`.
-- **Tipos Complejos:** Un amplio conjunto de operadores para tipos de datos `JSON`, `ARRAY` y `SET` (ej. `JSON_CONTAINS`, `ARRAY_CONTAINS_ANY_ELEMENT`).
+  - **Igualdad y Comparación:** `EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, etc.
+  - **Coincidencia de Patrones:** `LIKE`, `CONTAINS`, `STARTS_WITH`, `ILIKE` (versión de LIKE insensible a mayúsculas/minúsculas).
+  - **Pertenencia y Nulidad:** `IN`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`.
+  - **Rangos y Regex:** `BETWEEN`, `NOT_BETWEEN`, `MATCHES_REGEX`.
+  - **Tipos Complejos:** Un amplio conjunto de operadores para tipos de datos `JSON`, `ARRAY` y `SET` (ej. `JSON_CONTAINS`, `ARRAY_NOT_CONTAINS_ELEMENT`, `SET_CONTAINS_ANY`).
+
+Para una explicación detallada de cada operador, su valor esperado y ejemplos de código, por favor consulta la [Referencia de Operadores de Filtro](../guides/filter-operators/es.md).
 
 Los filtros se añaden a un `Criteria` usando los métodos `where()`, `andWhere()`, y `orWhere()`. La librería normaliza automáticamente la estructura de los `FilterGroup` para mantener la consistencia.
 

@@ -7,6 +7,7 @@ import {
 } from './fake-entities.js';
 import {
   type CriteriaSchema,
+  type FieldOfSchema,
   GetTypedCriteriaSchema,
 } from '../types/schema.types.js';
 import { type StoredJoinDetails } from '../types/join-utility.types.js';
@@ -15,6 +16,11 @@ import { FilterGroup } from '../filter/filter-group.js';
 import { OrderDirection } from '../order/order.js';
 import { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import { LeftJoinCriteria } from '../join/left.join-criteria.js';
+import { type FilterPrimitive } from '../filter/types/filter-primitive.types.js';
+import {
+  type PivotJoinInput,
+  type SimpleJoinInput,
+} from '../types/join-input.types.js';
 
 const testJoinsData = (
   joinDetails: StoredJoinDetails<CriteriaSchema>,
@@ -94,11 +100,14 @@ describe('Criteria', () => {
 
   describe('Filter Logic', () => {
     it('should set root filter group with where', () => {
-      const filter = {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.EQUALS
+      > = {
         field: 'uuid',
         operator: FilterOperator.EQUALS,
         value: 'abc',
-      } as const;
+      };
       const criteria = criteriaRoot.where(filter);
       expect(criteria).toBe(criteriaRoot);
       expect(criteria.rootFilterGroup).toBeInstanceOf(FilterGroup);
@@ -109,13 +118,19 @@ describe('Criteria', () => {
     });
 
     it('should AND filters with andWhere for a flatter structure', () => {
-      const filter1 = {
-        field: 'uuid' as const,
+      const filter1: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.EQUALS
+      > = {
+        field: 'uuid',
         operator: FilterOperator.EQUALS,
         value: 'abc',
       };
-      const filter2 = {
-        field: 'title' as const,
+      const filter2: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.LIKE
+      > = {
+        field: 'title',
         operator: FilterOperator.LIKE,
         value: '%test%',
       };
@@ -127,13 +142,19 @@ describe('Criteria', () => {
     });
 
     it('should OR filters with orWhere, creating OR( AND(f1), AND(f2) )', () => {
-      const filter1 = {
-        field: 'uuid' as const,
+      const filter1: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.EQUALS
+      > = {
+        field: 'uuid',
         operator: FilterOperator.EQUALS,
         value: 'abc',
       };
-      const filter2 = {
-        field: 'title' as const,
+      const filter2: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.LIKE
+      > = {
+        field: 'title',
         operator: FilterOperator.LIKE,
         value: '%test%',
       };
@@ -148,18 +169,27 @@ describe('Criteria', () => {
     });
 
     it('should handle sequence: where().andWhere().orWhere()', () => {
-      const filter1 = {
-        field: 'uuid' as const,
+      const filter1: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.EQUALS
+      > = {
+        field: 'uuid',
         operator: FilterOperator.EQUALS,
         value: 'abc',
       };
-      const filter2 = {
-        field: 'title' as const,
+      const filter2: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.LIKE
+      > = {
+        field: 'title',
         operator: FilterOperator.LIKE,
         value: '%test%',
       };
-      const filter3 = {
-        field: 'body' as const,
+      const filter3: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.CONTAINS
+      > = {
+        field: 'body',
         operator: FilterOperator.CONTAINS,
         value: 'content',
       };
@@ -178,18 +208,27 @@ describe('Criteria', () => {
     });
 
     it('should handle sequence: where().orWhere().andWhere()', () => {
-      const filter1 = {
-        field: 'uuid' as const,
+      const filter1: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.EQUALS
+      > = {
+        field: 'uuid',
         operator: FilterOperator.EQUALS,
         value: 'abc',
       };
-      const filter2 = {
-        field: 'title' as const,
+      const filter2: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.LIKE
+      > = {
+        field: 'title',
         operator: FilterOperator.LIKE,
         value: '%test%',
       };
-      const filter3 = {
-        field: 'body' as const,
+      const filter3: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.CONTAINS
+      > = {
+        field: 'body',
         operator: FilterOperator.CONTAINS,
         value: 'content',
       };
@@ -204,6 +243,120 @@ describe('Criteria', () => {
           { logicalOperator: LogicalOperator.AND, items: [filter1] },
           { logicalOperator: LogicalOperator.AND, items: [filter2, filter3] },
         ],
+      });
+    });
+  });
+
+  describe('Advanced Filter Logic (JSON & Array Operators)', () => {
+    it('should correctly build a criteria with JSON_CONTAINS', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.JSON_CONTAINS
+      > = {
+        field: 'metadata',
+        operator: FilterOperator.JSON_CONTAINS,
+        value: { tags: 'tech' },
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with JSON_NOT_CONTAINS', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.JSON_NOT_CONTAINS
+      > = {
+        field: 'metadata',
+        operator: FilterOperator.JSON_NOT_CONTAINS,
+        value: { tags: 'obsolete' },
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with JSON_CONTAINS_ANY', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.JSON_CONTAINS_ANY
+      > = {
+        field: 'metadata',
+        operator: FilterOperator.JSON_CONTAINS_ANY,
+        value: { tags: ['tech', 'news'] },
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with JSON_CONTAINS_ALL', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.JSON_CONTAINS_ALL
+      > = {
+        field: 'metadata',
+        operator: FilterOperator.JSON_CONTAINS_ALL,
+        value: { tags: ['tech', 'important'] },
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with ARRAY_NOT_CONTAINS_ELEMENT', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.ARRAY_NOT_CONTAINS_ELEMENT
+      > = {
+        field: 'categories',
+        operator: FilterOperator.ARRAY_NOT_CONTAINS_ELEMENT,
+        value: 'sports',
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with ARRAY_EQUALS_STRICT', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.ARRAY_EQUALS_STRICT
+      > = {
+        field: 'categories',
+        operator: FilterOperator.ARRAY_EQUALS_STRICT,
+        value: ['tech', 'news'],
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with ARRAY_EQUALS_STRICT using a JSON path', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.ARRAY_EQUALS_STRICT
+      > = {
+        field: 'metadata',
+        operator: FilterOperator.ARRAY_EQUALS_STRICT,
+        value: { ratings: [1, 2, 3] },
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
       });
     });
   });
@@ -258,7 +411,7 @@ describe('Criteria', () => {
 
     it('should validate selected fields exist in schema', () => {
       expect(() => {
-        // @ts-expect-error Testing invalid field
+        // @ts-expect-error
         criteriaRoot.setSelect(['non_existent_field']);
       }).toThrow(
         "The field 'non_existent_field' is not defined in the schema 'post'.",
@@ -306,7 +459,7 @@ describe('Criteria', () => {
       expect(() => {
         criteriaRoot.setCursor(
           [
-            // @ts-expect-error Testing invalid field
+            // @ts-expect-error
             { field: 'non_existent', value: 'test' },
             { field: 'uuid', value: testUuid },
           ],
@@ -328,7 +481,7 @@ describe('Criteria', () => {
           FilterOperator.GREATER_THAN,
           OrderDirection.ASC,
         );
-      }).toThrow('Cursor fields must be different');
+      }).toThrow('Cursor fields must be different for a composite cursor');
     });
 
     it('should validate cursor values are not undefined but could be null', () => {
@@ -347,7 +500,7 @@ describe('Criteria', () => {
         criteriaRoot.setCursor(
           [
             { field: 'uuid', value: testUuid },
-            //@ts-expect-error
+            // @ts-expect-error
             { field: 'user_uuid', value: undefined },
           ],
           FilterOperator.GREATER_THAN,
@@ -394,7 +547,7 @@ describe('Criteria', () => {
 
     it('should validate orderBy field exists in schema', () => {
       expect(() => {
-        // @ts-expect-error Testing invalid field
+        // @ts-expect-error
         criteriaRoot.orderBy('non_existent_field', OrderDirection.ASC);
       }).toThrow(
         "The field 'non_existent_field' is not defined in the schema 'post'.",
@@ -408,10 +561,9 @@ describe('Criteria', () => {
       const joinParameter = {
         parent_field: 'invalid_parent_field',
         join_field: 'uuid',
-      } as const;
-
+      };
       expect(() => {
-        // @ts-expect-error testing invalid parent_field type
+        // @ts-expect-error
         criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
       }).toThrow(
         "The field 'invalid_parent_field' is not defined in the schema 'post'.",
@@ -420,10 +572,10 @@ describe('Criteria', () => {
 
     it('should add an inner join and correctly populate parent_identifier', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-      const joinParameter = {
+      const joinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
         parent_field: 'user_uuid',
         join_field: 'uuid',
-      } as const;
+      };
 
       criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
 
@@ -443,11 +595,11 @@ describe('Criteria', () => {
     it('should add a many-to-many join and correctly populate parent_identifier', () => {
       const userCriteriaRoot = new RootCriteria(UserSchema);
       const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
-      const joinParameter = {
+      const joinParameter: PivotJoinInput<UserSchema, PermissionSchema> = {
         pivot_source_name: 'user_permission_pivot',
         parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
         join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
-      } as const;
+      };
 
       userCriteriaRoot.join(
         'permissions',
@@ -472,16 +624,19 @@ describe('Criteria', () => {
 
     it('should add multiple joins and correctly populate parent_identifier for each', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-      const userJoinParameter = {
+      const userJoinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
         parent_field: 'user_uuid',
         join_field: 'uuid',
-      } as const;
+      };
 
       const commentJoinCriteria = new LeftJoinCriteria(PostCommentSchema);
-      const commentJoinParameter = {
+      const commentJoinParameter: SimpleJoinInput<
+        PostSchema,
+        PostCommentSchema
+      > = {
         parent_field: 'uuid',
         join_field: 'post_uuid',
-      } as const;
+      };
 
       criteriaRoot
         .join('publisher', userJoinCriteria, userJoinParameter)
@@ -514,10 +669,10 @@ describe('Criteria', () => {
       const userJoinCriteria1 = new InnerJoinCriteria(UserSchema);
       const userJoinCriteria2 = new LeftJoinCriteria(UserSchema);
 
-      const userJoinParameter = {
+      const userJoinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
         parent_field: 'user_uuid',
         join_field: 'uuid',
-      } as const;
+      };
 
       criteriaRoot
         .join('publisher', userJoinCriteria1, userJoinParameter)
@@ -541,53 +696,49 @@ describe('Criteria', () => {
         {
           description: 'many_to_many with invalid parent_field (string)',
           rootSchema: UserSchema,
-          rootAlias: 'users',
           joinSchema: PermissionSchema,
           joinAlias: 'permissions',
           joinParam: {
             parent_field: 'uuid',
             join_field: { pivot_field: 'pf', reference: 'uuid' },
             pivot_source_name: 'pivot',
-          },
+          } as any,
           expectedErrorMsg: /Invalid JoinOptions for 'many_to_many' join/,
-        } as const,
+        },
         {
           description: 'many_to_many if join_field is not a pivot object',
           rootSchema: UserSchema,
-          rootAlias: 'users',
           joinSchema: PermissionSchema,
           joinAlias: 'permissions',
           joinParam: {
             parent_field: { pivot_field: 'user_fk', reference: 'uuid' },
             join_field: 'uuid',
             pivot_source_name: 'user_permission_pivot',
-          },
+          } as any,
           expectedErrorMsg: /Invalid JoinOptions for 'many_to_many' join/,
-        } as const,
+        },
         {
           description: 'one_to_many if parent_field is not a string',
           rootSchema: PostSchema,
-          rootAlias: 'posts',
           joinSchema: PostCommentSchema,
           joinAlias: 'comments',
           joinParam: {
             parent_field: { reference: 'uuid' },
             join_field: 'post_uuid',
-          },
+          } as any,
           expectedErrorMsg: /Invalid JoinOptions for 'one_to_many' join/,
-        } as const,
+        },
         {
           description: 'many_to_one if join_field is not a string',
           rootSchema: PostSchema,
-          rootAlias: 'posts',
           joinSchema: UserSchema,
           joinAlias: 'publisher',
           joinParam: {
             parent_field: 'user_uuid',
             join_field: { reference: 'uuid' },
-          },
+          } as any,
           expectedErrorMsg: /Invalid JoinOptions for 'many_to_one' join/,
-        } as const,
+        },
       ])(
         'should throw for $description',
         ({
@@ -600,7 +751,7 @@ describe('Criteria', () => {
           const root = new RootCriteria(rootSchema);
           const joinCrit = new InnerJoinCriteria(joinSchema);
           expect(() => {
-            // @ts-expect-error - Testing invalid types
+            // @ts-expect-error
             root.join(joinAlias, joinCrit, joinParam);
           }).toThrow(expectedErrorMsg);
         },
@@ -610,44 +761,41 @@ describe('Criteria', () => {
         {
           description: 'many_to_many join',
           rootSchema: UserSchema,
-          rootAlias: 'users',
           joinSchema: PermissionSchema,
           joinAlias: 'permissions',
           joinParam: {
             pivot_source_name: 'user_permission_pivot',
             parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
             join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
-          },
-        } as const,
+          } as PivotJoinInput<typeof UserSchema, typeof PermissionSchema>,
+        },
         {
           description: 'one_to_many join',
           rootSchema: PostSchema,
-          rootAlias: 'posts',
           joinSchema: PostCommentSchema,
           joinAlias: 'comments',
           joinParam: {
             parent_field: 'uuid',
             join_field: 'post_uuid',
-          },
-        } as const,
+          } as SimpleJoinInput<typeof PostSchema, typeof PostCommentSchema>,
+        },
         {
           description: 'many_to_one join',
           rootSchema: PostSchema,
-          rootAlias: 'posts',
           joinSchema: UserSchema,
           joinAlias: 'publisher',
           joinParam: {
             parent_field: 'user_uuid',
             join_field: 'uuid',
-          },
-        } as const,
+          } as SimpleJoinInput<typeof PostSchema, typeof UserSchema>,
+        },
       ])(
         'should pass validation for a valid $description',
         ({ rootSchema, joinSchema, joinAlias, joinParam }) => {
           const root = new RootCriteria(rootSchema);
           const joinCrit = new InnerJoinCriteria(joinSchema);
           expect(() => {
-            root.join(joinAlias, joinCrit, joinParam as any);
+            root.join(joinAlias as any, joinCrit, joinParam as any);
           }).not.toThrow();
         },
       );
