@@ -206,9 +206,11 @@ describe('Filter', () => {
       FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS,
       FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT,
       FilterOperator.ARRAY_EQUALS,
+      FilterOperator.ARRAY_NOT_EQUALS,
       FilterOperator.ARRAY_EQUALS_STRICT,
-      FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS, // New
-      FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT, // New
+      FilterOperator.ARRAY_NOT_EQUALS_STRICT,
+      FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS,
+      FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT,
     ];
 
     describe.each(arrayObjectOperators)(

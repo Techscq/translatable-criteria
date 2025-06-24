@@ -107,7 +107,9 @@ export class Filter<T extends string, Operator extends FilterOperator>
       case FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS:
       case FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT:
       case FilterOperator.ARRAY_EQUALS:
+      case FilterOperator.ARRAY_NOT_EQUALS:
       case FilterOperator.ARRAY_EQUALS_STRICT:
+      case FilterOperator.ARRAY_NOT_EQUALS_STRICT:
       case FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS:
       case FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT:
         if (

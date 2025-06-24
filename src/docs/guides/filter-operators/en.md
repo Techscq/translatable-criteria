@@ -311,7 +311,7 @@ const postsWithAllCategories = CriteriaFactory.GetCriteria(PostSchema).where({
 });
 ```
 
-- `ARRAY_EQUALS`: Checks if an array is exactly equal to a given array (order-insensitive).
+- `ARRAY_EQUALS` / `ARRAY_NOT_EQUALS`: Checks if an array is equal or NOT equal to a given array (order-insensitive).
 
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
@@ -322,9 +322,17 @@ const postsWithExactCategories = CriteriaFactory.GetCriteria(PostSchema).where({
   operator: FilterOperator.ARRAY_EQUALS,
   value: ['news', 'tech'],
 });
+
+const postsExcludingExactCategories = CriteriaFactory.GetCriteria(
+  PostSchema,
+).where({
+  field: 'categories',
+  operator: FilterOperator.ARRAY_NOT_EQUALS,
+  value: ['news', 'tech'],
+});
 ```
 
-- `ARRAY_EQUALS_STRICT`: Checks if an array is exactly equal to a given array (order-sensitive).
+- `ARRAY_EQUALS_STRICT` / `ARRAY_NOT_EQUALS_STRICT`: Checks if an array is exactly equal or NOT exactly equal to a given array (order-sensitive).
 
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
@@ -335,6 +343,13 @@ const postsWithOrderedCategories = CriteriaFactory.GetCriteria(
 ).where({
   field: 'categories',
   operator: FilterOperator.ARRAY_EQUALS_STRICT,
+  value: ['nestjs', 'api', 'typeorm'],
+});
+const postsExcludingOrderedCategories = CriteriaFactory.GetCriteria(
+  PostSchema,
+).where({
+  field: 'categories',
+  operator: FilterOperator.ARRAY_NOT_EQUALS_STRICT,
   value: ['nestjs', 'api', 'typeorm'],
 });
 ```

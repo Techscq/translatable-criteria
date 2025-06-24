@@ -100,10 +100,15 @@ export enum FilterOperator {
   /** Checks if an array is equal to a given array (order-insensitive).
    * @example { field: 'tags', operator: FilterOperator.ARRAY_EQUALS, value: ['news', 'tech'] } */
   ARRAY_EQUALS = 'ARRAY_EQUALS',
+  /** Checks if an array is NOT equal to a given array (order-insensitive).
+   * @example { field: 'tags', operator: FilterOperator.ARRAY_NOT_EQUALS, value: ['finance', 'sports'] } */
+  ARRAY_NOT_EQUALS = 'ARRAY_NOT_EQUALS',
   /** Checks if an array is exactly equal to a given array (order-sensitive).
    * @example { field: 'tags', operator: FilterOperator.ARRAY_EQUALS_STRICT, value: ['tech', 'news'] } */
   ARRAY_EQUALS_STRICT = 'ARRAY_EQUALS_STRICT',
-
+  /** Checks if an array is NOT exactly equal to a given array (order-sensitive).
+   * @example { field: 'tags', operator: FilterOperator.ARRAY_NOT_EQUALS_STRICT, value: ['news', 'tech'] } */
+  ARRAY_NOT_EQUALS_STRICT = 'ARRAY_NOT_EQUALS_STRICT',
   /** Checks if a field, representing a collection of values (e.g., MySQL SET type
    * or a text field with comma-delimited values), contains a specific value. */
   SET_CONTAINS = 'SET_CONTAINS',

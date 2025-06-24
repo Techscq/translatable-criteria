@@ -344,6 +344,38 @@ describe('Criteria', () => {
       });
     });
 
+    it('should correctly build a criteria with ARRAY_NOT_EQUALS', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.ARRAY_NOT_EQUALS
+      > = {
+        field: 'categories',
+        operator: FilterOperator.ARRAY_NOT_EQUALS,
+        value: ['finance', 'sports'],
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
+    it('should correctly build a criteria with ARRAY_NOT_EQUALS_STRICT', () => {
+      const filter: FilterPrimitive<
+        FieldOfSchema<typeof PostSchema>,
+        FilterOperator.ARRAY_NOT_EQUALS_STRICT
+      > = {
+        field: 'categories',
+        operator: FilterOperator.ARRAY_NOT_EQUALS_STRICT,
+        value: ['news', 'tech'],
+      };
+      const criteria = criteriaRoot.where(filter);
+      expect(criteria.rootFilterGroup.toPrimitive()).toEqual({
+        logicalOperator: LogicalOperator.AND,
+        items: [filter],
+      });
+    });
+
     it('should correctly build a criteria with ARRAY_EQUALS_STRICT using a JSON path', () => {
       const filter: FilterPrimitive<
         FieldOfSchema<typeof PostSchema>,

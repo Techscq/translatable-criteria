@@ -81,6 +81,9 @@ export type FilterValue<Operator extends FilterOperator> =
                   | FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS
                   | FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT
                   | FilterOperator.ARRAY_EQUALS
+                  | FilterOperator.ARRAY_NOT_EQUALS
+                  | FilterOperator.ARRAY_EQUALS_STRICT
+                  | FilterOperator.ARRAY_NOT_EQUALS_STRICT
                   | FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS
                   | FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT
               ? /**
@@ -134,27 +137,8 @@ export type FilterValue<Operator extends FilterOperator> =
                         {
                           [key: string]: Array<JsonValue>;
                         }
-                      : // Strict Array Equality
-                        Operator extends FilterOperator.ARRAY_EQUALS_STRICT
-                        ? /**
-                           * Expected value:
-                           * 1. An array of primitive values for direct array column comparison (order-sensitive).
-                           * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
-                           *    for checking an array at a specific path inside a JSON column (order-sensitive).
-                           */
-                          | Array<
-                                Exclude<PrimitiveFilterValue, null | undefined>
-                              >
-                            | {
-                                [key: string]: Array<
-                                  Exclude<
-                                    PrimitiveFilterValue,
-                                    null | undefined
-                                  >
-                                >;
-                              }
-                        : // Fallback
-                          never;
+                      : // Fallback
+                        never;
 
 /**
  * Defines the structure for a single filter condition.
