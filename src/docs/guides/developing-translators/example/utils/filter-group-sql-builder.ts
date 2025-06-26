@@ -1,9 +1,11 @@
-import { FilterGroup } from '../../../../../criteria/filter/filter-group.js';
-import { Filter } from '../../../../../criteria/filter/filter.js';
-import type { IFilterExpression } from '../../../../../criteria/types/filter-expression.interface.js';
-import { LogicalOperator } from '../../../../../criteria/types/operator.types.js';
-import type { ICriteriaVisitor } from '../../../../../criteria/types/visitor-interface.types.js';
 import type { PseudoSqlFilterOutput, PseudoSqlParts } from '../types.js';
+import {
+  Filter,
+  FilterGroup,
+  type ICriteriaVisitor,
+  type IFilterExpression,
+  LogicalOperator,
+} from '../../../../../criteria/index.js';
 
 /**
  * Defines the specific methods from PseudoSqlTranslator that FilterGroupSqlBuilder needs to perform its operations.

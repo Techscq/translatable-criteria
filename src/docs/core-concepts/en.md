@@ -205,13 +205,15 @@ Filters are added to a `Criteria` using the `where()`, `andWhere()`, and `orWher
 Ordering defines how the query results should be sorted.
 
 - **`Order`**: Represents a single ordering rule. It consists of:
-- `field`: The field by which the results will be ordered. This field is strongly typed with the valid fields defined in the schema of each Criteria.
-- `direction`: The ordering direction (see `OrderDirection`).
-- `sequenceId`: (Internal) A unique, globally incrementing ID.
+
+  - `field`: The field by which the results will be ordered. This field is strongly typed with the valid fields defined in the schema of each Criteria.
+  - `direction`: The ordering direction (see `OrderDirection`).
+  - `sequenceId`: (Internal) A unique, globally incrementing ID.
+  - `nullsFirst`: A boolean indicating whether `NULL` values should be sorted first.
 
 - **`OrderDirection`**: An enumeration with two possible values:
-- `ASC`: Ascending order.
-- `DESC`: Descending order.
+  - `ASC`: Ascending order.
+  - `DESC`: Descending order.
 
 Multiple ordering rules can be added to a `Criteria` using the `orderBy()` method.
 

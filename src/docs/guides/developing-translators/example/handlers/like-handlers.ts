@@ -1,6 +1,5 @@
-import type { Filter } from '../../../../../criteria/filter/filter.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
 import type { FilterHandler, PseudoSqlFilterOutput } from '../types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 
 /**
  * Handles LIKE-based operators (LIKE, NOT_LIKE, CONTAINS, STARTS_WITH, ENDS_WITH, ILIKE, NOT_ILIKE).

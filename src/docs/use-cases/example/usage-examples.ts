@@ -89,6 +89,35 @@ export const PostSchema = GetTypedCriteriaSchema({
 export type PostSchema = typeof PostSchema;
 
 /**
+ * Builds a criteria to find posts by a specific publisher's UUID,
+ * but only for filtering purposes, without selecting the publisher's data.
+ * @param publisherUuid The UUID of the publisher to filter by.
+ * @returns A Criteria object configured for fetching posts.
+ */
+export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
+  const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
+
+  postCriteria.join(
+    'publisher',
+    CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
+      field: 'uuid',
+      operator: FilterOperator.EQUALS,
+      value: publisherUuid,
+    }),
+    {
+      join_field: 'uuid',
+      parent_field: 'user_uuid',
+    },
+    false,
+  );
+
+  postCriteria.orderBy('created_at', 'DESC');
+  postCriteria.setTake(10);
+
+  return postCriteria;
+}
+
+/**
  * Builds a paginated criteria for posts based on the provided request parameters.
  * @param request The request object containing filter, join, and pagination parameters.
  * @returns A Criteria object configured for fetching posts.

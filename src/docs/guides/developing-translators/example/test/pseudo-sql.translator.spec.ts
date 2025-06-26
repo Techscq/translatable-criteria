@@ -1,11 +1,11 @@
 import {
-  type PseudoSqlParts,
-  PseudoSqlTranslator,
-} from '../pseudo-sql.translator.js';
-import { GetTypedCriteriaSchema } from '../../../../../criteria/types/schema.types.js';
-import { CriteriaFactory } from '../../../../../criteria/criteria-factory.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
-import { OrderDirection } from '../../../../../criteria/order/order.js';
+  CriteriaFactory,
+  FilterOperator,
+  GetTypedCriteriaSchema,
+  OrderDirection,
+} from '../../../../../criteria/index.js';
+import { PseudoSqlTranslator } from '../pseudo-sql.translator.js';
+import type { PseudoSqlParts } from '../types.js';
 
 const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -658,5 +658,37 @@ describe('PseudoSqlTranslator (API v3 Tests)', () => {
       );
       expect(params).toEqual(['admin', 'editor']);
     });
+  });
+
+  it('should handle ordering with NULLS FIRST', () => {
+    const criteria = CriteriaFactory.GetCriteria(UserSchema).orderBy(
+      'createdAt',
+      OrderDirection.ASC,
+      true,
+    );
+
+    const { query } = translator.translate(criteria, createInitialParts());
+    expect(query).toContain('ORDER BY `u`.`createdAt` ASC NULLS FIRST');
+  });
+
+  it('should handle ordering with NULLS LAST (explicitly false)', () => {
+    const criteria = CriteriaFactory.GetCriteria(UserSchema).orderBy(
+      'createdAt',
+      OrderDirection.DESC,
+      false,
+    );
+
+    const { query } = translator.translate(criteria, createInitialParts());
+    expect(query).toContain('ORDER BY `u`.`createdAt` DESC NULLS LAST');
+  });
+
+  it('should handle ordering with NULLS LAST (default behavior when parameter is omitted)', () => {
+    const criteria = CriteriaFactory.GetCriteria(UserSchema).orderBy(
+      'createdAt',
+      OrderDirection.DESC,
+    );
+
+    const { query } = translator.translate(criteria, createInitialParts());
+    expect(query).toContain('ORDER BY `u`.`createdAt` DESC NULLS LAST');
   });
 });

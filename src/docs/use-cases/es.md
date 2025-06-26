@@ -258,6 +258,45 @@ Este helper se proporciona puramente como un **ejemplo** de cómo un desarrollad
 
 Los desarrolladores son totalmente libres de crear sus propias soluciones o helpers para construir dinámicamente sus criterios. Lo importante es aprovechar el sistema de tipos de la librería para construir un código robusto y mantenible.
 
+## Nuevo Caso de Uso: Filtrado Eficiente con `withSelect`
+
+Además del filtrado dinámico, un requisito común es filtrar una entidad principal basándose en sus relaciones, sin necesitar los datos de la entidad relacionada. Para esto, el parámetro `withSelect` en el método `.join()` es ideal.
+
+Vamos a crear una nueva función que encuentre publicaciones de un editor específico pero que solo devuelva los datos de la publicación, haciendo la consulta más eficiente.
+
+```typescript
+/**
+ * Construye un criteria para encontrar publicaciones de un editor específico,
+ * pero solo con fines de filtrado, sin seleccionar los datos del editor.
+ * @param publisherUuid El UUID del editor por el cual filtrar.
+ * @returns Un objeto Criteria configurado para obtener publicaciones.
+ */
+export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
+  const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
+
+  postCriteria.join(
+    'publisher',
+    CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
+      field: 'uuid',
+      operator: FilterOperator.EQUALS,
+      value: publisherUuid,
+    }),
+    {
+      join_field: 'uuid',
+      parent_field: 'user_uuid',
+    },
+    false, // withSelect es false
+  );
+
+  postCriteria.orderBy('created_at', 'DESC');
+  postCriteria.setTake(10);
+
+  return postCriteria;
+}
+```
+
+Esta función `buildPostFilterOnlyByPublisherCriteria` crea un objeto `Criteria` que generará una consulta para unirse a la tabla `user` únicamente para filtrar por `publisherUuid`, pero la sentencia `SELECT` final no incluirá ningún campo de la tabla `user`.
+
 ## 5. Conclusión: Una Filosofía de Flexibilidad
 
 Este ejemplo no pretende imponer ni proponer ningún patrón de arquitectura específico. El propósito es demostrar cómo `@nulledexp/translatable-criteria` proporciona las herramientas para resolver un problema potencialmente complejo de una manera desacoplada y organizada.

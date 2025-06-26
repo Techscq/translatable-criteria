@@ -111,9 +111,11 @@ export class JoinSqlBuilder {
 
     sqlParts.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
 
-    criteria.select.forEach((f) =>
-      sqlParts.select.push(escapeField(String(f), parameters.join_alias)),
-    );
+    if (parameters.with_select) {
+      criteria.select.forEach((f) =>
+        sqlParts.select.push(escapeField(String(f), parameters.join_alias)),
+      );
+    }
 
     criteria.orders.forEach((order) =>
       collectedOrders.push({ alias: parameters.join_alias, order }),

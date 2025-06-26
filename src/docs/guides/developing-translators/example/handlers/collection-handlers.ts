@@ -1,11 +1,10 @@
-import type { Filter } from '../../../../../criteria/filter/filter.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 import type { FilterHandler, PseudoSqlFilterOutput } from '../types.js';
 import {
-  getCollectionLogic,
   extractCollectionValues,
+  getCollectionLogic,
   getEmptyCollectionCondition,
-} from '../utils/collection-logic.js';
+} from '../utils/index.js';
 
 /**
  * Type for the internal condition builder function used by handleCollectionContains.

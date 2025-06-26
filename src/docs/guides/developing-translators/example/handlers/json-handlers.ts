@@ -1,6 +1,5 @@
-import type { Filter } from '../../../../../criteria/filter/filter.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
 import type { FilterHandler, PseudoSqlFilterOutput } from '../types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 
 /**
  * Handles JSON_PATH_VALUE_EQUALS and JSON_PATH_VALUE_NOT_EQUALS operators.

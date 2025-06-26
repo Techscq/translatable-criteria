@@ -1,6 +1,5 @@
-import type { Filter } from '../../../../../criteria/filter/filter.js';
-import type { FilterOperator } from '../../../../../criteria/types/operator.types.js';
 import type { FilterHandler, PseudoSqlFilterOutput } from '../types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 
 /**
  * Handles simple comparison operators (EQUALS, NOT_EQUALS, GREATER_THAN, etc.).

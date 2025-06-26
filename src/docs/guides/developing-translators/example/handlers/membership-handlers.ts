@@ -1,6 +1,5 @@
-import type { Filter } from '../../../../../criteria/filter/filter.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
 import type { FilterHandler, PseudoSqlFilterOutput } from '../types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 
 /**
  * Handles IN and NOT_IN operators.

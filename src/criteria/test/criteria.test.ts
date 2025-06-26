@@ -893,4 +893,65 @@ describe('Criteria', () => {
       expect(joinCriteria?.select).toHaveLength(2);
     });
   });
+  it('should correctly store withSelect property for simple join', () => {
+    const userJoinCriteria = new InnerJoinCriteria(UserSchema);
+    const joinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
+      parent_field: 'user_uuid',
+      join_field: 'uuid',
+    };
+
+    criteriaRoot.join('publisher', userJoinCriteria, joinParameter, false);
+    let joinsArray = criteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(false);
+
+    criteriaRoot = new RootCriteria(PostSchema);
+    criteriaRoot.join('publisher', userJoinCriteria, joinParameter, true);
+    joinsArray = criteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+
+    criteriaRoot = new RootCriteria(PostSchema);
+    criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
+    joinsArray = criteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+  });
+
+  it('should correctly store withSelect property for many-to-many join', () => {
+    let userCriteriaRoot = new RootCriteria(UserSchema);
+    const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
+    const joinParameter: PivotJoinInput<UserSchema, PermissionSchema> = {
+      pivot_source_name: 'user_permission_pivot',
+      parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
+      join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
+    };
+
+    userCriteriaRoot.join(
+      'permissions',
+      permissionJoinCriteria,
+      joinParameter,
+      false,
+    );
+    let joinsArray = userCriteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(false);
+
+    userCriteriaRoot = new RootCriteria(UserSchema);
+    userCriteriaRoot.join(
+      'permissions',
+      permissionJoinCriteria,
+      joinParameter,
+      true,
+    );
+    joinsArray = userCriteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+
+    userCriteriaRoot = new RootCriteria(UserSchema);
+    userCriteriaRoot.join('permissions', permissionJoinCriteria, joinParameter);
+    joinsArray = userCriteriaRoot.joins;
+    expect(joinsArray.length).toBe(1);
+    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+  });
 });

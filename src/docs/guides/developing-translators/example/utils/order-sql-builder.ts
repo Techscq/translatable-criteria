@@ -1,4 +1,4 @@
-import type { Order } from '../../../../../criteria/order/order.js';
+import type { Order } from '../../../../../criteria/index.js';
 import { escapeField } from './sql-utils.js';
 
 export class OrderSqlBuilder {
@@ -21,8 +21,9 @@ export class OrderSqlBuilder {
       .forEach(({ alias, order }) => {
         const fieldKey = `${alias}.${String(order.field)}`;
         if (!appliedOrderFieldsForCursor.has(fieldKey)) {
+          const nullsClause = order.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
           finalOrderByStrings.push(
-            `${escapeField(String(order.field), alias)} ${order.direction}`,
+            `${escapeField(String(order.field), alias)} ${order.direction}${nullsClause}`,
           );
         }
       });

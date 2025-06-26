@@ -164,12 +164,12 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - **`setSelect(selectFields: Array<FieldOfSchema<TSchema>>): this`**: Specifies the fields to select. Disables `selectAll`.
 - **`setTake(amount: number): this`**: Sets the number of records to take.
 - **`setSkip(amount: number): this`**: Sets the number of records to skip.
-- **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this`**: Adds an ordering rule.
 - **`where<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Initializes the filter group with a condition.
 - **`andWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an AND condition to the current filter group.
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an OR condition, creating a new group if necessary.
-- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object): this`**: Adds a join condition.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configures cursor-based pagination.
+- **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection, nullsFirst: boolean = false): this`**: Adds an ordering rule.
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object, withSelect: boolean = true): this`**: Adds a join condition.
 
 [Back to Index](#index)
 
@@ -220,6 +220,7 @@ Represents an ordering rule. Instantiated internally when using the `orderBy()` 
 - `sequenceId: number`: Sequence ID for stable ordering.
 - `field: T`: The field to order by.
 - `direction: OrderDirection`: The ordering direction (`ASC` or `DESC`).
+- `nullsFirst: boolean`: Indicates if null values should be ordered first.
 
 **Methods:**
 
@@ -430,6 +431,8 @@ Type defining the structure for an ordering rule before it's instantiated as an 
 - **Properties:**
   - `direction: OrderDirection`: The ordering direction.
   - `field: string`: The field to order by.
+  - `sequence_id: number`: A unique ID for stable sorting.
+  - `nulls_first: boolean`: If true, nulls are ordered first.
 
 [Back to Index](#index)
 
@@ -523,6 +526,7 @@ Helper type that extracts the specific join configuration from a parent schema t
 Type representing the fully resolved parameters for a `many-to-many` join via a pivot table, used internally.
 
 - **Properties:**
+  - `with_select: boolean`: If true, the joined entity's fields are selected.
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
   - `parent_alias: string`
@@ -541,6 +545,7 @@ Type representing the fully resolved parameters for a `many-to-many` join via a 
 Type representing the fully resolved parameters for a simple join (one-to-one, one-to-many, many-to-one), used internally.
 
 - **Properties:**
+  - `with_select: boolean`: If true, the joined entity's fields are selected.
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
   - `parent_alias: string`

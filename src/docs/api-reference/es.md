@@ -162,12 +162,12 @@ Clase base abstracta para todos los tipos de criterios (`RootCriteria`, `InnerJo
 - **`setSelect(selectFields: Array<FieldOfSchema<TSchema>>): this`**: Especifica los campos a seleccionar. Desactiva `selectAll`.
 - **`setTake(amount: number): this`**: Establece el número de registros a tomar.
 - **`setSkip(amount: number): this`**: Establece el número de registros a omitir.
-- **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this`**: Añade una regla de ordenamiento.
 - **`where<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Inicia el grupo de filtros con una condición.
 - **`andWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Añade una condición AND al grupo de filtros actual.
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Añade una condición OR, creando un nuevo grupo si es necesario.
-- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object): this`**: Añade una condición de join.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configura la paginación basada en cursor.
+- **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection, nullsFirst: boolean = false): this`**: Añade una regla de ordenamiento.
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object, withSelect: boolean = true): this`**: Añade una condición de join.
 
 [Volver al Índice](#índice)
 
@@ -218,6 +218,7 @@ Representa una regla de ordenamiento. Se instancia internamente al usar el méto
 - `sequenceId: number`: ID de secuencia para ordenamiento estable.
 - `field: T`: El campo por el cual ordenar.
 - `direction: OrderDirection`: La dirección del ordenamiento (`ASC` o `DESC`).
+- `nullsFirst: boolean`: Indica si los valores nulos deben ordenarse primero.
 
 **Métodos:**
 
@@ -428,6 +429,8 @@ Tipo que define la estructura para una regla de ordenamiento antes de ser instan
 - **Propiedades:**
   - `direction: OrderDirection`: La dirección del ordenamiento.
   - `field: string`: El campo por el cual ordenar.
+  - `sequence_id: number`: Un ID único para ordenamiento estable.
+  - `nulls_first: boolean`: Si es true, los nulos se ordenan primero.
 
 [Volver al Índice](#índice)
 
@@ -521,6 +524,7 @@ Tipo helper que extrae la configuración de join específica de un esquema padre
 Tipo que representa los parámetros completamente resueltos para una unión `many-to-many` a través de una tabla pivote, usado internamente.
 
 - **Propiedades:**
+  - `with_select: boolean`: Si es true, se seleccionan los campos de la entidad unida.
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
   - `parent_alias: string`
@@ -539,6 +543,7 @@ Tipo que representa los parámetros completamente resueltos para una unión `man
 Tipo que representa los parámetros completamente resueltos para una unión simple (one-to-one, one-to-many, many-to-one), usado internamente.
 
 - **Propiedades:**
+  - `with_select: boolean`: Si es true, se seleccionan los campos de la entidad unida.
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
   - `parent_alias: string`

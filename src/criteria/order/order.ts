@@ -16,6 +16,15 @@ export type OrderDirection = keyof typeof OrderDirection;
 let globalOrderSequence: number = 0;
 
 /**
+ * Resets the global order sequence counter.
+ * This function is intended for testing purposes to ensure predictable sequence IDs.
+ * @internal
+ */
+export function _resetOrderSequenceForTesting() {
+  globalOrderSequence = 0;
+}
+
+/**
  * Represents the primitive structure of an order by clause,
  * specifying the field and direction.
  * @template T - A string literal type representing valid field names for ordering. Defaults to `string`.
@@ -25,6 +34,10 @@ export type OrderByPrimitive<T extends string = string> = {
   direction: OrderDirection;
   /** The name of the field to order by. */
   field: T;
+  /** A unique ID to ensure stable sorting order. */
+  sequence_id: number;
+  /** If true, null values will be ordered first. Otherwise, they will be ordered last. */
+  nulls_first: boolean;
 };
 
 /**
@@ -46,13 +59,23 @@ export class Order<T extends string = string> {
    * Creates an instance of Order.
    * @param {OrderDirection} _direction - The direction of the sort (ASC or DESC).
    * @param {T} _field - The name of the field to order by.
+   * @param {boolean} [_nullsFirst=false] - If true, null values will be ordered first.
    */
   constructor(
     protected readonly _direction: OrderDirection,
     protected readonly _field: T,
+    protected readonly _nullsFirst: boolean = false,
   ) {
     globalOrderSequence++;
     this._sequenceId = globalOrderSequence;
+  }
+
+  /**
+   * Gets whether null values should be ordered first.
+   * @returns {boolean} True if nulls are first, otherwise false.
+   */
+  get nullsFirst() {
+    return this._nullsFirst;
   }
 
   /**
@@ -88,6 +111,8 @@ export class Order<T extends string = string> {
     return {
       direction: this._direction,
       field: this._field,
+      nulls_first: this._nullsFirst,
+      sequence_id: this.sequenceId,
     };
   }
 }

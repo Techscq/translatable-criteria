@@ -252,12 +252,17 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
    * Multiple calls will append new ordering rules.
    * @param {FieldOfSchema<TSchema>} field - The field to order by.
    * @param {OrderDirection} direction - The direction of the ordering (ASC or DESC).
+   * @param {boolean} [nullFirst=false] - If true, null values will be ordered first.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field is not defined in the schema.
    */
-  orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this {
+  orderBy(
+    field: FieldOfSchema<TSchema>,
+    direction: OrderDirection,
+    nullFirst: boolean = false,
+  ): this {
     this.assetFieldOnSchema(field);
-    this._orders.push(new Order(direction, field));
+    this._orders.push(new Order(direction, field, nullFirst));
     return this;
   }
   /**
@@ -318,6 +323,7 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
    * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter -
    *   The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for
    *   many-to-many).
+   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final selection (`...joinAndSelect`). If false, the join will only be used for filtering (`...join`) and its fields will not be selected.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If `criteriaToJoin` is a string (which is invalid).
    * @throws {Error} If `parent_field` in `joinParameter` (or `parent_field.reference` for pivot joins) is not defined
@@ -345,6 +351,7 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
       TMatchingJoinConfig
     >,
     joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
+    withSelect: boolean = true,
   ): this {
     if (typeof criteriaToJoin === 'string') {
       throw new Error(`Invalid criteriaToJoin: ${criteriaToJoin}`);
@@ -371,6 +378,7 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
       | PivotJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type>
       | SimpleJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type> = {
       ...joinParameter,
+      with_select: withSelect,
       parent_alias: this.alias,
       parent_source_name: this.sourceName,
       relation_type: joinConfig.relation_type,

@@ -1,12 +1,10 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { PseudoSqlTranslator } from '../../../guides/developing-translators/example/pseudo-sql.translator.js';
+import { type PseudoSqlParts } from '../../../guides/developing-translators/example/types.js';
 import {
+  buildPostFilterOnlyByPublisherCriteria,
   buildPostPaginatedCriteria,
   type getPostByCriteriaRequest,
 } from '../usage-examples.js';
-import {
-  type PseudoSqlParts,
-  PseudoSqlTranslator,
-} from '../../../guides/developing-translators/example/pseudo-sql.translator.js';
 
 describe('buildPostPaginatedCriteria with PseudoSqlTranslator', () => {
   let translator: PseudoSqlTranslator;
@@ -159,5 +157,24 @@ describe('buildPostPaginatedCriteria with PseudoSqlTranslator', () => {
     expect(query).toContain('LIMIT 5');
     expect(query).toContain('OFFSET 0');
     expect(params).toEqual(['user-456', '%Advanced%', '"beginner"', 500]);
+  });
+
+  it('should generate a JOIN for filtering without selecting the joined fields when withSelect is false', () => {
+    const publisherUuid = 'user-789';
+    const criteria = buildPostFilterOnlyByPublisherCriteria(publisherUuid);
+    const { query, params } = translator.translate(
+      criteria,
+      createInitialParts(),
+    );
+    expect(query).toContain(
+      'INNER JOIN `user` AS `publisher` ON `posts`.`user_uuid` = `publisher`.`uuid` AND (`publisher`.`uuid` = ?)',
+    );
+
+    const selectClause = query.substring(0, query.indexOf(' FROM '));
+    expect(selectClause).not.toContain('`publisher`');
+
+    expect(selectClause).toContain('`posts`');
+
+    expect(params).toEqual([publisherUuid]);
   });
 });

@@ -1,4 +1,3 @@
-import { CriteriaTranslator } from '../../../../criteria/translator/criteria-translator.js';
 import {
   Filter,
   FilterGroup,
@@ -13,6 +12,7 @@ import {
   type JoinRelationType,
   type PivotJoin,
   type SimpleJoin,
+  CriteriaTranslator,
 } from '../../../../criteria/index.js';
 import * as Handlers from './handlers/index.js';
 import type {

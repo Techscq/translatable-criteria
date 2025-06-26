@@ -258,6 +258,45 @@ This helper is provided purely as an **example** of how a developer can handle t
 
 Developers are entirely free to create their own solutions or helpers for dynamically building their criteria. The important thing is to leverage the library's type system to build robust and maintainable code.
 
+## New Use Case: Efficient Filtering with `withSelect`
+
+In addition to dynamic filtering, a common requirement is to filter a main entity based on its relationships, without needing the data from the related entity. For this, the `withSelect` parameter in the `.join()` method is ideal.
+
+Let's create a new function that finds posts from a specific publisher but only returns the post data, making the query more efficient.
+
+```typescript
+/**
+ * Builds a criteria to find posts by a specific publisher's UUID,
+ * but only for filtering purposes, without selecting the publisher's data.
+ * @param publisherUuid The UUID of the publisher to filter by.
+ * @returns A Criteria object configured for fetching posts.
+ */
+export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
+  const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
+
+  postCriteria.join(
+    'publisher',
+    CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
+      field: 'uuid',
+      operator: FilterOperator.EQUALS,
+      value: publisherUuid,
+    }),
+    {
+      join_field: 'uuid',
+      parent_field: 'user_uuid',
+    },
+    false, // withSelect is false
+  );
+
+  postCriteria.orderBy('created_at', 'DESC');
+  postCriteria.setTake(10);
+
+  return postCriteria;
+}
+```
+
+This function `buildPostFilterOnlyByPublisherCriteria` creates a `Criteria` object that will generate a query to join with the `user` table solely to filter by `publisherUuid`, but the final `SELECT` statement will not include any fields from the `user` table.
+
 ## 5. Conclusion: A Philosophy of Flexibility
 
 This example is not intended to impose or propose any specific architectural pattern. The purpose is to demonstrate how `@nulledexp/translatable-criteria` provides the tools to solve a potentially complex problem in a decoupled and organized way.

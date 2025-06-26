@@ -325,11 +325,50 @@ const postsFromActiveUsers = CriteriaFactory.GetCriteria(PostSchema).join(
 
 Estos filtros en el `JoinCriteria` típicamente se traducen a condiciones en la cláusula `ON` del JOIN.
 
+### Filtrado Eficiente con `withSelect`
+
+Un caso de uso común para las uniones es filtrar los resultados de la entidad principal basándose en las propiedades de una entidad relacionada, sin necesidad de recuperar realmente los datos de la entidad unida.
+
+El método `join()` ahora acepta un último parámetro booleano opcional, `withSelect` (que por defecto es `true`).
+
+- **`withSelect: true` (por defecto):** El join se comporta como de costumbre, y los campos de la entidad unida se incluyen en la sentencia `SELECT` final.
+- **`withSelect: false`:** El join se realiza únicamente con fines de filtrado. Los campos de la entidad unida **no** se incluyen en la sentencia `SELECT` final. Esto resulta en una consulta más eficiente y un objeto de resultado más limpio y plano.
+
+```typescript
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema, UserSchema } from './path/to/your/schemas';
+
+// Encontrar publicaciones de un editor específico, pero solo seleccionar datos de la publicación.
+const postsByPublisher = CriteriaFactory.GetCriteria(PostSchema).join(
+  'user',
+  CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
+    field: 'uuid',
+    operator: FilterOperator.EQUALS,
+    value: 'some-publisher-uuid',
+  }),
+  {
+    join_field: 'uuid',
+    parent_field: 'user_uuid',
+  },
+  false, // withSelect es false
+);
+```
+
 ---
 
 ## 4. Ordenando Resultados
 
-El ordenamiento se aplica con el método `orderBy()`, que toma el nombre del campo y la dirección (`OrderDirection.ASC` o `OrderDirection.DESC`).
+El ordenamiento se aplica con el método `orderBy()`. Ahora acepta hasta tres parámetros: el nombre del campo, la dirección (`OrderDirection.ASC` o `OrderDirection.DESC`), y un booleano opcional para controlar el ordenamiento de los valores `NULL`.
+
+- `orderBy(field, direction, nullsFirst)`
+  - **`field`**: El campo por el cual ordenar.
+  - **`direction`**: `OrderDirection.ASC` o `OrderDirection.DESC`.
+  - **`nullsFirst` (opcional, booleano, por defecto `false`)**:
+    - Si es `true`, los valores `NULL` se ordenarán primero (`NULLS FIRST`).
+    - Si es `false` u omitido, los valores `NULL` se ordenarán al final (`NULLS LAST`).
 
 ### Ordenando por Campos de la Entidad Raíz
 
@@ -338,11 +377,12 @@ import {
   CriteriaFactory,
   OrderDirection,
 } from '@nulledexp/translatable-criteria';
-import { PostSchema } from './path/to/your/schemas';
+import { ProductSchema } => './path/to/your/schemas';
 
-const postOrderCriteria = CriteriaFactory.GetCriteria(PostSchema)
-  .orderBy('createdAt', OrderDirection.DESC)
-  .orderBy('title', OrderDirection.ASC);
+// Ordenar productos por precio, con los productos sin precio (NULL) apareciendo primero.
+const postOrderCriteria = CriteriaFactory.GetCriteria(ProductSchema)
+  .orderBy('price', OrderDirection.ASC, true) // -> NULLS FIRST
+  .orderBy('createdAt', OrderDirection.DESC); // -> NULLS LAST (por defecto)
 ```
 
 ### Ordenando por Campos de Entidades Unidas
@@ -356,9 +396,10 @@ import {
 } from '@nulledexp/translatable-criteria';
 import { PostSchema, UserSchema } from './path/to/your/schemas';
 
+// Ordenar por la edad del usuario unido, con los usuarios sin edad apareciendo al final.
 const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
   UserSchema,
-).orderBy('username', OrderDirection.ASC);
+).orderBy('age', OrderDirection.ASC, false); // -> NULLS LAST
 
 const postsOrderedByAuthor = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',

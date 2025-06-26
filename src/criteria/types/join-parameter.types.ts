@@ -17,6 +17,12 @@ export type PivotJoin<
   JoinSchema extends CriteriaSchema,
   TJoinRelationType extends JoinRelationType,
 > = {
+  /**
+   * If true, the joined entity's fields will be included in the final selection.
+   * If false, the join will only be used for filtering purposes, and its fields will not be selected.
+   * Defaults to true.
+   */
+  with_select: boolean;
   /** The type of relationship from the parent to the joined entity (e.g., 'many_to_many'). */
   relation_type: TJoinRelationType;
   /** The source name (e.g., table name) of the parent entity. */
@@ -77,6 +83,12 @@ export type SimpleJoin<
   JoinSchema extends CriteriaSchema,
   TJoinRelationType extends JoinRelationType,
 > = {
+  /**
+   * If true, the joined entity's fields will be included in the final selection.
+   * If false, the join will only be used for filtering purposes, and its fields will not be selected.
+   * Defaults to true.
+   */
+  with_select: boolean;
   /** The type of relationship from the parent to the joined entity (e.g., 'one_to_one', 'many_to_one'). */
   relation_type: TJoinRelationType;
   /** The source name (e.g., table name) of the parent entity. */

@@ -154,7 +154,7 @@ Properties available on the `RootCriteria` and `JoinCriteria` objects:
   - **Explanation**: These properties provide the values for offset-based pagination, corresponding to `LIMIT` and `OFFSET` in SQL.
 
 - **`get orders()`**:
-  - **Explanation**: Returns a `readonly` array of [`Order`](../../api-reference/en.md#order) objects. Each object contains the `field` to sort by, the `direction` (`ASC` or `DESC`), and a `sequenceId` to ensure stable sorting when combining orders from different `Criteria` instances (e.g., from root and joins) **or to maintain deterministic pagination in cursor-based scenarios where field values might not be unique**.
+  - **Explanation**: Returns a `readonly` array of [`Order`](../../api-reference/en.md#order) objects. Each object contains the `field` to sort by, the `direction` (`ASC` or `DESC`), and a `sequenceId` to ensure stable sorting when combining orders from different `Criteria` instances (e.g., from root and joins) **or to maintain deterministic pagination in cursor-based scenarios where field values might not be unique**. Each `Order` object now also contains a `nullsFirst` boolean property, which your translator should use to append `NULLS FIRST` or `NULLS LAST` to the ordering clause.
 
 ### `Filter` and `FilterGroup` Properties
 
@@ -192,7 +192,11 @@ Properties available when visiting a join:
   - **Explanation**: For a `PivotJoin` (many-to-many), this is the name of the intermediary pivot table.
 
 - **`parent_schema_metadata`, `join_metadata`**:
+
   - **Explanation**: Similar to the schema-level metadata, these provide access to any custom metadata you defined. `parent_schema_metadata` comes from the parent entity's schema, while `join_metadata` is specific to the join definition itself, allowing for highly specific translator hints (e.g., database-specific join hints).
+
+- **`with_select`**:
+  - **Explanation**: A boolean property indicating whether the fields from the joined entity should be included in the final `SELECT` statement. If `false`, the translator should generate a join clause (e.g., `INNER JOIN`) but not a join-and-select clause (e.g., `INNER JOIN ... SELECT`).
 
 ## Implementing the `visit...` Methods
 
@@ -235,6 +239,7 @@ public abstract visitRoot<RootCSchema extends CriteriaSchema>(
 - **Key Considerations**:
   - **Filters on the Join**: If the `JoinCriteria` has its own `rootFilterGroup`, you must visit it and append the resulting conditions to the join's `ON` clause, typically with an `AND`. This enables filters like `LEFT JOIN posts p ON u.id = p.user_id AND p.published = true`.
   - **Recursion**: The design allows for chained joins (`criteria.join(...).join(...)`). Your logic must handle this by calling `accept` on the `subJoinDetail.criteria` found within the current join's `criteria`.
+  - **Selection Control**: Check the `parameters.with_select` boolean. If it's `true`, add the joined entity's fields to the main `SELECT` clause. If it's `false`, only perform the join for filtering and do not add its fields to the selection.
 
 The signatures for the `visitInnerJoin`, `visitLeftJoin`, and `visitOuterJoin` methods are:
 

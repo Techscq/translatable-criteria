@@ -154,7 +154,7 @@ Propiedades disponibles en los objetos `RootCriteria` y `JoinCriteria`:
   - **Explicación**: Estas propiedades proporcionan los valores para la paginación basada en offset, correspondiendo a `LIMIT` y `OFFSET` en SQL.
 
 - **`get orders()`**:
-  - **Explicación**: Devuelve un array `readonly` de objetos [`Order`](../../api-reference/es.md#order). Cada objeto contiene el `field` por el cual ordenar, la `direction` (`ASC` o `DESC`), y un `sequenceId` para asegurar un ordenamiento estable al combinar órdenes de diferentes instancias de `Criteria` (ej. de la raíz y las uniones) **o para mantener una paginación determinista en escenarios basados en cursor donde los valores de los campos podrían no ser únicos**.
+  - **Explicación**: Devuelve un array `readonly` de objetos [`Order`](../../api-reference/es.md#order). Cada objeto contiene el `field` por el cual ordenar, la `direction` (`ASC` o `DESC`), y un `sequenceId` para asegurar un ordenamiento estable al combinar órdenes de diferentes instancias de `Criteria` (ej. de la raíz y las uniones) **o para mantener una paginación determinista en escenarios basados en cursor donde los valores de los campos podrían no ser únicos**. Cada objeto `Order` ahora también contiene una propiedad booleana `nullsFirst`, que tu traductor debe usar para añadir `NULLS FIRST` o `NULLS LAST` a la cláusula de ordenamiento.
 
 ### Propiedades de `Filter` y `FilterGroup`
 
@@ -192,7 +192,11 @@ Propiedades disponibles al visitar una unión:
   - **Explicación**: Para un `PivotJoin` (muchos a muchos), este es el nombre de la tabla pivote intermediaria.
 
 - **`parent_schema_metadata`, `join_metadata`**:
+
   - **Explicación**: Similar a la metadata a nivel de esquema, estos proporcionan acceso a cualquier metadato personalizado que hayas definido. `parent_schema_metadata` proviene del esquema de la entidad padre, mientras que `join_metadata` es específico de la definición de la unión en sí, permitiendo pistas para el traductor muy específicas (ej. pistas de unión específicas de la base de datos).
+
+- **`with_select`**:
+  - **Explicación**: Una propiedad booleana que indica si los campos de la entidad unida deben incluirse en la sentencia `SELECT` final. Si es `false`, el traductor debe generar una cláusula de unión (ej. `INNER JOIN`) pero no una cláusula de unión y selección (ej. `INNER JOIN ... SELECT`).
 
 ## Implementando los Métodos `visit...`
 
@@ -235,6 +239,7 @@ public abstract visitRoot<RootCSchema extends CriteriaSchema>(
 - **Consideraciones Clave**:
   - **Filtros en el Join**: Si el `JoinCriteria` tiene su propio `rootFilterGroup`, debes visitarlo y añadir las condiciones resultantes a la cláusula `ON` de la unión, típicamente con un `AND`. Esto permite filtros como `LEFT JOIN posts p ON u.id = p.user_id AND p.published = true`.
   - **Recursión**: El diseño permite uniones encadenadas (`criteria.join(...).join(...)`). Tu lógica debe manejar esto llamando a `accept` en los `subJoinDetail.criteria` que se encuentren dentro del `criteria` de la unión actual.
+  - **Control de Selección**: Comprueba el booleano `parameters.with_select`. Si es `true`, añade los campos de la entidad unida a la cláusula `SELECT` principal. Si es `false`, realiza la unión solo para filtrar y no añadas sus campos a la selección.
 
 Las firmas de los métodos `visitInnerJoin`, `visitLeftJoin`, y `visitOuterJoin` son las siguientes:
 

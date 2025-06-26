@@ -1,7 +1,9 @@
-import type { FilterOperator } from '../../../../criteria/types/operator.types.js';
-import type { Filter } from '../../../../criteria/filter/filter.js';
-import type { FilterGroup } from '../../../../criteria/filter/filter-group.js';
-import type { ICriteriaVisitor } from '../../../../criteria/types/visitor-interface.types.js';
+import {
+  Filter,
+  FilterGroup,
+  FilterOperator,
+  type ICriteriaVisitor,
+} from '../../../../criteria/index.js';
 
 /**
  * Represents the output structure for a translated filter condition.

@@ -1,7 +1,6 @@
-import type { RootCriteria } from '../../../../../criteria/root.criteria.js';
 import type { PseudoSqlParts } from '../types.js';
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
 import { escapeField } from './sql-utils.js';
+import { FilterOperator, RootCriteria } from '../../../../../criteria/index.js';
 
 export class CursorSqlBuilder {
   private generateParamPlaceholder: () => string;

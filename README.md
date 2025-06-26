@@ -24,6 +24,8 @@ This library simplifies the construction of complex data queries by providing a 
 - **Enhanced Type-Safety:** Construct queries with a fluent, strongly-typed interface, benefiting from compile-time and runtime validation of field names (including `identifier_field`), aliases, and join parameters based on your schemas.
 - **Powerful Filtering:** Define intricate filtering logic with multiple operators (including for JSON, arrays, sets, ranges, and regex) and grouping. Filter groups are automatically normalized for consistency.
 - **Flexible Join System:** Support for various join types (inner, left, full outer) and pivot table configurations. Join parameters now include `parent_identifier` to provide richer context to translators for relationship inference (e.g., for `one_to_one`).
+- **Granular Null-Value Sorting:** Explicitly control whether `NULL` values appear first or last in your ordered results.
+- **Filter-Only Joins:** Improve query performance by creating joins solely for filtering, without including their fields in the final `SELECT` statement.
 - **Field Selection & `identifier_field`:** Specify exactly which fields to retrieve using `setSelect()`. The `identifier_field` of an entity is automatically included when `setSelect()` is used. Use `resetSelect()` to select all fields (default behavior).
 - **Pagination:** Supports both offset-based (`setTake()`, `setSkip()`) and cursor-based (`setCursor()`) pagination.
 - **Data Source Agnostic:** Design criteria independently of the underlying data source.
@@ -152,7 +154,9 @@ To interact with a database, you'll need a translator package. You can either bu
 - [x] `OuterJoinCriteria` support in the core logic.
 - [x] Introduce `identifier_field` in schemas and `parent_identifier` in join parameters.
 - [x] Enforce stricter schema validation at type level.
-- [ ] Enhanced documentation with detailed examples for translator development.
+- [x] Implement `NULLS FIRST/LAST` ordering.
+- [x] Implement filter-only joins (`withSelect`).
+- [x] Enhanced documentation with detailed examples for translator development.
 - [ ] Explore utility functions to simplify translator development.
 - [ ] Explore utility functions to simplify schema development.
 - [ ] Add more comprehensive unit test coverage for criteria construction and edge cases.

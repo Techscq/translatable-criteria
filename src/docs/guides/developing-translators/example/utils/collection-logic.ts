@@ -1,6 +1,5 @@
-import { FilterOperator } from '../../../../../criteria/types/operator.types.js';
-import type { Filter } from '../../../../../criteria/filter/filter.js';
 import type { CollectionLogic, ExtractedCollectionValues } from '../types.js';
+import { Filter, FilterOperator } from '../../../../../criteria/index.js';
 
 /**
  * Determines the logical operator and negation status for collection-based filter operators.
