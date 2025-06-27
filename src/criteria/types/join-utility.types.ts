@@ -39,24 +39,33 @@ export interface StoredJoinDetails<ParentSchema extends CriteriaSchema> {
 
 /**
  * Determines the type of the criteria object to be passed to the `.join()` method.
- * If the `ActualJoinedSourceName` is not configured for join in the `ParentSchema`,
- * this type resolves to an error message string, providing strong type-time feedback.
- * Otherwise, it resolves to {@link AnyJoinCriteria}.
+ * This type ensures that the provided `criteriaToJoin` is valid for the chosen `relation_alias`.
+ * It works by first finding the specific join configuration via `SpecificMatchingJoinConfig`.
+ * If the alias is not found, it resolves to a specific error string.
+ * If the alias is found, it then validates that the `source_name` of the `JoinedSchema`
+ * matches the `target_source_name` defined in the configuration. If they don't match,
+ * it resolves to a different, more specific error string, providing excellent developer feedback.
  *
- * @template ParentSchema - The {@link CriteriaSchema} of the parent entity.
- * @template JoinedSchema - The {@link CriteriaSchema} of the entity to be joined.
- * @template ActualJoinedSourceName - The specific `source_name` of the `JoinedSchema` being joined.
- * @template MatchingConfigForActualSourceName - The join configuration from `ParentSchema` that matches `ActualJoinedSourceName`.
- *                                         Should be `never` if no match is found.
+ * @template ParentSchema - The {@link CriteriaSchema} of the entity calling `.join()`.
+ * @template JoinedSchema - The {@link CriteriaSchema} of the criteria being passed to `.join()`.
+ * @template SpecificRelationAlias - The literal string type of the `relation_alias` passed as the first argument to `.join()`.
+ * @template MatchingConfig - The result of looking up the join configuration using the `SpecificRelationAlias`.
  */
-export type JoinCriteriaParameterType<
+export type JoinCriteriaType<
   ParentSchema extends CriteriaSchema,
   JoinedSchema extends CriteriaSchema,
-  ActualJoinedSourceName extends JoinedSchema['source_name'],
-  MatchingConfigForActualSourceName extends SchemaJoins<string> | never,
-> = [MatchingConfigForActualSourceName] extends [never]
-  ? `Error: The joined parent source name '${ActualJoinedSourceName}' is not configured for join in '${ParentSchema['source_name']}'.`
-  : AnyJoinCriteria<JoinedSchema>;
+  SpecificRelationAlias extends string,
+  MatchingConfig = SpecificMatchingJoinConfig<
+    ParentSchema,
+    SpecificRelationAlias
+  >,
+> = [MatchingConfig] extends [never]
+  ? `Error: The joined parent source name '${JoinedSchema['source_name']}' is not configured for join in '${ParentSchema['source_name']}'.`
+  : MatchingConfig extends SchemaJoins<ParentSchema['fields'], string>
+    ? MatchingConfig['target_source_name'] extends JoinedSchema['source_name']
+      ? AnyJoinCriteria<JoinedSchema>
+      : `Error: The selected relation '${SpecificRelationAlias}' require a schema source name of '${MatchingConfig['target_source_name']}' and recieved '${JoinedSchema['source_name']}' instead.`
+    : never;
 
 /**
  * Determines the expected shape of the join parameters object passed to the `.join()` method,
@@ -67,37 +76,23 @@ export type JoinCriteriaParameterType<
  *
  * @template ParentSchema - The {@link CriteriaSchema} of the parent entity.
  * @template JoinedSchema - The {@link CriteriaSchema} of the entity to be joined.
- * @template MatchingConfigForActualSourceName - The join configuration from `ParentSchema` that matches the `source_name` of `JoinedSchema`.
- *                                         Should be `never` if no match is found.
+ * @template MatchingConfigForActualSourceName - The join configuration from `ParentSchema` that matches the
+ *   `source_name` of `JoinedSchema`. Should be `never` if no match is found.
  */
-export type JoinParameterType<
-  ParentSchema extends CriteriaSchema,
-  JoinedSchema extends CriteriaSchema,
-  MatchingConfigForActualAlias extends SchemaJoins<string> | never,
-> = [MatchingConfigForActualAlias] extends [never]
-  ? never
-  : MatchingConfigForActualAlias['relation_type'] extends 'many_to_many'
-    ? PivotJoinInput<ParentSchema, JoinedSchema>
-    : SimpleJoinInput<ParentSchema, JoinedSchema>;
 
 /**
- * Extracts the specific join configuration object from the `ParentSchema`'s `joins` array
- * that matches the provided `JoinedSchemaSpecificSourceName`.
- * This utility type is crucial for inferring the `relation_type` and other
- * join-specific details defined in the parent schema.
+ * Extracts the specific join configuration object from the `ParentSchema`'s `relations` array
+ * that matches the provided `JoinedSchemaSpecificRelationAlias`.
+ * This utility type is the cornerstone of the type-safe join mechanism, enabling the `.join()` method
+ * to infer the correct configuration based on the provided `relation_alias`.
  *
  * @template ParentSchema - The {@link CriteriaSchema} of the parent entity.
- * @template JoinedSchemaSpecificSourceName - The specific `source_name` of the joined entity,
- *                                       as defined in the `ParentSchema.joins` configuration.
- * @example
- * // Given UserSchema has a join defined as: { alias: 'posts', target_source_name: 'posts_table', relation_type: 'one_to_many' }
- * // type UserPostsJoinConfig = SpecificMatchingJoinConfig<typeof UserSchema, 'posts_table'>;
- * // UserPostsJoinConfig would be: { alias: 'posts'; target_source_name: 'posts_table'; relation_type: 'one_to_many'; }
+ * @template JoinedSchemaSpecificRelationAlias - The specific `relation_alias` string literal to look for.
  */
 export type SpecificMatchingJoinConfig<
   ParentSchema extends CriteriaSchema,
-  JoinedSchemaSpecificSourceName extends string,
+  JoinedSchemaSpecificRelationAlias extends string,
 > = Extract<
-  ParentSchema['joins'][number],
-  { target_source_name: JoinedSchemaSpecificSourceName }
+  ParentSchema['relations'][number],
+  { relation_alias: JoinedSchemaSpecificRelationAlias }
 >;

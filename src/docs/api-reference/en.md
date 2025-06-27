@@ -31,15 +31,12 @@ This section provides a detailed reference for the public classes, interfaces, t
   - [`FilterGroupPrimitive`](#filtergroupprimitive)
   - [`FilterValue`](#filtervalue)
   - [`OrderByPrimitive`](#orderbyprimitive)
-  - [`PivotJoinInput`](#pivotjoininput)
-  - [`SimpleJoinInput`](#simplejoininput)
   - [`ICriteriaBase`](#icriteriabase)
   - [`ICriteriaVisitor`](#icriteriavisitor)
   - [`IFilterExpression`](#ifilterexpression)
   - [`StoredJoinDetails`](#storedjoindetails)
   - [`AnyJoinCriteria`](#anyjoincriteria)
-  - [`JoinCriteriaParameterType`](#joincriteriaparametertype)
-  - [`JoinParameterType`](#joinparametertype)
+  - [`JoinCriteriaType`](#joincriteriatype)
   - [`SpecificMatchingJoinConfig`](#specificmatchingjoinconfig)
   - [`PivotJoin`](#pivotjoin)
   - [`SimpleJoin`](#simplejoin)
@@ -169,7 +166,7 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an OR condition, creating a new group if necessary.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configures cursor-based pagination.
 - **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection, nullsFirst: boolean = false): this`**: Adds an ordering rule.
-- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object, withSelect: boolean = true): this`**: Adds a join condition.
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteriaType<...>, withSelect: boolean = true): this`**: Adds a join condition.
 
 [Back to Index](#index)
 
@@ -337,7 +334,7 @@ Interface defining the structure of an entity schema. Schemas are crucial for ty
   - `alias: string`: A single, canonical alias for this entity.
   - `fields: readonly string[]`: An array of the names of queryable fields for this entity.
   - `identifier_field: string`: **(Mandatory)** The name of the field that uniquely identifies an entity of this schema. Must be one of the names in `fields`.
-  - `joins: readonly SchemaJoins<string>[]` (optional): An array defining possible join relationships with other schemas.
+  - `relations: readonly SchemaJoins<string>[]` (optional): An array defining possible join relationships with other schemas.
   - `metadata?: { [key: string]: any }`: Optional metadata associated with the entire schema definition.
 
 [Back to Index](#index)
@@ -357,11 +354,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'name', 'email'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
   ],
 });
@@ -387,12 +386,15 @@ String union type representing the possible types of join relationships.
 
 ### `SchemaJoins`
 
-Interface defining the structure of a join configuration within the `joins` property of a `CriteriaSchema`.
+Interface defining the structure of a join configuration within the `relations` property of a `CriteriaSchema`.
 
 - **Properties:**
-  - `alias: string`: The alias for this specific join relation (e.g., `'posts'`, `'author'`).
+  - `relation_alias: string`: The alias for this specific join relation (e.g., `'posts'`, `'author'`).
   - `relation_type: JoinRelationType`: The type of relationship.
   - `target_source_name: string`: The `source_name` of the schema being joined to.
+  - `local_field: string | { pivot_field: string; reference: string }`: The field in the local entity for the join condition.
+  - `relation_field: string | { pivot_field: string; reference: string }`: The field in the related entity for the join condition.
+  - `pivot_source_name?: string`: The name of the pivot table (for `many_to_many` joins).
   - `metadata?: { [key: string]: any }`: Optional metadata associated with this specific join configuration.
 
 [Back to Index](#index)
@@ -433,27 +435,6 @@ Type defining the structure for an ordering rule before it's instantiated as an 
   - `field: string`: The field to order by.
   - `sequence_id: number`: A unique ID for stable sorting.
   - `nulls_first: boolean`: If true, nulls are ordered first.
-
-[Back to Index](#index)
-
-### `PivotJoinInput`
-
-Type representing the input parameters for a `many-to-many` join via a pivot table, as provided by the user to the `.join()` method.
-
-- **Properties:**
-  - `pivot_source_name: string`: Name of the pivot table.
-  - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`: Configuration of the parent entity's field referencing the pivot table.
-  - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`: Configuration of the joined entity's field referencing the pivot table.
-
-[Back to Index](#index)
-
-### `SimpleJoinInput`
-
-Type representing the input parameters for a simple join (one-to-one, one-to-many, many-to-one), as provided by the user to the `.join()` method.
-
-- **Properties:**
-  - `parent_field: FieldOfSchema<ParentSchema>`: Field in the parent entity for the join condition.
-  - `join_field: FieldOfSchema<JoinSchema>`: Field in the joined entity for the join condition.
 
 [Back to Index](#index)
 
@@ -503,21 +484,15 @@ Union type representing any type of join `Criteria` (`InnerJoinCriteria`, `LeftJ
 
 [Back to Index](#index)
 
-### `JoinCriteriaParameterType`
+### `JoinCriteriaType`
 
 Helper type that determines the type of the `Criteria` object to be passed to the `.join()` method, validating that the joined entity's `source_name` is configured in the parent schema.
 
 [Back to Index](#index)
 
-### `JoinParameterType`
-
-Helper type that determines the expected shape of the join parameters object for the `.join()` method, based on the `relation_type` defined in the parent schema.
-
-[Back to Index](#index)
-
 ### `SpecificMatchingJoinConfig`
 
-Helper type that extracts the specific join configuration from a parent schema that matches a given `target_source_name`.
+Helper type that extracts the specific join configuration from a parent schema that matches a given `relation_alias`.
 
 [Back to Index](#index)
 
@@ -530,11 +505,11 @@ Type representing the fully resolved parameters for a `many-to-many` join via a 
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
   - `parent_alias: string`
-  - `join_alias: string`
+  - `relation_alias: string`
   - `parent_identifier: string`
   - `pivot_source_name: string`
-  - `parent_field: { pivot_field: string; reference: string }`
-  - `join_field: { pivot_field: string; reference: string }`
+  - `local_field: { pivot_field: string; reference: string }`
+  - `relation_field: { pivot_field: string; reference: string }`
   - `parent_schema_metadata: { [key: string]: any }`
   - `join_metadata: { [key: string]: any }`
 
@@ -549,10 +524,10 @@ Type representing the fully resolved parameters for a simple join (one-to-one, o
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
   - `parent_alias: string`
-  - `join_alias: string`
+  - `relation_alias: string`
   - `parent_identifier: string`
-  - `parent_field: string`
-  - `join_field: string`
+  - `local_field: string`
+  - `relation_field: string`
   - `parent_schema_metadata: { [key: string]: any }`
   - `join_metadata: { [key: string]: any }`
 

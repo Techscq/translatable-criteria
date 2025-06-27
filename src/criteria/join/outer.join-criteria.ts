@@ -31,9 +31,9 @@ export class OuterJoinCriteria<
       | SimpleJoin<CriteriaSchema, CSchema, JoinRelationType>,
     context: TranslationContext,
   ): void {
-    typeof parameters.join_field === 'object'
-      ? this.assetFieldOnSchema(parameters.join_field.reference)
-      : this.assetFieldOnSchema(parameters.join_field);
+    typeof parameters.relation_field === 'object'
+      ? this.assetFieldOnSchema(parameters.relation_field.reference)
+      : this.assetFieldOnSchema(parameters.relation_field);
     visitor.visitOuterJoin(this, parameters, context);
   }
   /**

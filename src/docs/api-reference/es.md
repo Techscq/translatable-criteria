@@ -31,15 +31,12 @@ Esta sección proporciona una referencia detallada de las clases, interfaces, ti
   - [`FilterGroupPrimitive`](#filtergroupprimitive)
   - [`FilterValue`](#filtervalue)
   - [`OrderByPrimitive`](#orderbyprimitive)
-  - [`PivotJoinInput`](#pivotjoininput)
-  - [`SimpleJoinInput`](#simplejoininput)
   - [`ICriteriaBase`](#icriteriabase)
   - [`ICriteriaVisitor`](#icriteriavisitor)
   - [`IFilterExpression`](#ifilterexpression)
   - [`StoredJoinDetails`](#storedjoindetails)
   - [`AnyJoinCriteria`](#anyjoincriteria)
-  - [`JoinCriteriaParameterType`](#joincriteriaparametertype)
-  - [`JoinParameterType`](#joinparametertype)
+  - [`JoinCriteriaType`](#joincriteriatype)
   - [`SpecificMatchingJoinConfig`](#specificmatchingjoinconfig)
   - [`PivotJoin`](#pivotjoin)
   - [`SimpleJoin`](#simplejoin)
@@ -167,7 +164,7 @@ Clase base abstracta para todos los tipos de criterios (`RootCriteria`, `InnerJo
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Añade una condición OR, creando un nuevo grupo si es necesario.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configura la paginación basada en cursor.
 - **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection, nullsFirst: boolean = false): this`**: Añade una regla de ordenamiento.
-- **`join(joinAlias: string, criteriaToJoin: JoinCriteria, joinParameter: object, withSelect: boolean = true): this`**: Añade una condición de join.
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteriaType<...>, withSelect: boolean = true): this`**: Añade una condición de join.
 
 [Volver al Índice](#índice)
 
@@ -335,7 +332,7 @@ Interfaz que define la estructura de un esquema de entidad. Los esquemas son cru
   - `alias: string`: Un único alias canónico para esta entidad.
   - `fields: readonly string[]`: Un array de los nombres de los campos consultables de esta entidad.
   - `identifier_field: string`: **(Obligatorio)** El nombre del campo que identifica unívocamente una entidad de este esquema. Debe ser uno de los nombres en `fields`.
-  - `joins: readonly SchemaJoins<string>[]` (opcional): Un array que define las posibles relaciones de unión con otros esquemas.
+  - `relations: readonly SchemaJoins<string>[]` (opcional): Un array que define las posibles relaciones de unión con otros esquemas.
   - `metadata?: { [key: string]: any }`: Metadatos opcionales asociados con la definición completa del esquema.
 
 [Volver al Índice](#índice)
@@ -355,11 +352,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'name', 'email'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
   ],
 });
@@ -385,12 +384,15 @@ Tipo unión de strings que representa los tipos de relaciones de join posibles.
 
 ### `SchemaJoins`
 
-Interfaz que define la estructura de una configuración de join dentro de la propiedad `joins` de un `CriteriaSchema`.
+Interfaz que define la estructura de una configuración de join dentro de la propiedad `relations` de un `CriteriaSchema`.
 
 - **Propiedades:**
-  - `alias: string`: El alias para esta relación de unión específica (ej. `'posts'`, `'autor'`).
+  - `relation_alias: string`: El alias para esta relación de unión específica (ej. `'posts'`, `'autor'`).
   - `relation_type: JoinRelationType`: El tipo de relación.
   - `target_source_name: string`: El `source_name` del esquema al que se une.
+  - `local_field: string | { pivot_field: string; reference: string }`: El campo en la entidad local para la condición de join.
+  - `relation_field: string | { pivot_field: string; reference: string }`: El campo en la entidad unida para la condición de join.
+  - `pivot_source_name?: string`: El nombre de la tabla pivote (para uniones `many_to_many`).
   - `metadata?: { [key: string]: any }`: Metadatos opcionales asociados con esta configuración de join específica.
 
 [Volver al Índice](#índice)
@@ -431,27 +433,6 @@ Tipo que define la estructura para una regla de ordenamiento antes de ser instan
   - `field: string`: El campo por el cual ordenar.
   - `sequence_id: number`: Un ID único para ordenamiento estable.
   - `nulls_first: boolean`: Si es true, los nulos se ordenan primero.
-
-[Volver al Índice](#índice)
-
-### `PivotJoinInput`
-
-Tipo que representa los parámetros de entrada para una unión `many-to-many` a través de una tabla pivote, tal como los proporciona el usuario al método `.join()`.
-
-- **Propiedades:**
-  - `pivot_source_name: string`: Nombre de la tabla pivote.
-  - `parent_field: { pivot_field: string; reference: FieldOfSchema<ParentSchema> }`: Configuración del campo de la entidad padre que referencia la tabla pivote.
-  - `join_field: { pivot_field: string; reference: FieldOfSchema<JoinSchema> }`: Configuración del campo de la entidad unida que referencia la tabla pivote.
-
-[Volver al Índice](#índice)
-
-### `SimpleJoinInput`
-
-Tipo que representa los parámetros de entrada para una unión simple (one-to-one, one-to-many, many-to-one), tal como los proporciona el usuario al método `.join()`.
-
-- **Propiedades:**
-  - `parent_field: FieldOfSchema<ParentSchema>`: Campo en la entidad padre para la condición de join.
-  - `join_field: FieldOfSchema<JoinSchema>`: Campo en la entidad unida para la condición de join.
 
 [Volver al Índice](#índice)
 
@@ -501,21 +482,15 @@ Tipo unión que representa cualquier tipo de `Criteria` de join (`InnerJoinCrite
 
 [Volver al Índice](#índice)
 
-### `JoinCriteriaParameterType`
+### `JoinCriteriaType`
 
 Tipo helper que determina el tipo del objeto `Criteria` que se debe pasar al método `.join()`, validando que el `source_name` de la entidad unida esté configurado en el esquema padre.
 
 [Volver al Índice](#índice)
 
-### `JoinParameterType`
-
-Tipo helper que determina la forma esperada del objeto de parámetros de join para el método `.join()`, basándose en el `relation_type` definido en el esquema padre.
-
-[Volver al Índice](#índice)
-
 ### `SpecificMatchingJoinConfig`
 
-Tipo helper que extrae la configuración de join específica de un esquema padre que coincide con un `target_source_name` dado.
+Tipo helper que extrae la configuración de join específica de un esquema padre que coincide con un `relation_alias` dado.
 
 [Volver al Índice](#índice)
 
@@ -528,11 +503,11 @@ Tipo que representa los parámetros completamente resueltos para una unión `man
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
   - `parent_alias: string`
-  - `join_alias: string`
+  - `relation_alias: string`
   - `parent_identifier: string`
   - `pivot_source_name: string`
-  - `parent_field: { pivot_field: string; reference: string }`
-  - `join_field: { pivot_field: string; reference: string }`
+  - `local_field: { pivot_field: string; reference: string }`
+  - `relation_field: { pivot_field: string; reference: string }`
   - `parent_schema_metadata: { [key: string]: any }`
   - `join_metadata: { [key: string]: any }`
 
@@ -547,10 +522,10 @@ Tipo que representa los parámetros completamente resueltos para una unión simp
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
   - `parent_alias: string`
-  - `join_alias: string`
+  - `relation_alias: string`
   - `parent_identifier: string`
-  - `parent_field: string`
-  - `join_field: string`
+  - `local_field: string`
+  - `relation_field: string`
   - `parent_schema_metadata: { [key: string]: any }`
   - `join_metadata: { [key: string]: any }`
 

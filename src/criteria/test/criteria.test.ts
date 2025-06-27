@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { FilterOperator, LogicalOperator } from '../types/operator.types.js';
 import {
   PermissionSchema,
@@ -17,18 +18,32 @@ import { OrderDirection } from '../order/order.js';
 import { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import { type FilterPrimitive } from '../filter/types/filter-primitive.types.js';
-import {
-  type PivotJoinInput,
-  type SimpleJoinInput,
-} from '../types/join-input.types.js';
 
-const testJoinsData = (
-  joinDetails: StoredJoinDetails<CriteriaSchema>,
-  joinParameter: { join_field: string | object; parent_field: string | object },
-  parentCriteria: RootCriteria<CriteriaSchema>,
+const testJoinsData = <
+  const TParentSchema extends CriteriaSchema,
+  const TExpectedRelationAlias extends
+    TParentSchema['relations'][number]['relation_alias'],
+>(
+  joinDetails: StoredJoinDetails<TParentSchema>,
+  expectedRelationAlias: TExpectedRelationAlias,
+  parentCriteria: RootCriteria<TParentSchema>,
 ) => {
-  expect(joinDetails.parameters.join_field).toBe(joinParameter.join_field);
-  expect(joinDetails.parameters.parent_field).toBe(joinParameter.parent_field);
+  const expectedRelation = parentCriteria.schema.relations.find(
+    (r) => r.relation_alias === expectedRelationAlias,
+  );
+
+  expect(expectedRelation).toBeDefined();
+  if (!expectedRelation) return;
+
+  expect(joinDetails.parameters.relation_alias).toBe(
+    expectedRelation.relation_alias,
+  );
+  expect(joinDetails.parameters.local_field).toEqual(
+    expectedRelation.local_field,
+  );
+  expect(joinDetails.parameters.relation_field).toEqual(
+    expectedRelation.relation_field,
+  );
   expect(joinDetails.parameters.parent_alias).toBe(parentCriteria.alias);
   expect(joinDetails.parameters.parent_source_name).toBe(
     parentCriteria.sourceName,
@@ -588,28 +603,10 @@ describe('Criteria', () => {
   });
 
   describe('Join Functionality', () => {
-    it('should throw an error if parent_field in joinParameter is not in parent schema', () => {
+    it('should add an inner join and correctly populate parameters', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-      const joinParameter = {
-        parent_field: 'invalid_parent_field',
-        join_field: 'uuid',
-      };
-      expect(() => {
-        // @ts-expect-error
-        criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
-      }).toThrow(
-        "The field 'invalid_parent_field' is not defined in the schema 'post'.",
-      );
-    });
 
-    it('should add an inner join and correctly populate parent_identifier', () => {
-      const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-      const joinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
-        parent_field: 'user_uuid',
-        join_field: 'uuid',
-      };
-
-      criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
+      criteriaRoot.join('publisher', userJoinCriteria);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -617,27 +614,18 @@ describe('Criteria', () => {
       const joinEntry = joinsArray[0];
       expect(joinEntry).toBeDefined();
       if (joinEntry) {
-        expect(joinEntry.parameters.join_alias).toBe('publisher');
+        expect(joinEntry.parameters.relation_alias).toBe('publisher');
         expect(joinEntry.criteria).toBeInstanceOf(InnerJoinCriteria);
-        testJoinsData(joinEntry, joinParameter, criteriaRoot);
+        testJoinsData(joinEntry, 'publisher', criteriaRoot);
         expect(joinEntry.criteria).toBe(userJoinCriteria);
       }
     });
 
-    it('should add a many-to-many join and correctly populate parent_identifier', () => {
+    it('should add a many-to-many join and correctly populate parameters', () => {
       const userCriteriaRoot = new RootCriteria(UserSchema);
       const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
-      const joinParameter: PivotJoinInput<UserSchema, PermissionSchema> = {
-        pivot_source_name: 'user_permission_pivot',
-        parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
-        join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
-      };
 
-      userCriteriaRoot.join(
-        'permissions',
-        permissionJoinCriteria,
-        joinParameter,
-      );
+      userCriteriaRoot.join('permissions', permissionJoinCriteria);
 
       const joinsArray = userCriteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -646,7 +634,7 @@ describe('Criteria', () => {
       if (joinEntry) {
         expect(joinEntry.criteria.alias).toBe('permissions');
         expect(joinEntry.criteria).toBeInstanceOf(InnerJoinCriteria);
-        testJoinsData(joinEntry, joinParameter, userCriteriaRoot);
+        testJoinsData(joinEntry, 'permissions', userCriteriaRoot);
         expect(joinEntry.criteria).toBe(permissionJoinCriteria);
         expect(joinEntry.parameters.parent_identifier).toBe(
           UserSchema.identifier_field,
@@ -654,61 +642,44 @@ describe('Criteria', () => {
       }
     });
 
-    it('should add multiple joins and correctly populate parent_identifier for each', () => {
+    it('should add multiple joins and correctly populate parameters for each', () => {
       const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-      const userJoinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
-        parent_field: 'user_uuid',
-        join_field: 'uuid',
-      };
-
       const commentJoinCriteria = new LeftJoinCriteria(PostCommentSchema);
-      const commentJoinParameter: SimpleJoinInput<
-        PostSchema,
-        PostCommentSchema
-      > = {
-        parent_field: 'uuid',
-        join_field: 'post_uuid',
-      };
 
       criteriaRoot
-        .join('publisher', userJoinCriteria, userJoinParameter)
-        .join('comments', commentJoinCriteria, commentJoinParameter);
+        .join('publisher', userJoinCriteria)
+        .join('comments', commentJoinCriteria);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(2);
 
       const publisherJoin = joinsArray.find(
-        (entry) => entry.parameters.join_alias === 'publisher',
+        (entry) => entry.parameters.relation_alias === 'publisher',
       );
       const commentsJoin = joinsArray.find(
-        (entry) => entry.parameters.join_alias === 'comments',
+        (entry) => entry.parameters.relation_alias === 'comments',
       );
 
       expect(publisherJoin).toBeDefined();
       if (publisherJoin) {
         expect(publisherJoin.criteria).toBeInstanceOf(InnerJoinCriteria);
-        testJoinsData(publisherJoin, userJoinParameter, criteriaRoot);
+        testJoinsData(publisherJoin, 'publisher', criteriaRoot);
       }
 
       expect(commentsJoin).toBeDefined();
       if (commentsJoin) {
         expect(commentsJoin.criteria).toBeInstanceOf(LeftJoinCriteria);
-        testJoinsData(commentsJoin, commentJoinParameter, criteriaRoot);
+        testJoinsData(commentsJoin, 'comments', criteriaRoot);
       }
     });
 
-    it('should replace a join if the same alias is used and check parent_identifier', () => {
+    it('should replace a join if the same alias is used', () => {
       const userJoinCriteria1 = new InnerJoinCriteria(UserSchema);
       const userJoinCriteria2 = new LeftJoinCriteria(UserSchema);
 
-      const userJoinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
-        parent_field: 'user_uuid',
-        join_field: 'uuid',
-      };
-
       criteriaRoot
-        .join('publisher', userJoinCriteria1, userJoinParameter)
-        .join('publisher', userJoinCriteria2, userJoinParameter);
+        .join('publisher', userJoinCriteria1)
+        .join('publisher', userJoinCriteria2);
 
       const joinsArray = criteriaRoot.joins;
       expect(joinsArray.length).toBe(1);
@@ -716,121 +687,11 @@ describe('Criteria', () => {
       const joinEntry = joinsArray[0];
       expect(joinEntry).toBeDefined();
       if (joinEntry) {
-        expect(joinEntry.parameters.join_alias).toBe('publisher');
+        expect(joinEntry.parameters.relation_alias).toBe('publisher');
         expect(joinEntry.criteria).toBeInstanceOf(LeftJoinCriteria);
-        testJoinsData(joinEntry, userJoinParameter, criteriaRoot);
+        testJoinsData(joinEntry, 'publisher', criteriaRoot);
         expect(joinEntry.criteria).toBe(userJoinCriteria2);
       }
-    });
-
-    describe('assertIsValidJoinOptions validation', () => {
-      it.each([
-        {
-          description: 'many_to_many with invalid parent_field (string)',
-          rootSchema: UserSchema,
-          joinSchema: PermissionSchema,
-          joinAlias: 'permissions',
-          joinParam: {
-            parent_field: 'uuid',
-            join_field: { pivot_field: 'pf', reference: 'uuid' },
-            pivot_source_name: 'pivot',
-          } as any,
-          expectedErrorMsg: /Invalid JoinOptions for 'many_to_many' join/,
-        },
-        {
-          description: 'many_to_many if join_field is not a pivot object',
-          rootSchema: UserSchema,
-          joinSchema: PermissionSchema,
-          joinAlias: 'permissions',
-          joinParam: {
-            parent_field: { pivot_field: 'user_fk', reference: 'uuid' },
-            join_field: 'uuid',
-            pivot_source_name: 'user_permission_pivot',
-          } as any,
-          expectedErrorMsg: /Invalid JoinOptions for 'many_to_many' join/,
-        },
-        {
-          description: 'one_to_many if parent_field is not a string',
-          rootSchema: PostSchema,
-          joinSchema: PostCommentSchema,
-          joinAlias: 'comments',
-          joinParam: {
-            parent_field: { reference: 'uuid' },
-            join_field: 'post_uuid',
-          } as any,
-          expectedErrorMsg: /Invalid JoinOptions for 'one_to_many' join/,
-        },
-        {
-          description: 'many_to_one if join_field is not a string',
-          rootSchema: PostSchema,
-          joinSchema: UserSchema,
-          joinAlias: 'publisher',
-          joinParam: {
-            parent_field: 'user_uuid',
-            join_field: { reference: 'uuid' },
-          } as any,
-          expectedErrorMsg: /Invalid JoinOptions for 'many_to_one' join/,
-        },
-      ])(
-        'should throw for $description',
-        ({
-          rootSchema,
-          joinSchema,
-          joinParam,
-          joinAlias,
-          expectedErrorMsg,
-        }) => {
-          const root = new RootCriteria(rootSchema);
-          const joinCrit = new InnerJoinCriteria(joinSchema);
-          expect(() => {
-            // @ts-expect-error
-            root.join(joinAlias, joinCrit, joinParam);
-          }).toThrow(expectedErrorMsg);
-        },
-      );
-
-      it.each([
-        {
-          description: 'many_to_many join',
-          rootSchema: UserSchema,
-          joinSchema: PermissionSchema,
-          joinAlias: 'permissions',
-          joinParam: {
-            pivot_source_name: 'user_permission_pivot',
-            parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
-            join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
-          } as PivotJoinInput<typeof UserSchema, typeof PermissionSchema>,
-        },
-        {
-          description: 'one_to_many join',
-          rootSchema: PostSchema,
-          joinSchema: PostCommentSchema,
-          joinAlias: 'comments',
-          joinParam: {
-            parent_field: 'uuid',
-            join_field: 'post_uuid',
-          } as SimpleJoinInput<typeof PostSchema, typeof PostCommentSchema>,
-        },
-        {
-          description: 'many_to_one join',
-          rootSchema: PostSchema,
-          joinSchema: UserSchema,
-          joinAlias: 'publisher',
-          joinParam: {
-            parent_field: 'user_uuid',
-            join_field: 'uuid',
-          } as SimpleJoinInput<typeof PostSchema, typeof UserSchema>,
-        },
-      ])(
-        'should pass validation for a valid $description',
-        ({ rootSchema, joinSchema, joinAlias, joinParam }) => {
-          const root = new RootCriteria(rootSchema);
-          const joinCrit = new InnerJoinCriteria(joinSchema);
-          expect(() => {
-            root.join(joinAlias as any, joinCrit, joinParam as any);
-          }).not.toThrow();
-        },
-      );
     });
   });
 
@@ -852,10 +713,6 @@ describe('Criteria', () => {
               operator: FilterOperator.IS_NOT_NULL,
               value: null,
             }),
-          {
-            parent_field: 'uuid',
-            join_field: 'post_uuid',
-          },
         )
         .orderBy('uuid', OrderDirection.ASC)
         .setTake(10)
@@ -895,24 +752,20 @@ describe('Criteria', () => {
   });
   it('should correctly store withSelect property for simple join', () => {
     const userJoinCriteria = new InnerJoinCriteria(UserSchema);
-    const joinParameter: SimpleJoinInput<PostSchema, UserSchema> = {
-      parent_field: 'user_uuid',
-      join_field: 'uuid',
-    };
 
-    criteriaRoot.join('publisher', userJoinCriteria, joinParameter, false);
+    criteriaRoot.join('publisher', userJoinCriteria, false);
     let joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(false);
 
     criteriaRoot = new RootCriteria(PostSchema);
-    criteriaRoot.join('publisher', userJoinCriteria, joinParameter, true);
+    criteriaRoot.join('publisher', userJoinCriteria, true);
     joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(true);
 
     criteriaRoot = new RootCriteria(PostSchema);
-    criteriaRoot.join('publisher', userJoinCriteria, joinParameter);
+    criteriaRoot.join('publisher', userJoinCriteria);
     joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(true);
@@ -921,35 +774,20 @@ describe('Criteria', () => {
   it('should correctly store withSelect property for many-to-many join', () => {
     let userCriteriaRoot = new RootCriteria(UserSchema);
     const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
-    const joinParameter: PivotJoinInput<UserSchema, PermissionSchema> = {
-      pivot_source_name: 'user_permission_pivot',
-      parent_field: { pivot_field: 'user_uuid', reference: 'uuid' },
-      join_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
-    };
 
-    userCriteriaRoot.join(
-      'permissions',
-      permissionJoinCriteria,
-      joinParameter,
-      false,
-    );
+    userCriteriaRoot.join('permissions', permissionJoinCriteria, false);
     let joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(false);
 
     userCriteriaRoot = new RootCriteria(UserSchema);
-    userCriteriaRoot.join(
-      'permissions',
-      permissionJoinCriteria,
-      joinParameter,
-      true,
-    );
+    userCriteriaRoot.join('permissions', permissionJoinCriteria, true);
     joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(true);
 
     userCriteriaRoot = new RootCriteria(UserSchema);
-    userCriteriaRoot.join('permissions', permissionJoinCriteria, joinParameter);
+    userCriteriaRoot.join('permissions', permissionJoinCriteria);
     joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
     expect(joinsArray[0]?.parameters.with_select).toBe(true);

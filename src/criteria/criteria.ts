@@ -1,8 +1,4 @@
-import type {
-  CriteriaSchema,
-  FieldOfSchema,
-  SchemaJoins,
-} from './types/schema.types.js';
+import type { CriteriaSchema, FieldOfSchema } from './types/schema.types.js';
 
 import { CriteriaFilterManager } from './criteria-filter-manager.js';
 import { CriteriaJoinManager } from './criteria-join-manager.js';
@@ -11,16 +7,10 @@ import { Order, OrderDirection } from './order/order.js';
 import type { FilterPrimitive } from './filter/types/filter-primitive.types.js';
 import type { ICriteriaBase } from './types/criteria.interface.js';
 import type {
-  JoinCriteriaParameterType,
-  JoinParameterType,
-  SpecificMatchingJoinConfig,
+  JoinCriteriaType,
   StoredJoinDetails,
 } from './types/join-utility.types.js';
 import { FilterOperator } from './types/operator.types.js';
-import type {
-  PivotJoinInput,
-  SimpleJoinInput,
-} from './types/join-input.types.js';
 import type { PivotJoin, SimpleJoin } from './types/join-parameter.types.js';
 import type { FilterGroup } from './filter/filter-group.js';
 
@@ -73,7 +63,11 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
     }
     if (!schema.fields.includes(schema.identifier_field)) {
       throw new Error(
-        `Schema identifier_field '${String(schema.identifier_field)}' must be one of the schema's defined fields. Schema: ${schema.source_name}`,
+        `Schema identifier_field '${String(
+          schema.identifier_field,
+        )}' must be one of the schema's defined fields. Schema: ${
+          schema.source_name
+        }`,
       );
     }
     this._schema = schema as TSchema;
@@ -81,8 +75,8 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
     this._source_name = schema.source_name;
   }
 
-  protected get schema(): TSchema {
-    return this._schema;
+  get schema(): TSchema {
+    return { ...this._schema };
   }
 
   /**
@@ -241,10 +235,12 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
    * @param {FieldOfSchema<TSchema>} field - The field name to validate.
    * @throws {Error} If the field is not defined in the schema.
    */
-  protected assetFieldOnSchema(field: FieldOfSchema<TSchema>) {
+  protected assetFieldOnSchema(field: TSchema['fields'][number]) {
     if (!this.schema.fields.includes(field))
       throw new Error(
-        `The field '${String(field)}' is not defined in the schema '${this.schema.source_name}'.`,
+        `The field '${String(
+          field,
+        )}' is not defined in the schema '${this.schema.source_name}'.`,
       );
   }
   /**
@@ -313,124 +309,81 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
     return this;
   }
   /**
-   * Adds a join to another criteria.
+   * Adds a join to another criteria. This method is fully type-safe.
+   * The `joinAlias` argument provides autocompletion for all valid relation aliases defined in the schema.
+   * The `criteriaToJoin` argument is then validated to ensure its `source_name` matches the one
+   * configured for the chosen `joinAlias`, providing clear, compile-time error messages if they mismatch.
+   *
    * @template TJoinSchema - The schema of the entity to join.
-   * @template TJoinedCriteriaSourceName - The `source_name` of the entity being joined.
-   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the provided `joinAlias` and `criteriaToJoin.sourceName`.
-   * @param {TMatchingJoinConfig['alias']} joinAlias - The specific alias defined in the parent schema's `joins` array for this relation.
-   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaSourceName, TMatchingJoinConfig>} criteriaToJoin -
-   *   The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
-   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter -
-   *   The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for
-   *   many-to-many).
-   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final selection (`...joinAndSelect`). If false, the join will only be used for filtering (`...join`) and its fields will not be selected.
+   * @template SpecificRelationAlias - The literal type of the relation alias being used for the join.
+   * @param {SpecificRelationAlias} joinAlias - The specific alias defined in the parent schema's `relations` array for
+   *   this relation.
+   * @param {JoinCriteriaType<TSchema, TJoinSchema, SpecificRelationAlias>} criteriaToJoin - The criteria instance
+   *   representing the entity to join (e.g., `InnerJoinCriteria`).
+   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final
+   *   selection. If false, the join will only be used for filtering and its fields will not be selected.
    * @returns {this} The current criteria instance for chaining.
-   * @throws {Error} If `criteriaToJoin` is a string (which is invalid).
-   * @throws {Error} If `parent_field` in `joinParameter` (or `parent_field.reference` for pivot joins) is not defined
-   *   in the parent schema.
-   * @throws {Error} If the join configuration for the given `joinAlias` and `criteriaToJoin.sourceName` is not found in the parent schema's
-   *   `joins` array.
-   * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using
-   *   simple join input for many-to-many or vice-versa).
    */
   join<
-    TJoinSchema extends CriteriaSchema,
-    TJoinedCriteriaSourceName extends TJoinSchema['source_name'],
-    TMatchingJoinConfig extends SpecificMatchingJoinConfig<
-      TSchema,
-      TJoinedCriteriaSourceName
-    >,
+    const TJoinSchema extends CriteriaSchema,
+    const SpecificRelationAlias extends
+      TSchema['relations'][number]['relation_alias'],
   >(
-    joinAlias: TMatchingJoinConfig['alias'] extends never
-      ? `Error: The joined parent source name '${TJoinedCriteriaSourceName}' is not configured for join in '${TSchema['source_name']}'.`
-      : TMatchingJoinConfig['alias'],
-    criteriaToJoin: JoinCriteriaParameterType<
+    joinAlias: SpecificRelationAlias,
+    criteriaToJoin: JoinCriteriaType<
       TSchema,
       TJoinSchema,
-      TJoinedCriteriaSourceName,
-      TMatchingJoinConfig
+      SpecificRelationAlias
     >,
-    joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
     withSelect: boolean = true,
   ): this {
     if (typeof criteriaToJoin === 'string') {
       throw new Error(`Invalid criteriaToJoin: ${criteriaToJoin}`);
     }
-
-    typeof joinParameter.parent_field === 'object'
-      ? this.assetFieldOnSchema(joinParameter.parent_field.reference)
-      : this.assetFieldOnSchema(joinParameter.parent_field);
-
-    const joinConfig = this.schema.joins.find(
-      (join) =>
-        join.target_source_name === criteriaToJoin.sourceName &&
-        join.alias === joinAlias,
+    const relation = this.schema.relations.find(
+      (r) => r.relation_alias === joinAlias,
     );
-    if (!joinConfig) {
+
+    if (!relation) {
       throw new Error(
-        `Join configuration for '${String(joinAlias)}' of '${String(criteriaToJoin.sourceName)}' not found in schema '${this.schema.source_name}'.`,
+        `Join configuration for '${String(
+          joinAlias,
+        )}' not found in schema '${this.schema.source_name}'.`,
       );
     }
 
-    this.assertIsValidJoinOptions(joinConfig, joinParameter);
-
-    const fullJoinParameters:
-      | PivotJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type>
-      | SimpleJoin<TSchema, TJoinSchema, typeof joinConfig.relation_type> = {
-      ...joinParameter,
+    const baseParameters = {
       with_select: withSelect,
       parent_alias: this.alias,
       parent_source_name: this.sourceName,
-      relation_type: joinConfig.relation_type,
-      join_alias: joinAlias,
-      join_metadata:
-        this.schema.joins.find(
-          (join) =>
-            join.alias === joinAlias &&
-            join.target_source_name === criteriaToJoin.sourceName,
-        )?.metadata ?? {},
-      parent_schema_metadata: this.schema.metadata ?? {},
+      relation_alias: relation.relation_alias,
       parent_identifier: this.identifierField,
+      relation_type: relation.relation_type,
+      join_metadata: relation.metadata ?? {},
+      parent_schema_metadata: this.schema.metadata ?? {},
     };
+
+    let fullJoinParameters:
+      | PivotJoin<TSchema, TJoinSchema, typeof relation.relation_type>
+      | SimpleJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+
+    if (relation.relation_type === 'many_to_many') {
+      fullJoinParameters = {
+        ...baseParameters,
+        pivot_source_name: relation.pivot_source_name,
+        local_field: relation.local_field,
+        relation_field: relation.relation_field,
+      } as PivotJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+    } else {
+      fullJoinParameters = {
+        ...baseParameters,
+        local_field: relation.local_field,
+        relation_field: relation.relation_field,
+      } as SimpleJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+    }
+
     this._joinManager.addJoin(criteriaToJoin, fullJoinParameters);
     return this;
-  }
-
-  private assertIsValidJoinOptions<TJoinSchema extends CriteriaSchema>(
-    joinConfig: SchemaJoins<string>,
-    joinParameter:
-      | PivotJoinInput<TSchema, TJoinSchema>
-      | SimpleJoinInput<TSchema, TJoinSchema>,
-  ) {
-    const isPivotFieldObject = (
-      field: any,
-    ): field is { pivot_field: string; reference: string } => {
-      return (
-        typeof field === 'object' &&
-        field !== null &&
-        'pivot_field' in field &&
-        'reference' in field
-      );
-    };
-    if (joinConfig.relation_type === 'many_to_many') {
-      if (
-        !isPivotFieldObject(joinParameter.parent_field) ||
-        !isPivotFieldObject(joinParameter.join_field)
-      ) {
-        throw new Error(
-          `Invalid JoinOptions for 'many_to_many' join. Expected parent_field and join_field to be objects with 'pivot_field' and 'reference' properties. Alias: '${String(joinConfig.alias)}'`,
-        );
-      }
-    } else {
-      if (
-        typeof joinParameter.parent_field !== 'string' ||
-        typeof joinParameter.join_field !== 'string'
-      ) {
-        throw new Error(
-          `Invalid JoinOptions for '${joinConfig.relation_type}' join. Expected parent_field and join_field to be strings. Alias: '${String(joinConfig.alias)}'`,
-        );
-      }
-    }
   }
   /**
    * Gets the current cursor configuration, if set.

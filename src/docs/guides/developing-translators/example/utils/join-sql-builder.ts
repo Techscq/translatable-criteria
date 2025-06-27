@@ -68,39 +68,39 @@ export class JoinSqlBuilder {
     collectedOrders: Array<{ alias: string; order: Order<string> }>,
   ): void {
     const joinTable = `${escapeField(criteria.sourceName)} AS ${escapeField(
-      parameters.join_alias,
+      parameters.relation_alias,
     )}`;
     let onCondition = '';
 
     if ('pivot_source_name' in parameters) {
-      const pivotAlias = `${parameters.parent_alias}_${parameters.join_alias}_pivot`;
+      const pivotAlias = `${parameters.parent_alias}_${parameters.relation_alias}_pivot`;
       const pivotTable = `${escapeField(
         parameters.pivot_source_name,
       )} AS ${escapeField(pivotAlias)}`;
       sqlParts.joins.push(
         `${joinType} JOIN ${pivotTable} ON ${escapeField(
-          String(parameters.parent_field.reference),
+          String(parameters.local_field.reference),
           parameters.parent_alias,
-        )} = ${escapeField(parameters.parent_field.pivot_field, pivotAlias)}`,
+        )} = ${escapeField(parameters.local_field.pivot_field, pivotAlias)}`,
       );
       onCondition = `${escapeField(
-        parameters.join_field.pivot_field,
+        parameters.relation_field.pivot_field,
         pivotAlias,
       )} = ${escapeField(
-        String(parameters.join_field.reference),
-        parameters.join_alias,
+        String(parameters.relation_field.reference),
+        parameters.relation_alias,
       )}`;
     } else {
       onCondition = `${escapeField(
-        String(parameters.parent_field),
+        String(parameters.local_field),
         parameters.parent_alias,
-      )} = ${escapeField(String(parameters.join_field), parameters.join_alias)}`;
+      )} = ${escapeField(String(parameters.relation_field), parameters.relation_alias)}`;
     }
 
     if (criteria.rootFilterGroup.items.length > 0) {
       const filterResult = this.methods._buildConditionFromGroup(
         criteria.rootFilterGroup,
-        parameters.join_alias,
+        parameters.relation_alias,
         sqlParts,
       );
       if (filterResult && filterResult.condition) {
@@ -113,12 +113,12 @@ export class JoinSqlBuilder {
 
     if (parameters.with_select) {
       criteria.select.forEach((f) =>
-        sqlParts.select.push(escapeField(String(f), parameters.join_alias)),
+        sqlParts.select.push(escapeField(String(f), parameters.relation_alias)),
       );
     }
 
     criteria.orders.forEach((order) =>
-      collectedOrders.push({ alias: parameters.join_alias, order }),
+      collectedOrders.push({ alias: parameters.relation_alias, order }),
     );
 
     const translatorInstance = this.methods.getTranslatorInstance();

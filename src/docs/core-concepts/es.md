@@ -75,13 +75,13 @@ Los esquemas son fundamentales para la seguridad de tipos y la validación. Un `
 - `alias`: Un **único alias canónico** para la entidad.
 - `fields`: Un array con los nombres de los campos disponibles.
 - `identifier_field`: Un campo **obligatorio** que identifica unívocamente una entidad.
-- `joins`: Un array que define las posibles relaciones de unión, cada una con su propio `alias` y `target_source_name`.
+- `relations`: Un array que define las posibles relaciones de unión, incluyendo los campos para la unión (`local_field`, `relation_field`, etc.).
 - `metadata`: (Opcional) Un objeto para almacenar información arbitraria, específica del traductor o configuración relevante para toda la entidad que este esquema representa.
 
 **`GetTypedCriteriaSchema`:**
 Es una función helper que se utiliza para definir esquemas. Su principal ventaja es que preserva los tipos literales de los `fields`, `alias` e `identifier_field`, lo que permite un autocompletado y una validación de tipos más robusta al construir los criterios. Esto evita la necesidad de usar aserciones de tipo (como `as const`) en la definición del esquema, al tiempo que asegura que la estructura del esquema (incluyendo la validez de `identifier_field`) sea correcta.
 
-Los esquemas se proporcionan al `CriteriaFactory` al crear instancias de `Criteria`, permitiendo que la librería valide que los campos, alias y uniones utilizados sean correctos.
+Los esquemas se proporcionan al `CriteriaFactory` al crear instancias de `Criteria`, permitiendo que la librería valide que los campos y los alias de relación utilizados sean correctos.
 
 ### Campo Identificador (`identifier_field`)
 
@@ -102,11 +102,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
   ],
 });
@@ -114,7 +116,7 @@ export const UserSchema = GetTypedCriteriaSchema({
 
 ### Metadatos de Esquema y Join
 
-Tanto la raíz de un `CriteriaSchema` como las configuraciones individuales de join dentro del array `joins` pueden tener una propiedad `metadata` opcional.
+Tanto la raíz de un `CriteriaSchema` como las configuraciones individuales de relación dentro del array `relations` pueden tener una propiedad `metadata` opcional.
 
 - **`CriteriaSchema.metadata`**: Para información relevante para toda la entidad.
 - **`SchemaJoins.metadata`**: Para información específica de una relación de join particular.
@@ -145,11 +147,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     custom_handler: 'specialPostHandler',
     versioning_enabled: true,
   },
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
       metadata: {
         typeorm_lazy_load: false,
         custom_on_clause_template: 'user.id = post.userId_custom_fk',

@@ -75,13 +75,13 @@ Schemas are fundamental for type safety and validation. A `CriteriaSchema` defin
 - `alias`: A **single, canonical alias** for the entity.
 - `fields`: An array with the names of the available fields.
 - `identifier_field`: A **mandatory** field that uniquely identifies an entity.
-- `joins`: An array defining possible join relationships, each with its own `alias` and `target_source_name`.
+- `relations`: An array defining possible join relationships, including the fields to join on (`local_field`, `relation_field`, etc.).
 - `metadata`: (Optional) An object to store arbitrary, translator-specific information or configuration relevant to the entire entity this schema represents.
 
 **`GetTypedCriteriaSchema`:**
 This is a helper function used to define schemas. Its main advantage is that it preserves the literal types of the `fields`, `alias`, and `identifier_field`, which allows for more robust autocompletion and type validation when building criteria. This avoids the need to use type assertions (like `as const`) in the schema definition, while also ensuring the schema structure (including `identifier_field` validity) is correct.
 
-Schemas are provided to the `CriteriaFactory` when creating `Criteria` instances, allowing the library to validate that the fields, aliases, and joins used are correct.
+Schemas are provided to the `CriteriaFactory` when creating `Criteria` instances, allowing the library to validate that the fields and relation aliases used are correct.
 
 ### Identifier Field (`identifier_field`)
 
@@ -102,11 +102,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
   ],
 });
@@ -114,7 +116,7 @@ export const UserSchema = GetTypedCriteriaSchema({
 
 ### Schema and Join Metadata
 
-Both the root of a `CriteriaSchema` and the individual join configurations within the `joins` array can have an optional `metadata` property.
+Both the root of a `CriteriaSchema` and the individual relationship configurations within the `relations` array can have an optional `metadata` property.
 
 - **`CriteriaSchema.metadata`**: For information relevant to the entire entity.
 - **`SchemaJoins.metadata`**: For information specific to a particular join relationship.
@@ -145,11 +147,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     custom_handler: 'specialPostHandler',
     versioning_enabled: true,
   },
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
       metadata: {
         typeorm_lazy_load: false,
         custom_on_clause_template: 'user.id = post.userId_custom_fk',

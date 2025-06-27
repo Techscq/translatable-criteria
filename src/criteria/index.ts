@@ -46,7 +46,6 @@ export type { PivotJoin, SimpleJoin } from './types/join-parameter.types.js';
 export type {
   StoredJoinDetails,
   AnyJoinCriteria,
-  JoinCriteriaParameterType,
-  JoinParameterType,
+  JoinCriteriaType,
   SpecificMatchingJoinConfig,
 } from './types/join-utility.types.js';

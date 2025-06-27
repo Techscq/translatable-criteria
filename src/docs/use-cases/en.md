@@ -49,6 +49,8 @@ Our goal is to build a single function that takes this request object and dynami
 For this example, we will use the `PostSchema` and `UserSchema`. For a detailed guide on how to create them, please refer to [the Schema Definition guide.](../guides/schema-definitions/en.md)
 
 ```typescript
+import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+
 export interface EntityBase {
   uuid: string;
   created_at: string;
@@ -64,11 +66,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'users',
   fields: ['uuid', 'email', 'username', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
+      local_field: 'uuid',
+      relation_field: 'user_uuid',
     },
   ],
 });
@@ -99,11 +103,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     'created_at',
     'metadata',
   ],
-  joins: [
+  relations: [
     {
-      alias: 'publisher',
+      relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
+      local_field: 'user_uuid',
+      relation_field: 'uuid',
     },
   ],
 });
@@ -184,10 +190,6 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
         operator: FilterOperator.EQUALS,
         value: request.publisher_uuid,
       }),
-      {
-        join_field: 'uuid',
-        parent_field: 'user_uuid',
-      },
     );
   }
 
@@ -281,10 +283,6 @@ export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
       operator: FilterOperator.EQUALS,
       value: publisherUuid,
     }),
-    {
-      join_field: 'uuid',
-      parent_field: 'user_uuid',
-    },
     false, // withSelect is false
   );
 

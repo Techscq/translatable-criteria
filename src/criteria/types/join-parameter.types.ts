@@ -29,12 +29,12 @@ export type PivotJoin<
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
   parent_alias: ParentSchema['alias'][number];
-  join_alias: ParentSchema['joins'][number]['alias'];
+  relation_alias: ParentSchema['relations'][number]['relation_alias'];
   parent_identifier: FieldOfSchema<ParentSchema>;
   /** The source name (table name) of the pivot table. */
   pivot_source_name: string;
   /** Configuration for the join field on the parent side, referencing the pivot table. */
-  parent_field: {
+  local_field: {
     /** The field name in the pivot table that links to the parent schema. */
     pivot_field: string;
     /**
@@ -45,7 +45,7 @@ export type PivotJoin<
     reference: FieldOfSchema<ParentSchema>;
   };
   /** Configuration for the join field on the joined side, referencing the pivot table. */
-  join_field: {
+  relation_field: {
     /** The field name in the pivot table that links to the joined schema. */
     pivot_field: string;
     /**
@@ -95,20 +95,20 @@ export type SimpleJoin<
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
   parent_alias: ParentSchema['alias'][number];
-  join_alias: ParentSchema['joins'][number]['alias'];
+  relation_alias: ParentSchema['relations'][number]['relation_alias'];
   parent_identifier: FieldOfSchema<ParentSchema>;
   /**
    * The field name in the parent schema used for the join condition.
    * Must be a valid field from `ParentSchema['fields']`.
    * @see FieldOfSchema<ParentSchema>
    */
-  parent_field: FieldOfSchema<ParentSchema>;
+  local_field: FieldOfSchema<ParentSchema>;
   /**
    * The field name in the joined schema used for the join condition.
    * Must be a valid field from `JoinSchema['fields']`.
    * @see FieldOfSchema<JoinSchema>
    */
-  join_field: FieldOfSchema<JoinSchema>;
+  relation_field: FieldOfSchema<JoinSchema>;
   /**
    * Optional metadata associated with the parent schema definition.
    * This can be used by translators to store or access additional,

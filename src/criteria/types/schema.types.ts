@@ -12,25 +12,103 @@ export type JoinRelationType =
   | 'many_to_many';
 
 /**
- * Describes the configuration for a joinable relation within a {@link CriteriaSchema}.
- * @template ValidAlias - A string literal type representing the alias to be used for the joined entity in the query.
+ * Extracts a union type of all valid field names from a given {@link CriteriaSchema}.
+ * @template T - The {@link CriteriaSchema} from which to extract field names.
+ * @example type UserFields = FieldOfSchema<typeof UserSchema>; // "id" | "name" | "email"
  */
-export type SchemaJoins<ValidAlias extends string> = {
-  /** The alias to be used for the joined entity in the final query (e.g., 'p' for posts). */
-  alias: ValidAlias;
+export type FieldOfSchema<T extends CriteriaSchema> =
+  T['fields'] extends ReadonlyArray<string> ? T['fields'][number] : never;
+
+/**
+ * Describes the configuration for a simple joinable relation (one-to-one, one-to-many, many-to-one).
+ * The `relation_field` is not strongly typed against the target schema at compile-time to avoid complex cross-schema dependencies.
+ * It will be validated at runtime when the schema is defined and when the join is processed.
+ * @template TFields - The readonly array of field names from the local schema.
+ * @template ValidAlias - A string literal type representing the alias for this specific relation.
+ */
+export type SchemaSimpleJoin<
+  TFields extends ReadonlyArray<string>,
+  ValidAlias extends string,
+> = {
+  /** The alias for this specific relation, used to identify it in `.join()` calls. */
+  relation_alias: ValidAlias;
   /** The type of relationship this join represents (e.g., 'one_to_many'). */
-  relation_type: JoinRelationType;
+  relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
   /** The `source_name` of the schema that this relation targets. Used for robust validation. */
   target_source_name: string;
   /**
+   * The field name in the local schema used for the join condition.
+   * This field is strongly typed against the local schema's fields.
+   */
+  local_field: TFields[number];
+  /**
+   * The field name in the target schema (the related entity) used for the join condition.
+   * This field is a string and will be validated at runtime.
+   */
+  relation_field: string;
+  /**
    * Optional metadata associated with this specific join configuration.
-   * This allows for storing arbitrary, translator-specific information
-   * or hints directly within the schema definition for a join.
-   * For example, it could hold database-specific join hints or
-   * information about how to handle the join in a particular ORM.
    */
   metadata?: { [key: string]: any };
 };
+
+/**
+ * Describes the configuration for a many-to-many joinable relation (via a pivot table).
+ * The `relation_field.reference` is not strongly typed against the target schema at compile-time to avoid complex cross-schema dependencies.
+ * It will be validated at runtime when the schema is defined and when the join is processed.
+ * @template TFields - The readonly array of field names from the local schema.
+ * @template ValidAlias - A string literal type representing the alias for this specific relation.
+ */
+export type SchemaPivotJoin<
+  TFields extends ReadonlyArray<string>,
+  ValidAlias extends string,
+> = {
+  /** The alias for this specific relation, used to identify it in `.join()` calls. */
+  relation_alias: ValidAlias;
+  /** The type of relationship this join represents (must be 'many_to_many'). */
+  relation_type: 'many_to_many';
+  /** The `source_name` of the schema that this relation targets. Used for robust validation. */
+  target_source_name: string;
+  /** The source name (table name) of the pivot table. */
+  pivot_source_name: string;
+  /** Configuration for the join field on the local side, referencing the pivot table. */
+  local_field: {
+    /** The field name in the pivot table that links to the local schema. */
+    pivot_field: string;
+    /**
+     * The field name in the local schema that the pivot table field references.
+     * This field is strongly typed against the local schema's fields.
+     */
+    reference: TFields[number];
+  };
+  /** Configuration for the join field on the related side, referencing the pivot table. */
+  relation_field: {
+    /** The field name in the pivot table that links to the related schema. */
+    pivot_field: string;
+    /**
+     * The field name in the related schema that the pivot table field references.
+     * This field is a string and will be validated at runtime.
+     */
+    reference: string;
+  };
+  /**
+   * Optional metadata associated with this specific join configuration.
+   */
+  metadata?: { [key: string]: any };
+};
+
+/**
+ * Describes the configuration for a joinable relation within a {@link CriteriaSchema}.
+ * It is a union of simple and pivot join types.
+ * @template TFields - The readonly array of field names from the local schema.
+ * @template ValidAlias - A string literal type representing the alias for this specific relation.
+ */
+export type SchemaJoins<
+  TFields extends ReadonlyArray<string>,
+  ValidAlias extends string,
+> =
+  | SchemaSimpleJoin<TFields, ValidAlias>
+  | SchemaPivotJoin<TFields, ValidAlias>;
 
 /**
  * Represents the schema definition for an entity, used by the Criteria system.
@@ -39,13 +117,15 @@ export type SchemaJoins<ValidAlias extends string> = {
  * @template TFields - A readonly array of string literal types representing the entity's field names.
  * @template TAliase - A string literal type for the entity's canonical alias.
  * @template TSourceName - A string literal type for the entity's source name.
- * @template JoinsAlias - A string literal type representing valid aliases for its joinable relations.
+ * @template Joins - A readonly array of `SchemaJoins` capturing the exact literal types of the relations.
  */
 export type CriteriaSchema<
   TFields extends ReadonlyArray<string> = ReadonlyArray<string>,
   TAliase extends string = string,
   TSourceName extends string = string,
-  JoinsAlias extends string = string,
+  Joins extends ReadonlyArray<SchemaJoins<TFields, string>> = ReadonlyArray<
+    SchemaJoins<TFields, string>
+  >,
 > = {
   /** The source name of the entity (e.g., database table name). */
   source_name: TSourceName;
@@ -54,12 +134,10 @@ export type CriteriaSchema<
   /** An array of field names available for this entity. */
   fields: TFields;
   /** An array of configurations for entities that can be joined from this entity. */
-  joins: ReadonlyArray<SchemaJoins<JoinsAlias>>;
+  relations: Joins;
   /**
    * The name of the field that uniquely identifies an entity of this schema.
    * This field **must** be one of the names listed in the `fields` array.
-   * @example 'uuid'
-   * @example 'id'
    */
   identifier_field: TFields[number];
 
@@ -75,29 +153,88 @@ export type CriteriaSchema<
 
 /**
  * A helper function to infer and preserve the literal types of a schema definition.
- * Use this when defining schemas to get strong typing for fields, aliases, etc.
- * @template TInput - The type of the schema object being passed.
- * @param {TInput} schema - The schema definition object.
- * @returns {TInput} The same schema object, with its literal types preserved.
- * @example
- * export const UserSchema = GetTypedCriteriaSchema({
- *   source_name: 'users_table',
- *   alias: 'u', // Single alias
- *   fields: ['id', 'name', 'email'],
- *   identifier_field: 'id', // Must be one of 'id', 'name', or 'email'
- *   joins: [{ alias: 'posts', target_source_name: 'posts_table', relation_type: 'one_to_many' }]
- * });
+ * Use this when defining schemas to get strong typing for fields, aliases, and relations.
+ * This function also performs runtime validation for the schema structure.
+ * @template TFields - A readonly array of string literal types representing the entity's field names.
+ * @template TAliase - A string literal type for the entity's canonical alias.
+ * @template TSourceName - A string literal type for the entity's source name.
+ * @template Joins - A readonly array of `SchemaJoins` capturing the exact literal types of the relations.
+ * @param schema - The schema definition object.
+ * @returns The same schema object, with its literal types preserved for strong type inference.
  */
-export function GetTypedCriteriaSchema<const TInput extends CriteriaSchema>(
-  schema: TInput,
-): TInput {
+export function GetTypedCriteriaSchema<
+  const TFields extends ReadonlyArray<string>,
+  const TAliase extends string,
+  const TSourceName extends string,
+  const Joins extends ReadonlyArray<SchemaJoins<TFields, string>>,
+>(schema: {
+  source_name: TSourceName;
+  alias: TAliase;
+  fields: TFields;
+  relations: Joins;
+  identifier_field: TFields[number];
+  metadata?: { [key: string]: any };
+}): CriteriaSchema<TFields, TAliase, TSourceName, Joins> {
+  if (!schema.fields.includes(schema.identifier_field)) {
+    throw new Error(
+      `Schema identifier_field '${String(
+        schema.identifier_field,
+      )}' must be one of the schema's defined fields. Schema: ${
+        schema.source_name
+      }`,
+    );
+  }
+
+  const isPivotFieldObject = (
+    field: any,
+  ): field is { pivot_field: string; reference: string } => {
+    return (
+      typeof field === 'object' &&
+      field !== null &&
+      'pivot_field' in field &&
+      'reference' in field
+    );
+  };
+
+  for (const joinConfig of schema.relations) {
+    const localSchemaFields = schema.fields;
+
+    if (joinConfig.relation_type === 'many_to_many') {
+      if (
+        !isPivotFieldObject(joinConfig.local_field) ||
+        !isPivotFieldObject(joinConfig.relation_field)
+      ) {
+        throw new Error(
+          `Invalid JoinOptions for 'many_to_many' join. Expected local_field and relation_field to be objects with 'pivot_field' and 'reference' properties. Alias: '${String(
+            joinConfig.relation_alias,
+          )}'`,
+        );
+      }
+      if (!localSchemaFields.includes(joinConfig.local_field.reference)) {
+        throw new Error(
+          `Local reference field '${joinConfig.local_field.reference}' for pivot join alias '${joinConfig.relation_alias}' is not defined in schema '${schema.source_name}'.`,
+        );
+      }
+    } else {
+      if (
+        typeof joinConfig.local_field !== 'string' ||
+        typeof joinConfig.relation_field !== 'string'
+      ) {
+        throw new Error(
+          `Invalid JoinOptions for '${
+            joinConfig.relation_type
+          }' join. Expected local_field and relation_field to be strings. Alias: '${String(
+            joinConfig.relation_alias,
+          )}'`,
+        );
+      }
+      if (!localSchemaFields.includes(joinConfig.local_field)) {
+        throw new Error(
+          `Local field '${joinConfig.local_field}' for simple join alias '${joinConfig.relation_alias}' is not defined in schema '${schema.source_name}'.`,
+        );
+      }
+    }
+  }
+
   return schema;
 }
-
-/**
- * Extracts a union type of all valid field names from a given {@link CriteriaSchema}.
- * @template T - The {@link CriteriaSchema} from which to extract field names.
- * @example type UserFields = FieldOfSchema<typeof UserSchema>; // "id" | "name" | "email"
- */
-export type FieldOfSchema<T extends CriteriaSchema> =
-  T['fields'] extends ReadonlyArray<string> ? T['fields'][number] : never;

@@ -19,21 +19,28 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'users',
   fields: ['uuid', 'email', 'username', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
+  relations: [
     {
-      alias: 'permissions',
+      relation_alias: 'permissions',
       relation_type: 'many_to_many',
       target_source_name: 'permission',
+      pivot_source_name: 'permission_user',
+      relation_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
+      local_field: { pivot_field: 'user_uuid', reference: 'uuid' },
     },
     {
-      alias: 'addresses',
+      relation_alias: 'addresses',
       relation_type: 'one_to_many',
       target_source_name: 'address',
+      local_field: 'uuid',
+      relation_field: 'user_uuid',
     },
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
+      relation_field: 'user_uuid',
+      local_field: 'uuid',
     },
   ],
 });
@@ -66,16 +73,20 @@ export const PostSchema = GetTypedCriteriaSchema({
     'created_at',
     'metadata',
   ],
-  joins: [
+  relations: [
     {
-      alias: 'comments',
+      relation_alias: 'comments',
       relation_type: 'one_to_many',
       target_source_name: 'post_comment',
+      local_field: 'uuid',
+      relation_field: 'post_uuid',
     },
     {
-      alias: 'publisher',
+      relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
+      local_field: 'user_uuid',
+      relation_field: 'uuid',
     },
   ],
 });
@@ -92,9 +103,21 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
   alias: 'comments',
   fields: ['uuid', 'comment_text', 'user_uuid', 'post_uuid', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
-    { alias: 'post', relation_type: 'many_to_one', target_source_name: 'post' },
-    { alias: 'user', relation_type: 'many_to_one', target_source_name: 'user' },
+  relations: [
+    {
+      relation_alias: 'post',
+      relation_type: 'many_to_one',
+      target_source_name: 'post',
+      local_field: 'post_uuid',
+      relation_field: 'uuid',
+    },
+    {
+      relation_alias: 'user',
+      relation_type: 'many_to_one',
+      target_source_name: 'user',
+      local_field: 'user_uuid',
+      relation_field: 'uuid',
+    },
   ],
 });
 export type PostCommentSchema = typeof PostCommentSchema;
@@ -108,11 +131,14 @@ export const PermissionSchema = GetTypedCriteriaSchema({
   alias: 'permissions',
   fields: ['uuid', 'name', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
+  relations: [
     {
-      alias: 'users',
+      relation_alias: 'users',
       relation_type: 'many_to_many',
       target_source_name: 'user',
+      local_field: { pivot_field: 'permission_uuid', reference: 'uuid' },
+      relation_field: { pivot_field: 'user_uuid', reference: 'uuid' },
+      pivot_source_name: 'permission_user',
     },
   ],
 });
@@ -127,11 +153,13 @@ export const AddressSchema = GetTypedCriteriaSchema({
   alias: 'addresses',
   fields: ['uuid', 'direction', 'user_uuid', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       relation_type: 'many_to_one',
       target_source_name: 'user',
+      local_field: 'user_uuid',
+      relation_field: 'uuid',
     },
   ],
 });
@@ -191,7 +219,7 @@ export const DomainEventsSchema = GetTypedCriteriaSchema({
     'occurred_on',
     'direct_tags',
   ],
-  joins: [],
+  relations: [],
 });
 export type DomainEventsSchema = typeof DomainEventsSchema;
 

@@ -19,7 +19,7 @@ export class CriteriaJoinManager<CSchema extends CriteriaSchema>
   ): void {
     const joinDetails: StoredJoinDetails<CSchema> = {
       parameters: joinParameter,
-      criteria: criteriaToJoin,
+      criteria: criteriaToJoin as AnyJoinCriteria<CriteriaSchema>,
     };
 
     this._joins.set(criteriaToJoin.alias, joinDetails);

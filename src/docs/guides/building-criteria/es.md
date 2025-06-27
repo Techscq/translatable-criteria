@@ -49,16 +49,21 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
     {
-      alias: 'roles',
+      relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
+      pivot_source_name: 'user_roles',
+      local_field: { reference: 'id', pivot_field: 'user_id' },
+      relation_field: { reference: 'id', pivot_field: 'role_id' },
     },
   ],
 });
@@ -76,11 +81,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     'metadata',
   ],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
     },
   ],
 });
@@ -90,7 +97,7 @@ export const RoleSchema = GetTypedCriteriaSchema({
   alias: 'r',
   fields: ['id', 'name'],
   identifier_field: 'id',
-  joins: [],
+  relations: [],
 });
 
 export const ProductSchema = GetTypedCriteriaSchema({
@@ -98,7 +105,7 @@ export const ProductSchema = GetTypedCriteriaSchema({
   alias: 'prod',
   fields: ['id', 'name', 'price', 'createdAt'],
   identifier_field: 'id',
-  joins: [],
+  relations: [],
 });
 ```
 
@@ -240,44 +247,40 @@ Para una lista detallada de todos los valores de `FilterOperator` disponibles, s
 
 ## 3. Añadiendo Uniones (Joins)
 
-Las uniones se añaden con el método `join()`. La firma de este método se ha actualizado para mayor claridad y seguridad de tipos:
+Con el nuevo enfoque declarativo, añadir uniones es más simple y robusto que nunca. La lógica de cómo se conectan las entidades ahora se define **una sola vez** en la propiedad `relations` del esquema, eliminando la necesidad de parámetros manuales en cada llamada.
 
-`criteria.join(joinAlias, criteriaToJoin, joinParameters)`
+La firma del método `join()` ahora es:
 
-- **`joinAlias` (string):** Es el **alias de la relación** tal como se define en el array `joins` dentro del _esquema padre_. Actúa como un identificador único para esa configuración de relación específica. La librería utiliza este `joinAlias` junto con el `source_name` de `criteriaToJoin` (el esquema de la entidad que se está uniendo) para encontrar la definición exacta de la relación en el esquema padre.
+`criteria.join(relationAlias, criteriaToJoin, withSelect?)`
+
+- **`relationAlias` (string):** Es el **alias de la relación** tal como se define en el array `relations` dentro del esquema padre (ej. `'posts'`, `'user'`). Actúa como un identificador único para esa relación específica. La librería utiliza este alias para buscar automáticamente el `local_field`, `relation_field` y otros detalles necesarios del esquema.
 - **`criteriaToJoin` (JoinCriteria):** Una instancia de un `Criteria` de join (`InnerJoinCriteria`, `LeftJoinCriteria`, etc.), creada con `CriteriaFactory`.
-- **`joinParameters` (object):** Un objeto que define cómo se relacionan las entidades (`parent_field`, `join_field`, etc.).
+- **`withSelect` (booleano opcional, por defecto `true`):** Si es `false`, la unión solo se usará para filtrar, y sus campos no se incluirán en la sentencia `SELECT` final.
 
 ### Uniones Simples (one-to-many, many-to-one, one-to-one)
 
-Para estas relaciones, los parámetros de join son `parent_field` y `join_field`.
+Para unir entidades relacionadas, simplemente proporciona el `relationAlias`.
 
 ```typescript
 import { CriteriaFactory } from '@nulledexp/translatable-criteria';
 import { UserSchema, PostSchema } from './path/to/your/schemas';
 
+// Find posts and include their author's data
 const postsWithAuthorCriteria = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   CriteriaFactory.GetInnerJoinCriteria(UserSchema),
-  {
-    parent_field: 'userId',
-    join_field: 'id',
-  },
 );
 
+// Find users and include their posts
 const usersWithPostsCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
   'posts',
   CriteriaFactory.GetLeftJoinCriteria(PostSchema),
-  {
-    parent_field: 'id',
-    join_field: 'userId',
-  },
 );
 ```
 
 ### Uniones con Tabla Pivote (many-to-many)
 
-Para relaciones `many_to_many`, los parámetros de join requieren un objeto más detallado que incluye `pivot_source_name` y objetos para `parent_field` y `join_field`.
+El proceso es idéntico para las relaciones `many-to-many`. La librería infiere automáticamente la tabla pivote y los campos a partir de la definición del esquema.
 
 ```typescript
 import { CriteriaFactory } from '@nulledexp/translatable-criteria';
@@ -286,17 +289,12 @@ import { UserSchema, RoleSchema } from './path/to/your/schemas';
 const usersWithRolesCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
   'roles',
   CriteriaFactory.GetInnerJoinCriteria(RoleSchema),
-  {
-    pivot_source_name: 'user_roles',
-    parent_field: { pivot_field: 'user_id', reference: 'id' },
-    join_field: { pivot_field: 'role_id', reference: 'id' },
-  },
 );
 ```
 
 ### Filtrando en Entidades Unidas
 
-Puedes aplicar filtros directamente a la instancia del `JoinCriteria` antes de pasarla al método `.join()`.
+Puedes aplicar filtros directamente a la instancia del `JoinCriteria` antes de pasarla al método `.join()`. Estos filtros típicamente se traducen a condiciones en la cláusula `ON` del JOIN.
 
 ```typescript
 import {
@@ -316,23 +314,14 @@ const activeUserJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 const postsFromActiveUsers = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   activeUserJoinCriteria,
-  {
-    parent_field: 'userId',
-    join_field: 'id',
-  },
 );
 ```
-
-Estos filtros en el `JoinCriteria` típicamente se traducen a condiciones en la cláusula `ON` del JOIN.
 
 ### Filtrado Eficiente con `withSelect`
 
 Un caso de uso común para las uniones es filtrar los resultados de la entidad principal basándose en las propiedades de una entidad relacionada, sin necesidad de recuperar realmente los datos de la entidad unida.
 
-El método `join()` ahora acepta un último parámetro booleano opcional, `withSelect` (que por defecto es `true`).
-
-- **`withSelect: true` (por defecto):** El join se comporta como de costumbre, y los campos de la entidad unida se incluyen en la sentencia `SELECT` final.
-- **`withSelect: false`:** El join se realiza únicamente con fines de filtrado. Los campos de la entidad unida **no** se incluyen en la sentencia `SELECT` final. Esto resulta en una consulta más eficiente y un objeto de resultado más limpio y plano.
+Para lograr esto, establece el último parámetro opcional `withSelect` en `false`.
 
 ```typescript
 import {
@@ -341,19 +330,15 @@ import {
 } from '@nulledexp/translatable-criteria';
 import { PostSchema, UserSchema } from './path/to/your/schemas';
 
-// Encontrar publicaciones de un editor específico, pero solo seleccionar datos de la publicación.
+// Find posts by a specific publisher, but only select post data.
 const postsByPublisher = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
-    field: 'uuid',
+    field: 'uuid', // This field is on the UserSchema
     operator: FilterOperator.EQUALS,
     value: 'some-publisher-uuid',
   }),
-  {
-    join_field: 'uuid',
-    parent_field: 'user_uuid',
-  },
-  false, // withSelect es false
+  false, // withSelect is false
 );
 ```
 
@@ -377,7 +362,7 @@ import {
   CriteriaFactory,
   OrderDirection,
 } from '@nulledexp/translatable-criteria';
-import { ProductSchema } => './path/to/your/schemas';
+import { ProductSchema } from './path/to/your/schemas';
 
 // Ordenar productos por precio, con los productos sin precio (NULL) apareciendo primero.
 const postOrderCriteria = CriteriaFactory.GetCriteria(ProductSchema)
@@ -404,7 +389,6 @@ const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 const postsOrderedByAuthor = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   userJoinCriteria,
-  { parent_field: 'userId', join_field: 'id' },
 );
 
 postsOrderedByAuthor.orderBy('createdAt', OrderDirection.DESC);
@@ -503,7 +487,7 @@ const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 
 const postsWithAuthorUsernameOnly = CriteriaFactory.GetCriteria(
   PostSchema,
-).join('user', userJoinCriteria, { parent_field: 'userId', join_field: 'id' });
+).join('user', userJoinCriteria);
 ```
 
 ### Volver a Seleccionar Todos los Campos (`resetSelect`)
@@ -536,7 +520,7 @@ import { UserSchema, PostSchema, RoleSchema } from './path/to/your/schemas';
 let lastPostCreatedAt: string | undefined = undefined;
 let lastPostUuid: string | undefined = undefined;
 
-// 1. Define el criteria para el join más interno (Roles)
+// 1. Define the criteria for the innermost join (Roles)
 const roleJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(RoleSchema).where(
   {
     field: 'name',
@@ -545,16 +529,12 @@ const roleJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(RoleSchema).where(
   },
 );
 
-// 2. Define el criteria para el join intermedio (Users) y añádele el join anidado
+// 2. Define the criteria for the intermediate join (Users) and add the nested join to it
 const userWithRolesJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
   UserSchema,
-).join('roles', roleJoinCriteria, {
-  pivot_source_name: 'user_roles',
-  parent_field: { pivot_field: 'user_id', reference: 'id' },
-  join_field: { pivot_field: 'role_id', reference: 'id' },
-});
+).join('roles', roleJoinCriteria);
 
-// 3. Construye el criteria principal (Posts)
+// 3. Build the main criteria (Posts)
 const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
   .setSelect(['id', 'title', 'createdAt'])
   .where({
@@ -562,11 +542,8 @@ const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
     operator: FilterOperator.CONTAINS,
     value: 'TypeORM',
   })
-  // 4. Añade el join de usuario pre-configurado al criteria principal
-  .join('user', userWithRolesJoinCriteria, {
-    parent_field: 'userId',
-    join_field: 'id',
-  })
+  // 4. Add the pre-configured user join to the main criteria
+  .join('user', userWithRolesJoinCriteria)
   .orderBy('createdAt', OrderDirection.DESC)
   .orderBy('id', OrderDirection.DESC);
 

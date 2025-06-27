@@ -49,16 +49,21 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
     {
-      alias: 'roles',
+      relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
+      pivot_source_name: 'user_roles',
+      local_field: { reference: 'id', pivot_field: 'user_id' },
+      relation_field: { reference: 'id', pivot_field: 'role_id' },
     },
   ],
 });
@@ -76,11 +81,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     'metadata',
   ],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
     },
   ],
 });
@@ -90,7 +97,7 @@ export const RoleSchema = GetTypedCriteriaSchema({
   alias: 'r',
   fields: ['id', 'name'],
   identifier_field: 'id',
-  joins: [],
+  relations: [],
 });
 
 export const ProductSchema = GetTypedCriteriaSchema({
@@ -98,7 +105,7 @@ export const ProductSchema = GetTypedCriteriaSchema({
   alias: 'prod',
   fields: ['id', 'name', 'price', 'createdAt'],
   identifier_field: 'id',
-  joins: [],
+  relations: [],
 });
 ```
 
@@ -240,44 +247,40 @@ For a detailed list of all available `FilterOperator` values, their purpose, the
 
 ## 3. Adding Joins
 
-Joins are added with the `join()` method. This method's signature has been updated for clarity and type safety:
+With the new declarative approach, adding joins is simpler and more robust than ever. The logic of how entities connect is now defined **once** in the schema's `relations` property, eliminating the need for manual parameters in each call.
 
-`criteria.join(joinAlias, criteriaToJoin, joinParameters)`
+The `join()` method signature is now:
 
-- **`joinAlias` (string):** This is the **alias of the relationship** as defined in the `joins` array within the _parent schema_. It acts as a unique identifier for that specific relationship configuration. The library uses this `joinAlias` along with the `source_name` of the `criteriaToJoin` (the schema of the entity being joined) to find the exact relationship definition in the parent schema.
+`criteria.join(relationAlias, criteriaToJoin, withSelect?)`
+
+- **`relationAlias` (string):** This is the **alias of the relationship** as defined in the `relations` array within the parent schema (e.g., `'posts'`, `'user'`). It acts as a unique identifier for that specific relationship. The library uses this alias to automatically look up the `local_field`, `relation_field`, and other necessary details from the schema.
 - **`criteriaToJoin` (JoinCriteria):** An instance of a join `Criteria` (`InnerJoinCriteria`, `LeftJoinCriteria`, etc.), created with `CriteriaFactory`.
-- **`joinParameters` (object):** An object that defines how the entities are related (`parent_field`, `join_field`, etc.).
+- **`withSelect` (optional boolean, defaults to `true`):** If `false`, the join will only be used for filtering, and its fields will not be included in the final `SELECT` statement.
 
 ### Simple Joins (one-to-many, many-to-one, one-to-one)
 
-For these relationships, the join parameters are `parent_field` and `join_field`.
+To join related entities, simply provide the `relationAlias`.
 
 ```typescript
 import { CriteriaFactory } from '@nulledexp/translatable-criteria';
 import { UserSchema, PostSchema } from './path/to/your/schemas';
 
+// Find posts and include their author's data
 const postsWithAuthorCriteria = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   CriteriaFactory.GetInnerJoinCriteria(UserSchema),
-  {
-    parent_field: 'userId',
-    join_field: 'id',
-  },
 );
 
+// Find users and include their posts
 const usersWithPostsCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
   'posts',
   CriteriaFactory.GetLeftJoinCriteria(PostSchema),
-  {
-    parent_field: 'id',
-    join_field: 'userId',
-  },
 );
 ```
 
 ### Joins with Pivot Table (many-to-many)
 
-For `many_to_many` relationships, the join parameters require a more detailed object that includes `pivot_source_name` and objects for `parent_field` and `join_field`.
+The process is identical for `many-to-many` relationships. The library automatically infers the pivot table and fields from the schema definition.
 
 ```typescript
 import { CriteriaFactory } from '@nulledexp/translatable-criteria';
@@ -286,17 +289,12 @@ import { UserSchema, RoleSchema } from './path/to/your/schemas';
 const usersWithRolesCriteria = CriteriaFactory.GetCriteria(UserSchema).join(
   'roles',
   CriteriaFactory.GetInnerJoinCriteria(RoleSchema),
-  {
-    pivot_source_name: 'user_roles',
-    parent_field: { pivot_field: 'user_id', reference: 'id' },
-    join_field: { pivot_field: 'role_id', reference: 'id' },
-  },
 );
 ```
 
 ### Filtering on Joined Entities
 
-You can apply filters directly to the `JoinCriteria` instance before passing it to the `.join()` method.
+You can apply filters directly to the `JoinCriteria` instance before passing it to the `.join()` method. These filters typically translate to conditions in the `ON` clause of the JOIN.
 
 ```typescript
 import {
@@ -316,23 +314,14 @@ const activeUserJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 const postsFromActiveUsers = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   activeUserJoinCriteria,
-  {
-    parent_field: 'userId',
-    join_field: 'id',
-  },
 );
 ```
-
-These filters on the `JoinCriteria` typically translate to conditions in the `ON` clause of the JOIN.
 
 ### Efficient Filtering with `withSelect`
 
 A common use case for joins is to filter the results of the main entity based on the properties of a related entity, without needing to actually retrieve the data from the joined entity.
 
-The `join()` method now accepts a final optional boolean parameter, `withSelect` (which defaults to `true`).
-
-- **`withSelect: true` (default):** The join behaves as usual, and the fields of the joined entity are included in the final `SELECT` statement.
-- **`withSelect: false`:** The join is performed only for filtering purposes. The fields of the joined entity are **not** included in the final `SELECT` statement. This results in a more efficient query and a cleaner, flatter result object.
+To achieve this, set the final optional parameter `withSelect` to `false`.
 
 ```typescript
 import {
@@ -345,14 +334,10 @@ import { PostSchema, UserSchema } from './path/to/your/schemas';
 const postsByPublisher = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
-    field: 'uuid',
+    field: 'uuid', // This field is on the UserSchema
     operator: FilterOperator.EQUALS,
     value: 'some-publisher-uuid',
   }),
-  {
-    join_field: 'uuid',
-    parent_field: 'user_uuid',
-  },
   false, // withSelect is false
 );
 ```
@@ -404,7 +389,6 @@ const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 const postsOrderedByAuthor = CriteriaFactory.GetCriteria(PostSchema).join(
   'user',
   userJoinCriteria,
-  { parent_field: 'userId', join_field: 'id' },
 );
 
 postsOrderedByAuthor.orderBy('createdAt', OrderDirection.DESC);
@@ -503,7 +487,7 @@ const userJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
 
 const postsWithAuthorUsernameOnly = CriteriaFactory.GetCriteria(
   PostSchema,
-).join('user', userJoinCriteria, { parent_field: 'userId', join_field: 'id' });
+).join('user', userJoinCriteria);
 ```
 
 ### Reverting to Select All Fields (`resetSelect`)
@@ -548,11 +532,7 @@ const roleJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(RoleSchema).where(
 // 2. Define the criteria for the intermediate join (Users) and add the nested join to it
 const userWithRolesJoinCriteria = CriteriaFactory.GetInnerJoinCriteria(
   UserSchema,
-).join('roles', roleJoinCriteria, {
-  pivot_source_name: 'user_roles',
-  parent_field: { pivot_field: 'user_id', reference: 'id' },
-  join_field: { pivot_field: 'role_id', reference: 'id' },
-});
+).join('roles', roleJoinCriteria);
 
 // 3. Build the main criteria (Posts)
 const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
@@ -563,10 +543,7 @@ const complexPostCriteria = CriteriaFactory.GetCriteria(PostSchema)
     value: 'TypeORM',
   })
   // 4. Add the pre-configured user join to the main criteria
-  .join('user', userWithRolesJoinCriteria, {
-    parent_field: 'userId',
-    join_field: 'id',
-  })
+  .join('user', userWithRolesJoinCriteria)
   .orderBy('createdAt', OrderDirection.DESC)
   .orderBy('id', OrderDirection.DESC);
 

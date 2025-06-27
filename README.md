@@ -43,11 +43,11 @@ The library is built upon a few fundamental concepts. For detailed explanations,
 
 ## Usage Example (Core Library)
 
-This package provides the tools to define your query criteria.
+This package provides the tools to define your query criteria. The core philosophy is to define relationship logic **once** in the schema, and then simply reference it when building criteria.
 
 ### 1. Define Schemas
 
-First, define your entity schemas using `GetTypedCriteriaSchema` to enable type-safety.
+First, define your entity schemas using `GetTypedCriteriaSchema`. This is where you declare how entities are related by defining `local_field`, `relation_field`, etc.
 
 ```typescript
 import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
@@ -57,11 +57,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
   ],
 });
@@ -71,19 +73,21 @@ export const PostSchema = GetTypedCriteriaSchema({
   alias: 'p',
   fields: ['id', 'title', 'content', 'userId', 'createdAt'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
     },
   ],
 });
 ```
 
-### 2. Create Criteria
+### 2. Create a Simple Criteria
 
-Use `CriteriaFactory` to create a `Criteria` object from your schema.
+Use `CriteriaFactory` to create a `Criteria` object and apply filters or ordering.
 
 ```typescript
 import {
@@ -108,6 +112,34 @@ userCriteria.orderBy('createdAt', OrderDirection.DESC);
 
 // The 'userCriteria' object is now ready to be passed to a translator.
 ```
+
+### 3. Create Criteria with a Join
+
+To add a join, simply call the `.join()` method with the `relation_alias` you defined in the schema. The library automatically uses the configuration you provided, eliminating the need for manual join parameters.
+
+```typescript
+import {
+  CriteriaFactory,
+  FilterOperator,
+} from '@nulledexp/translatable-criteria';
+import { PostSchema, UserSchema } from './path/to/your/schemas'; // Adjust path
+
+// Find posts from active users
+const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
+
+const activeUserJoin = CriteriaFactory.GetInnerJoinCriteria(UserSchema).where({
+  field: 'isActive',
+  operator: FilterOperator.EQUALS,
+  value: true,
+});
+
+// The join is now declarative. Just provide the relation alias.
+postCriteria.join('user', activeUserJoin);
+
+// The 'postCriteria' object is now ready to be passed to a translator.
+```
+
+---
 
 ## Available Translators
 

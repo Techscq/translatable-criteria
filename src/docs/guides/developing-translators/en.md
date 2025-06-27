@@ -171,21 +171,21 @@ Properties available when visiting filters:
 - **`filterGroup.items`, `filterGroup.logicalOperator`**:
   - **Explanation**: `items` is an array that can contain other `Filter` objects or nested `FilterGroup` objects. `logicalOperator` specifies how to combine these items (`AND` or `OR`).
 
-### Join Parameters (`SimpleJoin` and `PivotJoin`)
+### Join Parameters (SimpleJoin and PivotJoin)
 
 Properties available when visiting a join:
 
-- **`parent_alias`, `join_alias`**:
+- **`parent_alias`, `relation_alias`**:
 
   - **Explanation**: The aliases for the parent and joined entities, essential for qualifying field names in the `ON` and `SELECT` clauses.
 
-- **`parent_field`, `join_field`**:
+- **`local_field`, `relation_field`**:
 
   - **Explanation**: For a `SimpleJoin` (one-to-one, many-to-one), these are the names of the columns to be used in the `ON` condition (e.g., `ON parent.id = child.parent_id`). For a `PivotJoin`, these properties are objects containing the `pivot_field` (the field in the pivot table) and the `reference` field (the field in the source/target entity that the pivot field links to).
 
 - **`parent_identifier`**:
 
-  - **Explanation**: The name of the field that uniquely identifies the parent entity (e.g., its primary key). This is distinct from `parent_field`, which is the field used in the join condition. `parent_identifier` is useful for complex join strategies or for constructing specific `ON` clauses.
+  - **Explanation**: The name of the field that uniquely identifies the parent entity (e.g., its primary key). This is distinct from `local_field`, which is the field used in the join condition. `parent_identifier` is useful for complex join strategies or for constructing specific `ON` clauses.
 
 - **`pivot_source_name`**:
 
@@ -225,57 +225,58 @@ public abstract visitRoot<RootCSchema extends CriteriaSchema>(
 ): void;
 ```
 
-### `visitInnerJoin`, `visitLeftJoin`, `visitOuterJoin`
+### visitInnerJoin, visitLeftJoin, visitOuterJoin
 
 - **Purpose**: To build the specific `JOIN` clause and its `ON` condition.
 - **Approach**: It's highly recommended to delegate to a common private helper or a `JoinBuilder`.
 
-  1. Use `parameters.join_alias` and the join's `criteria.sourceName` to build the `JOIN ... ON ...` statement.
-  2. For `SimpleJoin`, the `ON` condition uses `parameters.parent_field` and `parameters.join_field`.
+  1. Use `parameters.relation_alias` and the join's `criteria.sourceName` to build the `JOIN ... ON ...` statement.
+  2. For `SimpleJoin`, the `ON` condition uses `parameters.local_field` and `parameters.relation_field`.
   3. For `PivotJoin`, this will likely involve two `JOIN` statements.
   4. Process the join's `select` and collect its `orders`.
   5. Recursively visit any nested joins.
 
 - **Key Considerations**:
-  - **Filters on the Join**: If the `JoinCriteria` has its own `rootFilterGroup`, you must visit it and append the resulting conditions to the join's `ON` clause, typically with an `AND`. This enables filters like `LEFT JOIN posts p ON u.id = p.user_id AND p.published = true`.
+  - **Filters on the Join**: If the `JoinCriteria` has its own `rootFilterGroup`, you must visit it and append the resulting conditions to the join's `ON` clause, typically with an `AND`. This enables filters like `LEFT JOIN posts p ON u.id = p.userId AND p.published = true`.
   - **Recursion**: The design allows for chained joins (`criteria.join(...).join(...)`). Your logic must handle this by calling `accept` on the `subJoinDetail.criteria` found within the current join's `criteria`.
   - **Selection Control**: Check the `parameters.with_select` boolean. If it's `true`, add the joined entity's fields to the main `SELECT` clause. If it's `false`, only perform the join for filtering and do not add its fields to the selection.
 
 The signatures for the `visitInnerJoin`, `visitLeftJoin`, and `visitOuterJoin` methods are:
 
 ```typescript
-public abstract visitInnerJoin<
-  ParentCSchema extends CriteriaSchema,
-  JoinCSchema extends CriteriaSchema,
->(
-  criteria: InnerJoinCriteria<JoinCSchema>,
-  parameters:
-    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
-  context: TranslationContext,
-): void;
+    public abstract visitInnerJoin<
+      ParentCSchema extends CriteriaSchema,
+      JoinCSchema extends CriteriaSchema,
+    >(
+      criteria: InnerJoinCriteria<JoinCSchema>,
+      parameters:
+        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      context: TranslationContext,
+    ): void;
 
-public abstract visitLeftJoin<
-  ParentCSchema extends CriteriaSchema,
-  JoinCSchema extends CriteriaSchema,
->(
-  criteria: LeftJoinCriteria<JoinCSchema>,
-  parameters:
-    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
-  context: TranslationContext,
-): void;
+    public abstract visitLeftJoin<
+      ParentCSchema extends CriteriaSchema,
+      JoinCSchema extends CriteriaSchema,
+    >(
+      criteria: LeftJoinCriteria<JoinCSchema>,
+      parameters:
+        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      context: TranslationContext,
+    ): void;
 
-public abstract visitOuterJoin<
-  ParentCSchema extends CriteriaSchema,
-  JoinCSchema extends CriteriaSchema,
->(
-  criteria: OuterJoinCriteria<JoinCSchema>,
-  parameters:
-    | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-    | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
-  context: TranslationContext,
-): void;
+    public abstract visitOuterJoin<
+      ParentCSchema extends CriteriaSchema,
+      JoinCSchema extends CriteriaSchema,
+    >(
+      criteria: OuterJoinCriteria<JoinCSchema>,
+      parameters:
+        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
+        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      context: TranslationContext,
+    ): void;
+
 ```
 
 ### `visitFilter`

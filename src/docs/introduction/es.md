@@ -59,7 +59,7 @@ Esta librería es ideal para desarrolladores y equipos que:
 
 - **[Seguridad de Tipos Mejorada](../guides/schema-definitions/es.md):** Construye consultas con una interfaz fluida y fuertemente tipada, incluyendo validación de esquemas robusta y valores de filtro tipados.
 - **[Filtrado Potente](../guides/building-criteria/es.md#2-aplicando-filtros):** Define lógica de filtrado intrincada con una amplia gama de operadores (incluyendo para JSON, arrays, sets, rangos y regex) y agrupación lógica.
-- **[Sistema de Uniones (Joins) Flexible](../guides/building-criteria/es.md#3-añadiendo-uniones-joins):** Soporte para varios tipos de join y configuraciones de tablas pivote, con contexto mejorado para los traductores.
+- **[Sistema de Uniones (Joins) Declarativo](../guides/building-criteria/es.md#3-añadiendo-uniones-joins):** Define la lógica de las relaciones una sola vez en el esquema y reutilízala con llamadas a join simples y seguras.
 - **[Paginación Avanzada](../guides/building-criteria/es.md#5-paginación):** Soporte para paginación basada en offset y en cursor.
 - **[Arquitectura Extensible](../guides/developing-translators/es.md):** Crea tus propios traductores para cualquier fuente de datos, ayudado por información de join más completa.
 

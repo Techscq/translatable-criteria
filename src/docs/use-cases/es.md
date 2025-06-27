@@ -49,6 +49,8 @@ Nuestro objetivo es construir una única función que tome este objeto de petici
 Para este ejemplo, utilizaremos los esquemas `PostSchema` y `UserSchema`. Para una guía detallada sobre cómo crearlos, por favor consulta [la guía de Definición de Esquemas.](../guides/schema-definitions/es.md)
 
 ```typescript
+import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+
 export interface EntityBase {
   uuid: string;
   created_at: string;
@@ -64,11 +66,13 @@ export const UserSchema = GetTypedCriteriaSchema({
   alias: 'users',
   fields: ['uuid', 'email', 'username', 'created_at'],
   identifier_field: 'uuid',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
+      local_field: 'uuid',
+      relation_field: 'user_uuid',
     },
   ],
 });
@@ -99,11 +103,13 @@ export const PostSchema = GetTypedCriteriaSchema({
     'created_at',
     'metadata',
   ],
-  joins: [
+  relations: [
     {
-      alias: 'publisher',
+      relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
+      local_field: 'user_uuid',
+      relation_field: 'uuid',
     },
   ],
 });
@@ -184,10 +190,6 @@ function buildPostPaginatedCriteria(request: getPostByCriteriaRequest) {
         operator: FilterOperator.EQUALS,
         value: request.publisher_uuid,
       }),
-      {
-        join_field: 'uuid',
-        parent_field: 'user_uuid',
-      },
     );
   }
 
@@ -266,10 +268,10 @@ Vamos a crear una nueva función que encuentre publicaciones de un editor espec�
 
 ```typescript
 /**
- * Construye un criteria para encontrar publicaciones de un editor específico,
- * pero solo con fines de filtrado, sin seleccionar los datos del editor.
- * @param publisherUuid El UUID del editor por el cual filtrar.
- * @returns Un objeto Criteria configurado para obtener publicaciones.
+ * Builds a criteria to find posts by a specific publisher's UUID,
+ * but only for filtering purposes, without selecting the publisher's data.
+ * @param publisherUuid The UUID of the publisher to filter by.
+ * @returns A Criteria object configured for fetching posts.
  */
 export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
   const postCriteria = CriteriaFactory.GetCriteria(PostSchema);
@@ -281,11 +283,7 @@ export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
       operator: FilterOperator.EQUALS,
       value: publisherUuid,
     }),
-    {
-      join_field: 'uuid',
-      parent_field: 'user_uuid',
-    },
-    false, // withSelect es false
+    false, // withSelect is false
   );
 
   postCriteria.orderBy('created_at', 'DESC');

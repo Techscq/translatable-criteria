@@ -12,16 +12,21 @@ const UserSchema = GetTypedCriteriaSchema({
   alias: 'u',
   fields: ['id', 'username', 'email', 'age', 'isActive', 'createdAt', 'tags'],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'posts',
+      relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
+      local_field: 'id',
+      relation_field: 'userId',
     },
     {
-      alias: 'roles',
+      relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
+      pivot_source_name: 'user_roles',
+      local_field: { reference: 'id', pivot_field: 'user_id' },
+      relation_field: { reference: 'id', pivot_field: 'role_id' },
     },
   ],
 });
@@ -39,11 +44,13 @@ const PostSchema = GetTypedCriteriaSchema({
     'createdAt',
   ],
   identifier_field: 'id',
-  joins: [
+  relations: [
     {
-      alias: 'user',
+      relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
+      local_field: 'userId',
+      relation_field: 'id',
     },
   ],
 });
@@ -53,7 +60,7 @@ const RoleSchema = GetTypedCriteriaSchema({
   alias: 'r',
   fields: ['id', 'name'],
   identifier_field: 'id',
-  joins: [],
+  relations: [],
 });
 
 describe('PseudoSqlTranslator (API v3 Tests)', () => {
@@ -135,10 +142,7 @@ describe('PseudoSqlTranslator (API v3 Tests)', () => {
         operator: FilterOperator.EQUALS,
         value: true,
       })
-      .join('posts', joinCriteria, {
-        parent_field: 'id',
-        join_field: 'userId',
-      });
+      .join('posts', joinCriteria);
 
     const { query, params } = translator.translate(
       criteria,
@@ -261,11 +265,7 @@ describe('PseudoSqlTranslator (API v3 Tests)', () => {
     );
 
     const criteria = CriteriaFactory.GetCriteria(UserSchema)
-      .join('roles', joinCriteria, {
-        parent_field: { reference: 'id', pivot_field: 'user_id' },
-        join_field: { reference: 'id', pivot_field: 'role_id' },
-        pivot_source_name: 'user_roles',
-      })
+      .join('roles', joinCriteria)
       .setSelect(['username']);
 
     const { query, params } = translator.translate(

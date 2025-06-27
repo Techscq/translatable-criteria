@@ -6,9 +6,7 @@ import type { Order, OrderDirection } from '../order/order.js';
 import { FilterOperator } from './operator.types.js';
 import type {
   StoredJoinDetails,
-  JoinCriteriaParameterType,
-  JoinParameterType,
-  SpecificMatchingJoinConfig,
+  JoinCriteriaType,
 } from './join-utility.types.js';
 import type { FilterPrimitive } from '../filter/types/filter-primitive.types.js';
 
@@ -175,8 +173,9 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
 
   /**
    * Initializes the filter criteria with a single filter primitive.
-   * This replaces any existing filters.
-   * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to apply.
+   * This replaces any existing filters in the root filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to apply.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    */
@@ -186,7 +185,9 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
 
   /**
    * Adds a filter primitive to the current filter group using an AND logical operator.
-   * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to add.
+   * Requires `where()` to have been called first to initialize the filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to add.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    * @throws {Error} If `where()` has not been called first.
@@ -196,8 +197,10 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
   ): this;
 
   /**
-   * Adds a filter primitive, creating a new OR group with the existing filters.
-   * @param {FilterPrimitive<FieldOfSchema<TSchema>>} filterPrimitive - The filter to add.
+   * Adds a filter primitive to the current filter group using an OR logical operator.
+   * Requires `where()` to have been called first to initialize the filter group.
+   * @template Operator - The specific filter operator type.
+   * @param {FilterPrimitive<FieldOfSchema<TSchema>, Operator>} filterPrimitive - The filter to add.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field in filterPrimitive is not defined in the schema.
    * @throws {Error} If `where()` has not been called first.
@@ -207,37 +210,29 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
   ): this;
 
   /**
-   * Adds a join to another criteria.
+   * Adds a join to another criteria. This method is fully type-safe.
+   * The `joinAlias` argument provides autocompletion for all valid relation aliases defined in the schema.
+   * The `criteriaToJoin` argument is then validated to ensure its `source_name` matches the one
+   * configured for the chosen `joinAlias`, providing clear, compile-time error messages if they mismatch.
+   *
    * @template TJoinSchema - The schema of the entity to join.
-   * @template TJoinedCriteriaSourceName - The `source_name` of the entity being joined.
-   * @template TMatchingJoinConfig - The specific join configuration from the parent schema that matches the provided `joinAlias` and `criteriaToJoin.sourceName`.
-   * @param {TMatchingJoinConfig['alias']} joinAlias - The specific alias defined in the parent schema's `joins` array for this relation.
-   * @param {JoinCriteriaParameterType<TSchema, TJoinSchema, TJoinedCriteriaSourceName, TMatchingJoinConfig>} criteriaToJoin -
-   *   The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`, `LeftJoinCriteria`).
-   * @param {JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>} joinParameter -
-   *   The parameters defining how the join should be performed (e.g., fields for simple join, pivot table details for many-to-many).
+   * @template SpecificRelationAlias - The literal type of the relation alias being used for the join.
+   * @param {SpecificRelationAlias} joinAlias - The specific alias defined in the parent schema's `relations` array for this relation.
+   * @param {JoinCriteriaType<TSchema, TJoinSchema, SpecificRelationAlias>} criteriaToJoin - The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`).
+   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final selection. If false, the join will only be used for filtering and its fields will not be selected.
    * @returns {this} The current criteria instance for chaining.
-   * @throws {Error} If the join configuration for the given `joinAlias` and `criteriaToJoin.sourceName` is not found in the parent schema.
-   * @throws {Error} If `parent_field` in `joinParameter` is not defined in the parent schema.
-   * @throws {Error} If `joinParameter` is invalid for the `relation_type` defined in the schema (e.g., using simple join input for many-to-many).
    */
   join<
-    TJoinSchema extends CriteriaSchema,
-    TJoinedCriteriaSourceName extends TJoinSchema['source_name'],
-    TMatchingJoinConfig extends SpecificMatchingJoinConfig<
-      TSchema,
-      TJoinedCriteriaSourceName
-    >,
+    const TJoinSchema extends CriteriaSchema,
+    const SpecificRelationAlias extends
+      TSchema['relations'][number]['relation_alias'],
   >(
-    joinAlias: TMatchingJoinConfig['alias'] extends never
-      ? `Error: The joined parent source name '${TJoinedCriteriaSourceName}' is not configured for join in '${TSchema['source_name']}'.`
-      : TMatchingJoinConfig['alias'],
-    criteriaToJoin: JoinCriteriaParameterType<
+    joinAlias: SpecificRelationAlias,
+    criteriaToJoin: JoinCriteriaType<
       TSchema,
       TJoinSchema,
-      TJoinedCriteriaSourceName,
-      TMatchingJoinConfig
+      SpecificRelationAlias
     >,
-    joinParameter: JoinParameterType<TSchema, TJoinSchema, TMatchingJoinConfig>,
+    withSelect: boolean,
   ): this;
 }

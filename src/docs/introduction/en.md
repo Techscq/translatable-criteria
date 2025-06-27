@@ -58,7 +58,7 @@ This library is ideal for developers and teams who:
 
 - **[Enhanced Type Safety](../guides/schema-definitions/en.md):** Build queries with a fluent, strongly-typed interface, including robust schema validation and type-checked filter values.
 - **[Powerful Filtering](../guides/building-criteria/en.md#2-applying-filters):** Define intricate filtering logic with a wide array of operators (including for JSON, arrays, sets, ranges, and regex) and logical grouping.
-- **[Flexible Join System](../guides/building-criteria/en.md#3-adding-joins):** Support for various join types and pivot table configurations, with improved context for translators.
+- **[Declarative Join System](../guides/building-criteria/en.md#3-adding-joins):** Define relationship logic once in the schema and reuse it with simple, type-safe join calls.
 - **[Advanced Pagination](../guides/building-criteria/en.md#5-pagination):** Support for offset-based and cursor-based pagination.
 - **[Extensible Architecture](../guides/developing-translators/en.md):** Create your own translators for any data source, aided by more comprehensive join information.
 
