@@ -15,8 +15,8 @@ import type {
 export type PivotJoin<
   ParentSchema extends CriteriaSchema,
   JoinSchema extends CriteriaSchema,
-  TJoinRelationType extends JoinRelationType,
 > = {
+  is_relation_id: boolean;
   /**
    * If true, the joined entity's fields will be included in the final selection.
    * If false, the join will only be used for filtering purposes, and its fields will not be selected.
@@ -24,7 +24,7 @@ export type PivotJoin<
    */
   with_select: boolean;
   /** The type of relationship from the parent to the joined entity (e.g., 'many_to_many'). */
-  relation_type: TJoinRelationType;
+  relation_type: 'many_to_many';
   /** The source name (e.g., table name) of the parent entity. */
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */
@@ -81,8 +81,8 @@ export type PivotJoin<
 export type SimpleJoin<
   ParentSchema extends CriteriaSchema,
   JoinSchema extends CriteriaSchema,
-  TJoinRelationType extends JoinRelationType,
 > = {
+  is_relation_id: boolean;
   /**
    * If true, the joined entity's fields will be included in the final selection.
    * If false, the join will only be used for filtering purposes, and its fields will not be selected.
@@ -90,7 +90,7 @@ export type SimpleJoin<
    */
   with_select: boolean;
   /** The type of relationship from the parent to the joined entity (e.g., 'one_to_one', 'many_to_one'). */
-  relation_type: TJoinRelationType;
+  relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
   /** The source name (e.g., table name) of the parent entity. */
   parent_source_name: ParentSchema['source_name'];
   /** The alias used for the parent entity in the query. */

@@ -25,9 +25,9 @@ export type ValidSchema<CSchema extends CriteriaSchema> =
  *
  * @template TSchema - The schema definition for the entity this criteria operates on.
  */
-export abstract class Criteria<const TSchema extends CriteriaSchema>
-  implements ICriteriaBase<TSchema>
-{
+export abstract class Criteria<
+  const TSchema extends CriteriaSchema,
+> implements ICriteriaBase<TSchema> {
   private readonly _filterManager = new CriteriaFilterManager<TSchema>();
   private readonly _joinManager = new CriteriaJoinManager<TSchema>();
   private readonly _source_name: TSchema['source_name'];
@@ -364,22 +364,24 @@ export abstract class Criteria<const TSchema extends CriteriaSchema>
     };
 
     let fullJoinParameters:
-      | PivotJoin<TSchema, TJoinSchema, typeof relation.relation_type>
-      | SimpleJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+      | PivotJoin<TSchema, TJoinSchema>
+      | SimpleJoin<TSchema, TJoinSchema>;
 
     if (relation.relation_type === 'many_to_many') {
       fullJoinParameters = {
         ...baseParameters,
+        is_relation_id: relation.is_relation_id,
         pivot_source_name: relation.pivot_source_name,
         local_field: relation.local_field,
         relation_field: relation.relation_field,
-      } as PivotJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+      } as PivotJoin<TSchema, TJoinSchema>;
     } else {
       fullJoinParameters = {
         ...baseParameters,
+        is_relation_id: relation.is_relation_id,
         local_field: relation.local_field,
         relation_field: relation.relation_field,
-      } as SimpleJoin<TSchema, TJoinSchema, typeof relation.relation_type>;
+      } as SimpleJoin<TSchema, TJoinSchema>;
     }
 
     this._joinManager.addJoin(criteriaToJoin, fullJoinParameters);

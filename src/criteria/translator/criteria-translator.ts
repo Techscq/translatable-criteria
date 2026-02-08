@@ -1,9 +1,6 @@
 import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 import type { RootCriteria } from '../root.criteria.js';
-import type {
-  CriteriaSchema,
-  JoinRelationType,
-} from '../types/schema.types.js';
+import type { CriteriaSchema } from '../types/schema.types.js';
 import type { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import type { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { OuterJoinCriteria } from '../join/outer.join-criteria.js';
@@ -24,8 +21,7 @@ export abstract class CriteriaTranslator<
   TranslationContext,
   TranslationOutput = TranslationContext,
   TFilterVisitorOutput = any,
-> implements ICriteriaVisitor<TranslationContext, TFilterVisitorOutput>
-{
+> implements ICriteriaVisitor<TranslationContext, TFilterVisitorOutput> {
   /**
    * Translates a `RootCriteria` object into a target format.
    * This is the main entry point for the translation process.
@@ -49,8 +45,8 @@ export abstract class CriteriaTranslator<
   >(
     criteria: InnerJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 
@@ -60,8 +56,8 @@ export abstract class CriteriaTranslator<
   >(
     criteria: LeftJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 
@@ -71,8 +67,8 @@ export abstract class CriteriaTranslator<
   >(
     criteria: OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 

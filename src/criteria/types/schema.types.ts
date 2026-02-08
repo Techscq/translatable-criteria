@@ -30,6 +30,7 @@ export type SchemaSimpleJoin<
   TFields extends ReadonlyArray<string>,
   ValidAlias extends string,
 > = {
+  is_relation_id: boolean;
   /** The alias for this specific relation, used to identify it in `.join()` calls. */
   relation_alias: ValidAlias;
   /** The type of relationship this join represents (e.g., 'one_to_many'). */
@@ -63,6 +64,7 @@ export type SchemaPivotJoin<
   TFields extends ReadonlyArray<string>,
   ValidAlias extends string,
 > = {
+  is_relation_id: boolean;
   /** The alias for this specific relation, used to identify it in `.join()` calls. */
   relation_alias: ValidAlias;
   /** The type of relationship this join represents (must be 'many_to_many'). */

@@ -7,9 +7,10 @@ import type {
 } from './types/filter-primitive.types.js';
 import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 
-export class Filter<T extends string, Operator extends FilterOperator>
-  implements IFilterExpression
-{
+export class Filter<
+  T extends string,
+  Operator extends FilterOperator,
+> implements IFilterExpression {
   protected readonly primitive: FilterPrimitive<T, Operator>;
   constructor(primitive: FilterPrimitive<T, Operator>) {
     this.primitive = { ...primitive };

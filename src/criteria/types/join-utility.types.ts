@@ -1,8 +1,4 @@
-import type {
-  CriteriaSchema,
-  JoinRelationType,
-  SchemaJoins,
-} from './schema.types.js';
+import type { CriteriaSchema, SchemaJoins } from './schema.types.js';
 import type { PivotJoin, SimpleJoin } from './join-parameter.types.js';
 
 import type { InnerJoinCriteria } from '../join/inner.join-criteria.js';
@@ -29,8 +25,8 @@ export interface StoredJoinDetails<ParentSchema extends CriteriaSchema> {
    * The fully resolved parameters for the join, either {@link PivotJoin} or {@link SimpleJoin}.
    */
   parameters:
-    | PivotJoin<ParentSchema, CriteriaSchema, JoinRelationType>
-    | SimpleJoin<ParentSchema, CriteriaSchema, JoinRelationType>;
+    | PivotJoin<ParentSchema, CriteriaSchema>
+    | SimpleJoin<ParentSchema, CriteriaSchema>;
   /**
    * The criteria instance representing the joined entity (e.g., InnerJoinCriteria).
    */

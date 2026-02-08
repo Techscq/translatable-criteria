@@ -1,7 +1,4 @@
-import type {
-  CriteriaSchema,
-  JoinRelationType,
-} from '../types/schema.types.js';
+import type { CriteriaSchema } from '../types/schema.types.js';
 import type { PivotJoin, SimpleJoin } from '../types/join-parameter.types.js';
 import { Criteria, type ValidSchema } from '../criteria.js';
 import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
@@ -23,8 +20,8 @@ export class InnerJoinCriteria<
   public accept<TranslationContext>(
     visitor: ICriteriaVisitor<TranslationContext>,
     parameters:
-      | PivotJoin<CriteriaSchema, CSchema, JoinRelationType>
-      | SimpleJoin<CriteriaSchema, CSchema, JoinRelationType>,
+      | PivotJoin<CriteriaSchema, CSchema>
+      | SimpleJoin<CriteriaSchema, CSchema>,
     context: TranslationContext,
   ): void {
     typeof parameters.relation_field === 'object'

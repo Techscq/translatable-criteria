@@ -1,9 +1,5 @@
 import type { FilterGroup } from '../filter/filter-group.js';
-import type {
-  CriteriaSchema,
-  FieldOfSchema,
-  JoinRelationType,
-} from './schema.types.js';
+import type { CriteriaSchema, FieldOfSchema } from './schema.types.js';
 
 import type { FilterPrimitive } from '../filter/types/filter-primitive.types.js';
 import type { PivotJoin, SimpleJoin } from './join-parameter.types.js';
@@ -71,8 +67,8 @@ export interface IJoinManager<CSchema extends CriteriaSchema> {
   addJoin<JoinSchema extends CriteriaSchema>(
     criteriaToJoin: AnyJoinCriteria<JoinSchema>,
     joinParameter:
-      | PivotJoin<CSchema, JoinSchema, JoinRelationType>
-      | SimpleJoin<CSchema, JoinSchema, JoinRelationType>,
+      | PivotJoin<CSchema, JoinSchema>
+      | SimpleJoin<CSchema, JoinSchema>,
   ): void;
 
   /**

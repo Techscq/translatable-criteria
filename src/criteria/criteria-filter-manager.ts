@@ -7,9 +7,9 @@ import {
 } from './types/operator.types.js';
 import type { FilterPrimitive } from './filter/types/filter-primitive.types.js';
 
-export class CriteriaFilterManager<CSchema extends CriteriaSchema>
-  implements IFilterManager<CSchema>
-{
+export class CriteriaFilterManager<
+  CSchema extends CriteriaSchema,
+> implements IFilterManager<CSchema> {
   private _rootFilterGroup: FilterGroup = new FilterGroup({
     items: [],
     logicalOperator: LogicalOperator.AND,

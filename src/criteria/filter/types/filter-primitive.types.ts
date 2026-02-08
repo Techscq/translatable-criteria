@@ -71,12 +71,12 @@ export type FilterValue<Operator extends FilterOperator> =
                 | FilterOperator.ARRAY_CONTAINS_ELEMENT
                 | FilterOperator.ARRAY_NOT_CONTAINS_ELEMENT
             ? /**
-               * Expected value:
-               * 1. A primitive value for direct array column comparison.
-               * 2. An object `{ [jsonPath: string]: PrimitiveFilterValue }` for checking an element
-               *    within an array at a specific path inside a JSON column.
-               */
-              PrimitiveFilterValue | { [key: string]: PrimitiveFilterValue }
+                 * Expected value:
+                 * 1. A primitive value for direct array column comparison.
+                 * 2. An object `{ [jsonPath: string]: PrimitiveFilterValue }` for checking an element
+                 *    within an array at a specific path inside a JSON column.
+                 */
+                PrimitiveFilterValue | { [key: string]: PrimitiveFilterValue }
             : Operator extends
                   | FilterOperator.ARRAY_CONTAINS_ALL_ELEMENTS
                   | FilterOperator.ARRAY_CONTAINS_ANY_ELEMENT
@@ -87,12 +87,12 @@ export type FilterValue<Operator extends FilterOperator> =
                   | FilterOperator.ARRAY_NOT_CONTAINS_ALL_ELEMENTS
                   | FilterOperator.ARRAY_NOT_CONTAINS_ANY_ELEMENT
               ? /**
-                 * Expected value:
-                 * 1. An array of primitive values for direct array column comparison.
-                 * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
-                 *    for checking elements within an array at a specific path inside a JSON column.
-                 */
-                | Array<Exclude<PrimitiveFilterValue, null | undefined>>
+                   * Expected value:
+                   * 1. An array of primitive values for direct array column comparison.
+                   * 2. An object `{ [jsonPath: string]: Array<Exclude<PrimitiveFilterValue, null | undefined>> }`
+                   *    for checking elements within an array at a specific path inside a JSON column.
+                   */
+                  | Array<Exclude<PrimitiveFilterValue, null | undefined>>
                   | {
                       [key: string]: Array<
                         Exclude<PrimitiveFilterValue, null | undefined>
@@ -103,7 +103,7 @@ export type FilterValue<Operator extends FilterOperator> =
                     | FilterOperator.IS_NULL
                     | FilterOperator.IS_NOT_NULL
                 ? /** Expected value: `null` or `undefined`. The actual value is often ignored by the translator. */
-                  null | undefined
+                    null | undefined
                 : // JSON operators
                   Operator extends
                       | FilterOperator.JSON_PATH_VALUE_EQUALS

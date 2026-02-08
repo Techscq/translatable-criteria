@@ -4,7 +4,7 @@ import type { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { OuterJoinCriteria } from '../join/outer.join-criteria.js';
 import type { Filter } from '../filter/filter.js';
 import type { FilterGroup } from '../filter/filter-group.js';
-import type { CriteriaSchema, JoinRelationType } from './schema.types.js';
+import type { CriteriaSchema } from './schema.types.js';
 import type { PivotJoin, SimpleJoin } from './join-parameter.types.js';
 import type { FilterOperator } from './operator.types.js';
 
@@ -34,8 +34,8 @@ export interface ICriteriaVisitor<
   >(
     criteria: InnerJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 
@@ -48,8 +48,8 @@ export interface ICriteriaVisitor<
   >(
     criteria: LeftJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 
@@ -62,8 +62,8 @@ export interface ICriteriaVisitor<
   >(
     criteria: OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: TranslationContext,
   ): void;
 

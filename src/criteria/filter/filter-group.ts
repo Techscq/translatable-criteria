@@ -8,9 +8,9 @@ import type {
 } from './types/filter-primitive.types.js';
 import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 
-export class FilterGroup<T extends string = string>
-  implements IFilterExpression
-{
+export class FilterGroup<
+  T extends string = string,
+> implements IFilterExpression {
   private readonly _logicalOperator: LogicalOperator;
   private readonly _items: ReadonlyArray<
     Filter<T, FilterOperator> | FilterGroup<T>
