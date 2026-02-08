@@ -21,6 +21,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'permissions',
       relation_type: 'many_to_many',
       target_source_name: 'permission',
@@ -29,6 +30,7 @@ export const UserSchema = GetTypedCriteriaSchema({
       local_field: { pivot_field: 'user_uuid', reference: 'uuid' },
     },
     {
+      is_relation_id: false,
       relation_alias: 'addresses',
       relation_type: 'one_to_many',
       target_source_name: 'address',
@@ -36,6 +38,7 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'user_uuid',
     },
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
@@ -75,6 +78,7 @@ export const PostSchema = GetTypedCriteriaSchema({
   ],
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'comments',
       relation_type: 'one_to_many',
       target_source_name: 'post_comment',
@@ -82,6 +86,7 @@ export const PostSchema = GetTypedCriteriaSchema({
       relation_field: 'post_uuid',
     },
     {
+      is_relation_id: false,
       relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -105,6 +110,7 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'post',
       relation_type: 'many_to_one',
       target_source_name: 'post',
@@ -112,6 +118,7 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
       relation_field: 'uuid',
     },
     {
+      is_relation_id: false,
       relation_alias: 'user',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -133,6 +140,7 @@ export const PermissionSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'users',
       relation_type: 'many_to_many',
       target_source_name: 'user',
@@ -155,6 +163,7 @@ export const AddressSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'user',
       relation_type: 'many_to_one',
       target_source_name: 'user',
