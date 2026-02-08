@@ -42,6 +42,7 @@ Este es el núcleo del sistema de uniones declarativo. Cada objeto en el array `
 
 ```typescript
     {
+      is_relation_id: boolean;
       relation_alias: string;
       relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
       target_source_name: string;
@@ -61,6 +62,7 @@ Este es el núcleo del sistema de uniones declarativo. Cada objeto en el array `
 
 ```typescript
     {
+      is_relation_id: boolean;
       relation_alias: string;
       relation_type: 'many_to_many';
       target_source_name: string;

@@ -104,6 +104,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -149,6 +150,7 @@ export const PostSchema = GetTypedCriteriaSchema({
   },
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -209,7 +211,6 @@ Los filtros se añaden a un `Criteria` usando los métodos `where()`, `andWhere(
 El ordenamiento define cómo se deben clasificar los resultados de la consulta.
 
 - **`Order`**: Representa una regla de ordenamiento individual. Se compone de:
-
   - `field`: El campo por el cual se ordenarán los resultados. Este campo está fuertemente tipado con los campos válidos definidos en el esquema de cada Criteria.
   - `direction`: La dirección del ordenamiento (ver `OrderDirection`).
   - `sequenceId`: (Interno) Un ID único e incremental globalmente.

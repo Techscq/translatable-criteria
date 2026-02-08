@@ -51,6 +51,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -58,6 +59,7 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'userId',
     },
     {
+      is_relation_id: false,
       relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
@@ -83,6 +85,7 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',

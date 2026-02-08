@@ -28,8 +28,7 @@ export abstract class CriteriaTranslator<
   TranslationContext,
   TranslationOutput = TranslationContext,
   TFilterVisitorOutput = any,
-> implements ICriteriaVisitor<TranslationContext, TFilterVisitorOutput>
-{
+> implements ICriteriaVisitor<TranslationContext, TFilterVisitorOutput> {
   public abstract translate<RootCriteriaSchema extends CriteriaSchema>(
     criteria: RootCriteria<RootCriteriaSchema>,
     source: TranslationContext,
@@ -126,31 +125,24 @@ Al implementar los métodos `visit...`, recibirás varios objetos que servirán 
 Propiedades disponibles en los objetos `RootCriteria` y `JoinCriteria`:
 
 - **`get schemaMetadata()`**:
-
   - **Explicación**: Proporciona acceso al objeto `metadata` definido en la raíz del [`CriteriaSchema`](../../api-reference/es.md#criteriaschema). Este es un espacio de "formato libre" para que adjuntes información específica del traductor al esquema de una entidad, como el entrecomillado de tablas personalizado, pistas para el ORM, o cualquier otro dato relevante que tu traductor pueda necesitar. La librería en sí no utiliza esta información.
 
 - **`get select()` y `get selectAll()`**:
-
   - **Explicación**: `select` devuelve un array con los nombres de los campos a seleccionar. Si no se llamó a `setSelect()`, `selectAll` será `true`, y `select` devolverá todos los campos definidos en el esquema. Si se usó `setSelect()`, `selectAll` es `false`, y `select` devuelve solo los campos especificados (además del `identifier_field`, que siempre se incluye).
 
 - **`get cursor()`**:
-
   - **Explicación**: Si se utiliza paginación basada en cursor, esta propiedad devuelve el objeto [`Cursor`](../../api-reference/es.md#cursor). Este objeto encapsula el estado necesario para obtener la página siguiente o anterior, incluyendo el/los campo(s), su(s) valor(es) del último registro de la página anterior, el operador de comparación (`GREATER_THAN` o `LESS_THAN`), y un `sequenceId` para mantener un orden estable al combinar la lógica del cursor de múltiples instancias de `Criteria`.
 
 - **`get joins()`**:
-
   - **Explicación**: Devuelve un `ReadonlyArray` de objetos `StoredJoinDetails`. Este es el punto de entrada para traducir todas las uniones configuradas. Para cada `StoredJoinDetails`, encontrarás el `criteria` de la unión que debe ser "visitado" y los `parameters` que describen la relación.
 
 - **`get rootFilterGroup()`**:
-
   - **Explicación**: Este es el nodo raíz del árbol de filtros. Es un `FilterGroup` que contiene todos los filtros y grupos de filtros de nivel superior añadidos mediante `.where()`, `.andWhere()`, `.orWhere()`, etc. Tu traducción debe comenzar visitando este grupo.
 
 - **`get alias()` y `get sourceName()`**:
-
   - **Explicación**: `sourceName` es el nombre de la fuente de la entidad (ej. el nombre de la tabla 'users_table'). `alias` es el alias corto usado para referirse a esta entidad en la consulta (ej. 'u'). Ambos se toman directamente del `CriteriaSchema`.
 
 - **`get take()` y `get skip()`**:
-
   - **Explicación**: Estas propiedades proporcionan los valores para la paginación basada en offset, correspondiendo a `LIMIT` y `OFFSET` en SQL.
 
 - **`get orders()`**:
@@ -161,7 +153,6 @@ Propiedades disponibles en los objetos `RootCriteria` y `JoinCriteria`:
 Propiedades disponibles al visitar filtros:
 
 - **`filter.field`, `filter.operator`, `filter.value`**:
-
   - **Explicación**: Estas tres propiedades definen una única condición. `field` es el nombre de la columna, `operator` es la comparación a realizar, y `value` es el dato contra el cual comparar. El tipo de `value` está fuertemente tipado en función del `operator`. Para una referencia completa de todos los operadores y sus tipos de `value` esperados, consulta la [Referencia de Operadores de Filtro](../filter-operators/es.md). Por ejemplo:
     - Para `EQUALS`, `value` puede ser una cadena, número, booleano, Fecha o nulo.
     - Para `IN`, `value` es un array de primitivos.
@@ -176,23 +167,21 @@ Propiedades disponibles al visitar filtros:
 Propiedades disponibles al visitar una unión:
 
 - **`parent_alias`, `relation_alias`**:
-
   - **Explicación**: Los alias para las entidades padre y unida, esenciales para cualificar los nombres de los campos en las cláusulas `ON` y `SELECT`.
 
-- **`local_field`, `relation_field`**:
+- **`is_relation_id`**:
+  - **Explicación**: Un booleano que indica si esta relación es puramente una referencia de ID.
 
+- **`local_field`, `relation_field`**:
   - **Explicación**: Para un `SimpleJoin` (uno a uno, muchos a uno), estos son los nombres de las columnas a usar en la condición `ON` (ej. `ON padre.id = hijo.padre_id`). Para un `PivotJoin`, estas propiedades son objetos que contienen el `pivot_field` (el campo en la tabla pivote) y el campo `reference` (el campo en la entidad de origen/destino al que el campo pivote se vincula).
 
 - **`parent_identifier`**:
-
   - **Explicación**: El nombre del campo que identifica unívocamente a la entidad padre (ej. su clave primaria). Es distinto de `local_field`, que es el campo usado en la condición de la unión. `parent_identifier` es útil para estrategias de unión complejas o para construir cláusulas `ON` específicas.
 
 - **`pivot_source_name`**:
-
   - **Explicación**: Para un `PivotJoin` (muchos a muchos), este es el nombre de la tabla pivote intermediaria.
 
 - **`parent_schema_metadata`, `join_metadata`**:
-
   - **Explicación**: Similar a la metadata a nivel de esquema, estos proporcionan acceso a cualquier metadato personalizado que hayas definido. `parent_schema_metadata` proviene del esquema de la entidad padre, mientras que `join_metadata` es específico de la definición de la unión en sí, permitiendo pistas para el traductor muy específicas (ej. pistas de unión específicas de la base de datos).
 
 - **`with_select`**:
@@ -206,7 +195,6 @@ Este es el núcleo de tu traductor. Aquí tienes una guía conceptual para cada 
 
 - **Propósito**: Inicializar la consulta y orquestar la traducción de todas sus partes principales.
 - **Enfoque**:
-
   1. Usa `criteria.sourceName` y `criteria.alias` para construir la cláusula `FROM`.
   2. Itera `criteria.select` para construir la cláusula `SELECT`.
   3. Itera `criteria.joins` y llama a `accept` en el `criteria` de cada unión para disparar su traducción.
@@ -229,7 +217,6 @@ public abstract visitRoot<RootCSchema extends CriteriaSchema>(
 
 - **Propósito**: Construir la cláusula `JOIN` específica y su condición `ON`.
 - **Enfoque**: Es muy recomendable delegar a un auxiliar privado común o a un `JoinBuilder`.
-
   1. Usa `parameters.relation_alias` y el `criteria.sourceName` de la unión para construir la sentencia `JOIN ... ON ...`.
   2. Para `SimpleJoin`, la condición `ON` usa `parameters.local_field` y `parameters.relation_field`.
   3. Para `PivotJoin`, esto probablemente implicará dos sentencias `JOIN`.
@@ -250,8 +237,8 @@ Las firmas de los métodos `visitInnerJoin`, `visitLeftJoin`, y `visitOuterJoin`
     >(
       criteria: InnerJoinCriteria<JoinCSchema>,
       parameters:
-        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+        | PivotJoin<ParentCSchema, JoinCSchema>
+        | SimpleJoin<ParentCSchema, JoinCSchema>,
       context: TranslationContext,
     ): void;
 
@@ -261,8 +248,8 @@ Las firmas de los métodos `visitInnerJoin`, `visitLeftJoin`, y `visitOuterJoin`
     >(
       criteria: LeftJoinCriteria<JoinCSchema>,
       parameters:
-        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+        | PivotJoin<ParentCSchema, JoinCSchema>
+        | SimpleJoin<ParentCSchema, JoinCSchema>,
       context: TranslationContext,
     ): void;
 
@@ -272,8 +259,8 @@ Las firmas de los métodos `visitInnerJoin`, `visitLeftJoin`, y `visitOuterJoin`
     >(
       criteria: OuterJoinCriteria<JoinCSchema>,
       parameters:
-        | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-        | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+        | PivotJoin<ParentCSchema, JoinCSchema>
+        | SimpleJoin<ParentCSchema, JoinCSchema>,
       context: TranslationContext,
     ): void;
 
@@ -302,7 +289,6 @@ public abstract visitFilter<FieldType extends string>(
 
 - **Propósito**: Combinar múltiples condiciones de filtro.
 - **Enfoque**:
-
   1. Itera a través de `group.items`.
   2. Para cada `item`, llama a `item.accept(this, ...)` para obtener recursivamente su traducción.
   3. Une las cadenas de condición recolectadas con el `group.logicalOperator` (`AND` u `OR`).

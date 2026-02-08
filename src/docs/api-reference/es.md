@@ -76,7 +76,6 @@ const postJoin = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
 ```
 
 - **`GetLeftJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): LeftJoinCriteria<CSchema>`**
-
   - Crea una instancia de `LeftJoinCriteria`. Usado para definir un `LEFT JOIN`.
   - **Retorna:** Una instancia de `LeftJoinCriteria`.
 
@@ -244,13 +243,11 @@ Representa la configuración para la paginación basada en cursor. Se instancia 
 Clase abstracta que sirve como base para crear traductores específicos para diferentes fuentes de datos. Implementa el patrón Visitor (`ICriteriaVisitor`) para procesar los objetos `Criteria`.
 
 - **Genéricos:**
-
   - `TranslationContext`: El tipo del objeto de contexto mutable (ej. un constructor de consultas) que se pasa durante el recorrido.
   - `TranslationOutput` (opcional, por defecto es `TranslationContext`): El tipo del resultado final de la traducción.
   - `TFilterVisitorOutput` (opcional, por defecto es `any`): El tipo de salida específico para el método `visitFilter`.
 
 - **Métodos Abstractos (a implementar por las clases hijas):**
-
   - **`translate(criteria: RootCriteria<...>, source: TranslationContext): TranslationOutput`**: El punto de entrada público principal para iniciar el proceso de traducción.
   - `visitRoot(...): void`: Visita el nodo raíz del árbol de Criteria para inicializar la traducción.
   - `visitInnerJoin(...): void`: Visita un nodo de Inner Join para aplicar su lógica.
@@ -354,6 +351,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -388,6 +386,7 @@ Interfaz que define la estructura de una configuración de join dentro de la pro
 
 - **Propiedades:**
   - `relation_alias: string`: El alias para esta relación de unión específica (ej. `'posts'`, `'autor'`).
+  - `is_relation_id: boolean`: Indica si esta relación es puramente una referencia de ID.
   - `relation_type: JoinRelationType`: El tipo de relación.
   - `target_source_name: string`: El `source_name` del esquema al que se une.
   - `local_field: string | { pivot_field: string; reference: string }`: El campo en la entidad local para la condición de join.
@@ -499,6 +498,7 @@ Tipo helper que extrae la configuración de join específica de un esquema padre
 Tipo que representa los parámetros completamente resueltos para una unión `many-to-many` a través de una tabla pivote, usado internamente.
 
 - **Propiedades:**
+  - `is_relation_id: boolean`: Indica si esta relación es puramente una referencia de ID.
   - `with_select: boolean`: Si es true, se seleccionan los campos de la entidad unida.
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
@@ -518,6 +518,7 @@ Tipo que representa los parámetros completamente resueltos para una unión `man
 Tipo que representa los parámetros completamente resueltos para una unión simple (one-to-one, one-to-many, many-to-one), usado internamente.
 
 - **Propiedades:**
+  - `is_relation_id: boolean`: Indica si esta relación es puramente una referencia de ID.
   - `with_select: boolean`: Si es true, se seleccionan los campos de la entidad unida.
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`

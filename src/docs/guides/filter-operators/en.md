@@ -19,7 +19,6 @@ Here is a detailed list of all available `FilterOperator` values, their purpose,
 #### Equality & Comparison
 
 - `EQUALS` / `NOT_EQUALS`: Checks for exact equality or inequality between the field's value and the provided value.
-
   - **Expected Value:** A primitive value (`string`, `number`, `boolean`, `Date`, `null`).
   - **Example:**
 
@@ -38,7 +37,6 @@ const nonAdminUser = CriteriaFactory.GetCriteria(UserSchema).where({
 ```
 
 - `GREATER_THAN` / `GREATER_THAN_OR_EQUALS`: Checks if a value is strictly greater than, or greater than or equal to the provided one.
-
   - **Expected Value:** A `number` or `Date`.
   - **Example:**
 
@@ -65,7 +63,6 @@ const cheapProduct = CriteriaFactory.GetCriteria(ProductSchema).where({
 #### Pattern Matching
 
 - `LIKE` / `NOT_LIKE`: Matches or does not match a pattern. Case-sensitivity depends on the database's collation. The translator is responsible for handling wildcards (`%`, `_`).
-
   - **Expected Value:** A `string`.
   - **Example:**
 
@@ -78,7 +75,6 @@ const userWithDomain = CriteriaFactory.GetCriteria(UserSchema).where({
 ```
 
 - `ILIKE` / `NOT_ILIKE`: Case-insensitive version of `LIKE` and `NOT_LIKE`. Behavior may vary slightly depending on the database.
-
   - **Expected Value:** A `string`.
   - **Example:**
 
@@ -91,7 +87,6 @@ const postWithTerm = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `CONTAINS` / `NOT_CONTAINS`: Checks if a string contains or does not contain a substring. The translator will typically wrap the value with wildcards (e.g., `'%value%'`).
-
   - **Expected Value:** A `string`.
   - **Example:**
 
@@ -110,7 +105,6 @@ const postWithoutDraft = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `STARTS_WITH`: Checks if a string starts with a specific substring. The translator will typically append a wildcard (e.g., `'value%'`).
-
   - **Expected Value:** A `string`.
   - **Example:**
 
@@ -137,7 +131,6 @@ const orgUser = CriteriaFactory.GetCriteria(UserSchema).where({
 #### Membership & Nullability
 
 - `IN` / `NOT_IN`: Checks if a field's value is present or not present within a given array of values.
-
   - **Expected Value:** An `Array<string | number | boolean | Date>`.
   - **Example:**
 
@@ -176,7 +169,6 @@ const usersWithEmail = CriteriaFactory.GetCriteria(UserSchema).where({
 #### Ranges & Regex
 
 - `BETWEEN` / `NOT_BETWEEN`: Checks if a field's value falls within or outside a specified range (inclusive).
-
   - **Expected Value:** A tuple of two primitive values `[min, max]` (e.g., `[number, number]`, `[Date, Date]`).
   - **Example:**
 
@@ -203,7 +195,6 @@ const userWithNumericId = CriteriaFactory.GetCriteria(UserSchema).where({
 #### Complex Types (JSON, Array, SET)
 
 - `JSON_PATH_VALUE_EQUALS` / `JSON_PATH_VALUE_NOT_EQUALS`: Checks if the value at a specific JSON path is equal or not equal to a given primitive value.
-
   - **Expected Value:** An object where keys are JSON paths and values are the primitive data to match.
   - **Example:**
 
@@ -216,7 +207,6 @@ const publishedPosts = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `JSON_CONTAINS` / `JSON_NOT_CONTAINS`: Checks if a JSON document (or a value at a specific path within it) contains or does NOT contain a specified JSON value.
-
   - **Expected Value:** An object where keys are JSON paths and values are the JSON data (scalar, array, or object) to find.
   - **Example:**
 
@@ -229,7 +219,6 @@ const postsWithSpecificTag = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `JSON_CONTAINS_ANY` / `JSON_NOT_CONTAINS_ANY`: Checks if a JSON document contains AT LEAST ONE of the specified values, or if it contains NONE of them.
-
   - **Expected Value:** An object where keys are JSON paths and values are arrays of JSON data.
   - **Example:**
 
@@ -248,7 +237,6 @@ const postsWithoutSpam = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `JSON_CONTAINS_ALL` / `JSON_NOT_CONTAINS_ALL`: Checks if a JSON document contains ALL of the specified values, or if it is missing AT LEAST ONE of them.
-
   - **Expected Value:** An object where keys are JSON paths and values are arrays of JSON data.
   - **Example:**
 
@@ -261,7 +249,6 @@ const postsWithRequiredTags = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `ARRAY_CONTAINS_ELEMENT` / `ARRAY_NOT_CONTAINS_ELEMENT`: Checks if an array contains or does NOT contain a specific element.
-
   - **Expected Value:** A primitive value (for native array columns) OR an object like `{ "path.to.array": elementValue }` (for arrays within JSON).
   - **Example:**
 
@@ -280,7 +267,6 @@ const postsNotInLegacy = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `ARRAY_CONTAINS_ANY_ELEMENT` / `ARRAY_NOT_CONTAINS_ANY_ELEMENT`: Checks if an array contains AT LEAST ONE element from a given array, or if it contains NONE of them.
-
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
 
@@ -299,7 +285,6 @@ const postsWithoutBanned = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `ARRAY_CONTAINS_ALL_ELEMENTS` / `ARRAY_NOT_CONTAINS_ALL_ELEMENTS`: Checks if an array contains ALL elements from a given array, or if it is missing AT LEAST ONE of them.
-
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
 
@@ -312,7 +297,6 @@ const postsWithAllCategories = CriteriaFactory.GetCriteria(PostSchema).where({
 ```
 
 - `ARRAY_EQUALS` / `ARRAY_NOT_EQUALS`: Checks if an array is equal or NOT equal to a given array (order-insensitive).
-
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
 
@@ -333,7 +317,6 @@ const postsExcludingExactCategories = CriteriaFactory.GetCriteria(
 ```
 
 - `ARRAY_EQUALS_STRICT` / `ARRAY_NOT_EQUALS_STRICT`: Checks if an array is exactly equal or NOT exactly equal to a given array (order-sensitive).
-
   - **Expected Value:** An `Array<primitive>` (for native array columns) OR an object like `{ "path.to.array": [elements] }` (for arrays within JSON).
   - **Example:**
 
@@ -355,7 +338,6 @@ const postsExcludingOrderedCategories = CriteriaFactory.GetCriteria(
 ```
 
 - `SET_CONTAINS` / `SET_NOT_CONTAINS`: Checks if a collection field (like MySQL's `SET` type) contains or does NOT contain a specific value.
-
   - **Expected Value:** A `string`.
   - **Example:**
 
@@ -368,7 +350,6 @@ const userWithTag = CriteriaFactory.GetCriteria(UserSchema).where({
 ```
 
 - `SET_CONTAINS_ANY` / `SET_NOT_CONTAINS_ANY`: Checks if a collection field contains AT LEAST ONE of the specified values, or if it contains NONE of them.
-
   - **Expected Value:** An `Array<string>`.
   - **Example:**
 

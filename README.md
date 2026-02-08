@@ -59,6 +59,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -75,6 +76,7 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -155,7 +157,6 @@ To interact with a database, you'll need a translator package. You can either bu
 ```
 
 - **Usage:**
-
   - See the TypeORM Translator Usage Guide for detailed instructions.
 
 - **(More translators coming soon or can be created by the community)**

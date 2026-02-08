@@ -52,7 +52,6 @@ Provides static methods for creating instances of different types of `Criteria`.
 **Static Methods:**
 
 - **`GetCriteria<CSchema extends CriteriaSchema>(schema: CSchema): RootCriteria<CSchema>`**
-
   - Creates an instance of `RootCriteria`. This is the starting point for building a main query.
   - **Parameters:**
     - `schema`: An instance of `CriteriaSchema` that defines the structure of the root entity.
@@ -65,7 +64,6 @@ const userCriteria = CriteriaFactory.GetCriteria(UserSchema);
 ```
 
 - **`GetInnerJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): InnerJoinCriteria<CSchema>`**
-
   - Creates an instance of `InnerJoinCriteria`. Used to define an `INNER JOIN` in a query.
   - **Parameters:**
     - `schema`: An instance of `CriteriaSchema` for the entity to be joined.
@@ -78,7 +76,6 @@ const postJoin = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
 ```
 
 - **`GetLeftJoinCriteria<CSchema extends CriteriaSchema>(schema: CSchema): LeftJoinCriteria<CSchema>`**
-
   - Creates an instance of `LeftJoinCriteria`. Used to define a `LEFT JOIN`.
   - **Returns:** An instance of `LeftJoinCriteria`.
 
@@ -246,13 +243,11 @@ Represents the configuration for cursor-based pagination. Instantiated internall
 Abstract class that serves as the base for creating specific translators for different data sources. It implements the Visitor pattern (`ICriteriaVisitor`) to process `Criteria` objects.
 
 - **Generics:**
-
   - `TranslationContext`: The type of the mutable context object (e.g., a query builder) passed through the traversal.
   - `TranslationOutput` (optional, defaults to `TranslationContext`): The type of the final translation result.
   - `TFilterVisitorOutput` (optional, defaults to `any`): The specific output type for the `visitFilter` method.
 
 - **Abstract Methods (to be implemented by child classes):**
-
   - **`translate(criteria: RootCriteria<...>, source: TranslationContext): TranslationOutput`**: The main public entry point to start the translation process.
   - `visitRoot(...): void`: Visits the root node of the Criteria tree to initialize the translation.
   - `visitInnerJoin(...): void`: Visits an Inner Join node to apply its logic.
@@ -356,6 +351,7 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      is_relation_id: false,
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -390,6 +386,7 @@ Interface defining the structure of a join configuration within the `relations` 
 
 - **Properties:**
   - `relation_alias: string`: The alias for this specific join relation (e.g., `'posts'`, `'author'`).
+  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
   - `relation_type: JoinRelationType`: The type of relationship.
   - `target_source_name: string`: The `source_name` of the schema being joined to.
   - `local_field: string | { pivot_field: string; reference: string }`: The field in the local entity for the join condition.
@@ -501,6 +498,7 @@ Helper type that extracts the specific join configuration from a parent schema t
 Type representing the fully resolved parameters for a `many-to-many` join via a pivot table, used internally.
 
 - **Properties:**
+  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
   - `with_select: boolean`: If true, the joined entity's fields are selected.
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
@@ -520,6 +518,7 @@ Type representing the fully resolved parameters for a `many-to-many` join via a 
 Type representing the fully resolved parameters for a simple join (one-to-one, one-to-many, many-to-one), used internally.
 
 - **Properties:**
+  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
   - `with_select: boolean`: If true, the joined entity's fields are selected.
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
