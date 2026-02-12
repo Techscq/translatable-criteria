@@ -9,7 +9,6 @@ import {
   RootCriteria,
   type CriteriaSchema,
   type ICriteriaVisitor,
-  type JoinRelationType,
   type PivotJoin,
   type SimpleJoin,
   CriteriaTranslator,
@@ -283,8 +282,8 @@ export class PseudoSqlTranslator extends CriteriaTranslator<
   >(
     criteria: InnerJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: PseudoSqlParts,
   ): void {
     this.applyPseudoJoin('INNER', criteria, parameters, context);
@@ -296,8 +295,8 @@ export class PseudoSqlTranslator extends CriteriaTranslator<
   >(
     criteria: LeftJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: PseudoSqlParts,
   ): void {
     this.applyPseudoJoin('LEFT', criteria, parameters, context);
@@ -309,8 +308,8 @@ export class PseudoSqlTranslator extends CriteriaTranslator<
   >(
     criteria: OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     context: PseudoSqlParts,
   ): void {
     this.applyPseudoJoin('FULL OUTER', criteria, parameters, context);
@@ -326,8 +325,8 @@ export class PseudoSqlTranslator extends CriteriaTranslator<
       | LeftJoinCriteria<JoinCSchema>
       | OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     sqlParts: PseudoSqlParts,
   ): void {
     this.joinSqlBuilder.buildJoin(

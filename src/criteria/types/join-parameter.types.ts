@@ -1,6 +1,7 @@
 import type {
   CriteriaSchema,
   FieldOfSchema,
+  JoinOptions,
   JoinRelationType,
 } from './schema.types.js';
 
@@ -16,13 +17,8 @@ export type PivotJoin<
   ParentSchema extends CriteriaSchema,
   JoinSchema extends CriteriaSchema,
 > = {
-  is_relation_id: boolean;
-  /**
-   * If true, the joined entity's fields will be included in the final selection.
-   * If false, the join will only be used for filtering purposes, and its fields will not be selected.
-   * Defaults to true.
-   */
-  with_select: boolean;
+  /** Optional configuration for the join, such as selection strategy. The translator will determine the default behavior if not provided. */
+  join_options: JoinOptions;
   /** The type of relationship from the parent to the joined entity (e.g., 'many_to_many'). */
   relation_type: 'many_to_many';
   /** The source name (e.g., table name) of the parent entity. */
@@ -82,13 +78,8 @@ export type SimpleJoin<
   ParentSchema extends CriteriaSchema,
   JoinSchema extends CriteriaSchema,
 > = {
-  is_relation_id: boolean;
-  /**
-   * If true, the joined entity's fields will be included in the final selection.
-   * If false, the join will only be used for filtering purposes, and its fields will not be selected.
-   * Defaults to true.
-   */
-  with_select: boolean;
+  /** Optional configuration for the join, such as selection strategy. The translator will determine the default behavior if not provided. */
+  join_options: JoinOptions;
   /** The type of relationship from the parent to the joined entity (e.g., 'one_to_one', 'many_to_one'). */
   relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
   /** The source name (e.g., table name) of the parent entity. */

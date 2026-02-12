@@ -41,17 +41,18 @@ This is the core of the declarative join system. Each object in the `relations` 
 #### For Simple Joins (one-to-one, one-to-many, many-to-one)
 
 ```typescript
-    {
-      is_relation_id: boolean;
-      relation_alias: string;
-      relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
-      target_source_name: string;
-      local_field: string;
-      relation_field: string;
-      metadata?: { [key: string]: any };
-    }
+  {
+    default_options?: JoinOptions;
+    relation_alias: string;
+    relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one';
+    target_source_name: string;
+    local_field: string;
+    relation_field: string;
+    metadata?: { [key: string]: any };
+  }
 ```
 
+- `default_options`: (Optional) Default configuration options for this relation, applied when joining if no specific options are provided.
 - `relation_alias`: The unique name for this relationship (e.g., `'posts'`, `'author'`). This is the alias you will pass to the `.join()` method.
 - `relation_type`: The type of relationship.
 - `target_source_name`: The `source_name` of the entity schema you are joining to.
@@ -61,18 +62,19 @@ This is the core of the declarative join system. Each object in the `relations` 
 #### For `many-to-many` Joins
 
 ```typescript
-    {
-      is_relation_id: boolean,
-      relation_alias: string;
-      relation_type: 'many_to_many';
-      target_source_name: string;
-      pivot_source_name: string;
-      local_field: { pivot_field: string; reference: string };
-      relation_field: { pivot_field: string; reference: string };
-      metadata?: { [key: string]: any };
-    }
+  {
+    default_options?: JoinOptions;
+    relation_alias: string;
+    relation_type: 'many_to_many';
+    target_source_name: string;
+    pivot_source_name: string;
+    local_field: { pivot_field: string; reference: string };
+    relation_field: { pivot_field: string; reference: string };
+    metadata?: { [key: string]: any };
+  }
 ```
 
+- `default_options`: (Optional) Default configuration options for this relation, applied when joining if no specific options are provided.
 - `pivot_source_name`: The name of the intermediary pivot table.
 - `local_field`: An object specifying the `reference` field in the current schema and the `pivot_field` it connects to in the pivot table.
 - `relation_field`: An object specifying the `reference` field in the target schema and the `pivot_field` it connects to in the pivot table.
@@ -82,7 +84,10 @@ This is the core of the declarative join system. Each object in the `relations` 
 To ensure consistency across the documentation, we will use a unified set of schemas. These examples define `User`, `Post`, and `Role` entities and their relationships using the new declarative structure.
 
 ```typescript
-import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+import {
+  GetTypedCriteriaSchema,
+  SelectType,
+} from '@nulledexp/translatable-criteria';
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -91,7 +96,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -99,7 +106,9 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'userId',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
@@ -125,7 +134,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',

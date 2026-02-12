@@ -169,8 +169,9 @@ Propiedades disponibles al visitar una unión:
 - **`parent_alias`, `relation_alias`**:
   - **Explicación**: Los alias para las entidades padre y unida, esenciales para cualificar los nombres de los campos en las cláusulas `ON` y `SELECT`.
 
-- **`is_relation_id`**:
-  - **Explicación**: Un booleano que indica si esta relación es puramente una referencia de ID.
+- **`join_options: { select: SelectType }`**:
+  - **Explicación**: Un objeto que contiene la estrategia de selección para la unión (`FULL_ENTITY`, `ID_ONLY`, `NO_SELECTION`). Tu traductor debe usar esto para determinar qué campos (si alguno) incluir en la sentencia `SELECT` de la entidad unida.
+  - **Nota**: Si `select` es `undefined`, el traductor debe decidir el comportamiento por defecto (típicamente `FULL_ENTITY`). Se recomienda definir una constante para esta estrategia por defecto dentro de tu traductor.
 
 - **`local_field`, `relation_field`**:
   - **Explicación**: Para un `SimpleJoin` (uno a uno, muchos a uno), estos son los nombres de las columnas a usar en la condición `ON` (ej. `ON padre.id = hijo.padre_id`). Para un `PivotJoin`, estas propiedades son objetos que contienen el `pivot_field` (el campo en la tabla pivote) y el campo `reference` (el campo en la entidad de origen/destino al que el campo pivote se vincula).
@@ -183,9 +184,6 @@ Propiedades disponibles al visitar una unión:
 
 - **`parent_schema_metadata`, `join_metadata`**:
   - **Explicación**: Similar a la metadata a nivel de esquema, estos proporcionan acceso a cualquier metadato personalizado que hayas definido. `parent_schema_metadata` proviene del esquema de la entidad padre, mientras que `join_metadata` es específico de la definición de la unión en sí, permitiendo pistas para el traductor muy específicas (ej. pistas de unión específicas de la base de datos).
-
-- **`with_select`**:
-  - **Explicación**: Una propiedad booleana que indica si los campos de la entidad unida deben incluirse en la sentencia `SELECT` final. Si es `false`, el traductor debe generar una cláusula de unión (ej. `INNER JOIN`) pero no una cláusula de unión y selección (ej. `INNER JOIN ... SELECT`).
 
 ## Implementando los Métodos `visit...`
 

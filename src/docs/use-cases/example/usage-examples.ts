@@ -7,6 +7,7 @@ import {
   GetTypedCriteriaSchema,
   type ICriteriaBase,
 } from '../../../criteria/index.js';
+import { SelectType } from '../../../criteria/types/schema.types.js';
 
 export type getPostByCriteriaRequest = {
   offset?: { page: number; order: 'ASC' | 'DESC' };
@@ -35,16 +36,19 @@ export interface EntityBase {
 export interface User extends EntityBase {
   email: string;
   username: string;
-  posts: Post[];
+  posts: string[];
 }
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'user',
   alias: 'users',
-  fields: ['uuid', 'email', 'username', 'created_at'],
+  fields: ['uuid', 'email', 'username', 'created_at', 'posts'],
   identifier_field: 'uuid',
   relations: [
     {
+      default_options: {
+        select: SelectType.ID_ONLY,
+      },
       relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
@@ -82,6 +86,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   ],
   relations: [
     {
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -108,7 +115,7 @@ export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
       operator: FilterOperator.EQUALS,
       value: publisherUuid,
     }),
-    false,
+    { select: SelectType.NO_SELECTION },
   );
 
   postCriteria.orderBy('created_at', 'DESC');

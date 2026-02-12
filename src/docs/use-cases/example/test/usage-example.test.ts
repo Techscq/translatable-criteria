@@ -159,7 +159,7 @@ describe('buildPostPaginatedCriteria with PseudoSqlTranslator', () => {
     expect(params).toEqual(['user-456', '%Advanced%', '"beginner"', 500]);
   });
 
-  it('should generate a JOIN for filtering without selecting the joined fields when withSelect is false', () => {
+  it('should generate a JOIN for filtering without selecting the joined fields when select option is NO_SELECTION', () => {
     const publisherUuid = 'user-789';
     const criteria = buildPostFilterOnlyByPublisherCriteria(publisherUuid);
     const { query, params } = translator.translate(

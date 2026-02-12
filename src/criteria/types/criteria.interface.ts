@@ -1,4 +1,8 @@
-import type { CriteriaSchema, FieldOfSchema } from './schema.types.js';
+import type {
+  CriteriaSchema,
+  FieldOfSchema,
+  JoinOptions,
+} from './schema.types.js';
 import type { FilterGroup } from '../filter/filter-group.js';
 
 import type { Cursor } from '../cursor.js';
@@ -105,13 +109,18 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
 
   /**
    * Adds an ordering rule to the criteria.
-   * Multiple calls to `orderBy` will append new ordering rules.
+   * Multiple calls will append new ordering rules.
    * @param {FieldOfSchema<TSchema>} field - The field to order by.
    * @param {OrderDirection} direction - The direction of the ordering (ASC or DESC).
+   * @param {boolean} [nullFirst=false] - If true, null values will be ordered first.
    * @returns {this} The current criteria instance for chaining.
    * @throws {Error} If the specified field is not defined in the schema.
    */
-  orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection): this;
+  orderBy(
+    field: FieldOfSchema<TSchema>,
+    direction: OrderDirection,
+    nullFirst?: boolean,
+  ): this;
 
   /**
    * Sets the maximum number of records to return (LIMIT).
@@ -219,7 +228,8 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
    * @template SpecificRelationAlias - The literal type of the relation alias being used for the join.
    * @param {SpecificRelationAlias} joinAlias - The specific alias defined in the parent schema's `relations` array for this relation.
    * @param {JoinCriteriaType<TSchema, TJoinSchema, SpecificRelationAlias>} criteriaToJoin - The criteria instance representing the entity to join (e.g., `InnerJoinCriteria`).
-   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final selection. If false, the join will only be used for filtering and its fields will not be selected.
+   * @param {JoinOptions} [joinOptions] - Optional configuration for the join (e.g., selection strategy).
+   *   If provided, it overrides the `default_options` defined in the schema for this relation.
    * @returns {this} The current criteria instance for chaining.
    */
   join<
@@ -233,6 +243,6 @@ export interface ICriteriaBase<TSchema extends CriteriaSchema> {
       TJoinSchema,
       SpecificRelationAlias
     >,
-    withSelect: boolean,
+    joinOptions?: JoinOptions,
   ): this;
 }

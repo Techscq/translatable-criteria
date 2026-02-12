@@ -1,4 +1,8 @@
-import type { CriteriaSchema, FieldOfSchema } from './types/schema.types.js';
+import {
+  type CriteriaSchema,
+  type FieldOfSchema,
+  type JoinOptions,
+} from './types/schema.types.js';
 
 import { CriteriaFilterManager } from './criteria-filter-manager.js';
 import { CriteriaJoinManager } from './criteria-join-manager.js';
@@ -31,7 +35,7 @@ export abstract class Criteria<
   private readonly _filterManager = new CriteriaFilterManager<TSchema>();
   private readonly _joinManager = new CriteriaJoinManager<TSchema>();
   private readonly _source_name: TSchema['source_name'];
-  private _take: number = 0; // 0 = no limit
+  private _take: number = 0;
   /**
    * Stores the set of fields explicitly selected by the user.
    * This is used when `_selectAll` is false.
@@ -139,7 +143,7 @@ export abstract class Criteria<
    */
   setSelect(selectFields: Array<FieldOfSchema<TSchema>>): this {
     for (const field of selectFields) {
-      this.assetFieldOnSchema(field);
+      this.assertFieldOnSchema(field);
     }
     this._selectAll = false;
     this._select = new Set(selectFields);
@@ -207,7 +211,7 @@ export abstract class Criteria<
    */
   setTake(amount: number): this {
     if (amount < 0) {
-      throw new Error(`Take value cant be negative`);
+      throw new Error(`Take value cannot be negative`);
     }
     this._take = amount;
     return this;
@@ -220,7 +224,7 @@ export abstract class Criteria<
    */
   setSkip(amount: number): this {
     if (amount < 0) {
-      throw new Error(`Skip value cant be negative`);
+      throw new Error(`Skip value cannot be negative`);
     }
     this._skip = amount;
     return this;
@@ -235,7 +239,7 @@ export abstract class Criteria<
    * @param {FieldOfSchema<TSchema>} field - The field name to validate.
    * @throws {Error} If the field is not defined in the schema.
    */
-  protected assetFieldOnSchema(field: TSchema['fields'][number]) {
+  protected assertFieldOnSchema(field: TSchema['fields'][number]) {
     if (!this.schema.fields.includes(field))
       throw new Error(
         `The field '${String(
@@ -257,7 +261,7 @@ export abstract class Criteria<
     direction: OrderDirection,
     nullFirst: boolean = false,
   ): this {
-    this.assetFieldOnSchema(field);
+    this.assertFieldOnSchema(field);
     this._orders.push(new Order(direction, field, nullFirst));
     return this;
   }
@@ -272,7 +276,7 @@ export abstract class Criteria<
   where<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
   ): this {
-    this.assetFieldOnSchema(filterPrimitive.field);
+    this.assertFieldOnSchema(filterPrimitive.field);
     this._filterManager.where(filterPrimitive);
     return this;
   }
@@ -288,7 +292,7 @@ export abstract class Criteria<
   andWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
   ): this {
-    this.assetFieldOnSchema(filterPrimitive.field);
+    this.assertFieldOnSchema(filterPrimitive.field);
     this._filterManager.andWhere(filterPrimitive);
     return this;
   }
@@ -304,10 +308,11 @@ export abstract class Criteria<
   orWhere<Operator extends FilterOperator>(
     filterPrimitive: FilterPrimitive<FieldOfSchema<TSchema>, Operator>,
   ): this {
-    this.assetFieldOnSchema(filterPrimitive.field);
+    this.assertFieldOnSchema(filterPrimitive.field);
     this._filterManager.orWhere(filterPrimitive);
     return this;
   }
+
   /**
    * Adds a join to another criteria. This method is fully type-safe.
    * The `joinAlias` argument provides autocompletion for all valid relation aliases defined in the schema.
@@ -320,8 +325,8 @@ export abstract class Criteria<
    *   this relation.
    * @param {JoinCriteriaType<TSchema, TJoinSchema, SpecificRelationAlias>} criteriaToJoin - The criteria instance
    *   representing the entity to join (e.g., `InnerJoinCriteria`).
-   * @param {boolean} [withSelect=true] - If true (default), the joined entity's fields will be included in the final
-   *   selection. If false, the join will only be used for filtering and its fields will not be selected.
+   * @param {JoinOptions} [joinOptions] - Optional configuration for the join (e.g., selection strategy).
+   *   If provided, it overrides the `default_options` defined in the schema for this relation.
    * @returns {this} The current criteria instance for chaining.
    */
   join<
@@ -335,7 +340,7 @@ export abstract class Criteria<
       TJoinSchema,
       SpecificRelationAlias
     >,
-    withSelect: boolean = true,
+    joinOptions?: JoinOptions,
   ): this {
     if (typeof criteriaToJoin === 'string') {
       throw new Error(`Invalid criteriaToJoin: ${criteriaToJoin}`);
@@ -352,8 +357,15 @@ export abstract class Criteria<
       );
     }
 
+    // Resolve selection strategy: User override > Schema default.
+    // If both are undefined, the translator will decide the final default.
+    const resolvedSelect =
+      joinOptions?.select ?? relation.default_options?.select;
+
     const baseParameters = {
-      with_select: withSelect,
+      join_options: {
+        select: resolvedSelect,
+      },
       parent_alias: this.alias,
       parent_source_name: this.sourceName,
       relation_alias: relation.relation_alias,
@@ -370,7 +382,6 @@ export abstract class Criteria<
     if (relation.relation_type === 'many_to_many') {
       fullJoinParameters = {
         ...baseParameters,
-        is_relation_id: relation.is_relation_id,
         pivot_source_name: relation.pivot_source_name,
         local_field: relation.local_field,
         relation_field: relation.relation_field,
@@ -378,7 +389,6 @@ export abstract class Criteria<
     } else {
       fullJoinParameters = {
         ...baseParameters,
-        is_relation_id: relation.is_relation_id,
         local_field: relation.local_field,
         relation_field: relation.relation_field,
       } as SimpleJoin<TSchema, TJoinSchema>;
@@ -434,7 +444,7 @@ export abstract class Criteria<
     }
 
     for (const filterPrimitive of filterPrimitives) {
-      this.assetFieldOnSchema(filterPrimitive.field);
+      this.assertFieldOnSchema(filterPrimitive.field);
     }
     this._cursor = new Cursor(filterPrimitives, operator, order);
     return this;

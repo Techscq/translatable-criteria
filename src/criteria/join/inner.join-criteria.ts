@@ -6,7 +6,6 @@ import type { ICriteriaVisitor } from '../types/visitor-interface.types.js';
 /**
  * Represents an INNER JOIN criteria.
  * @template CSchema - The {@link CriteriaSchema} of the entity being joined.
- * @template Alias - The selected alias for the joined entity from its schema.
  */
 export class InnerJoinCriteria<
   CSchema extends CriteriaSchema,
@@ -25,16 +24,16 @@ export class InnerJoinCriteria<
     context: TranslationContext,
   ): void {
     typeof parameters.relation_field === 'object'
-      ? this.assetFieldOnSchema(parameters.relation_field.reference)
-      : this.assetFieldOnSchema(parameters.relation_field);
+      ? this.assertFieldOnSchema(parameters.relation_field.reference)
+      : this.assertFieldOnSchema(parameters.relation_field);
 
     visitor.visitInnerJoin(this, parameters, context);
   }
 
   /**
-   * Returns a new instance of `InnerJoinCriteria` with the same schema and alias configuration,
+   * Returns a new instance of `InnerJoinCriteria` with the same schema configuration,
    * but with all other states reset to their defaults.
-   * @returns {InnerJoinCriteria<CSchema, Alias>} A new, reset `InnerJoinCriteria` instance.
+   * @returns {InnerJoinCriteria<CSchema>} A new, reset `InnerJoinCriteria` instance.
    */
   public resetCriteria(): InnerJoinCriteria<CSchema> {
     return new InnerJoinCriteria(this.schema as ValidSchema<CSchema>);

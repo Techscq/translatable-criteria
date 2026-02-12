@@ -95,7 +95,10 @@ The `identifier_field` is a **mandatory** property in your `CriteriaSchema`. It 
 - **Context for Translators:** The identifier of a parent entity is passed to the translator during join operations (`parent_identifier`), which can be used for more advanced relationship inference.
 
 ```typescript
-import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+import {
+  GetTypedCriteriaSchema,
+  SelectType,
+} from '@nulledexp/translatable-criteria';
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -104,7 +107,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -129,7 +134,10 @@ This `metadata` field is a flexible, open object (`{ [key: string]: any }`) desi
 You can add any key-value pairs to the `metadata` object. The specific keys and values that are meaningful depend entirely on the `CriteriaTranslator` you are using. Consult the documentation of your translator to understand what, if any, `metadata` it recognizes and utilizes.
 
 ```typescript
-import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+import {
+  GetTypedCriteriaSchema,
+  SelectType,
+} from '@nulledexp/translatable-criteria';
 
 export const PostSchema = GetTypedCriteriaSchema({
   source_name: 'posts',
@@ -150,7 +158,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   },
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',

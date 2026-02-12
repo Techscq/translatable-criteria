@@ -25,7 +25,7 @@ This library simplifies the construction of complex data queries by providing a 
 - **Powerful Filtering:** Define intricate filtering logic with multiple operators (including for JSON, arrays, sets, ranges, and regex) and grouping. Filter groups are automatically normalized for consistency.
 - **Flexible Join System:** Support for various join types (inner, left, full outer) and pivot table configurations. Join parameters now include `parent_identifier` to provide richer context to translators for relationship inference (e.g., for `one_to_one`).
 - **Granular Null-Value Sorting:** Explicitly control whether `NULL` values appear first or last in your ordered results.
-- **Filter-Only Joins:** Improve query performance by creating joins solely for filtering, without including their fields in the final `SELECT` statement.
+- **Filter-Only Joins:** Improve query performance by creating joins solely for filtering, without including their fields in the final `SELECT` statement (using `SelectType.NO_SELECTION`).
 - **Field Selection & `identifier_field`:** Specify exactly which fields to retrieve using `setSelect()`. The `identifier_field` of an entity is automatically included when `setSelect()` is used. Use `resetSelect()` to select all fields (default behavior).
 - **Pagination:** Supports both offset-based (`setTake()`, `setSkip()`) and cursor-based (`setCursor()`) pagination.
 - **Data Source Agnostic:** Design criteria independently of the underlying data source.
@@ -50,7 +50,10 @@ This package provides the tools to define your query criteria. The core philosop
 First, define your entity schemas using `GetTypedCriteriaSchema`. This is where you declare how entities are related by defining `local_field`, `relation_field`, etc.
 
 ```typescript
-import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+import {
+  GetTypedCriteriaSchema,
+  SelectType,
+} from '@nulledexp/translatable-criteria';
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -59,7 +62,10 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      // default_options is optional. If omitted, the translator decides the default (usually FULL_ENTITY).
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -76,7 +82,6 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -188,7 +193,7 @@ To interact with a database, you'll need a translator package. You can either bu
 - [x] Introduce `identifier_field` in schemas and `parent_identifier` in join parameters.
 - [x] Enforce stricter schema validation at type level.
 - [x] Implement `NULLS FIRST/LAST` ordering.
-- [x] Implement filter-only joins (`withSelect`).
+- [x] Implement filter-only joins (using `SelectType.NO_SELECTION`).
 - [x] Enhanced documentation with detailed examples for translator development.
 - [ ] Explore utility functions to simplify translator development.
 - [ ] Explore utility functions to simplify schema development.

@@ -5,9 +5,9 @@ import type {
   PivotJoin,
   SimpleJoin,
 } from '../../../../../criteria/types/join-parameter.types.js';
-import type {
-  CriteriaSchema,
-  JoinRelationType,
+import {
+  type CriteriaSchema,
+  SelectType,
 } from '../../../../../criteria/types/schema.types.js';
 import type { FilterGroup } from '../../../../../criteria/filter/filter-group.js';
 import type { Order } from '../../../../../criteria/order/order.js';
@@ -15,6 +15,12 @@ import type { ICriteriaVisitor } from '../../../../../criteria/types/visitor-int
 import type { LeftJoinCriteria } from '../../../../../criteria/join/left.join-criteria.js';
 import type { InnerJoinCriteria } from '../../../../../criteria/join/inner.join-criteria.js';
 import type { OuterJoinCriteria } from '../../../../../criteria/join/outer.join-criteria.js';
+
+/**
+ * The default selection strategy to use when none is specified (undefined).
+ * This constant allows the translator to define its own default behavior.
+ */
+export const DEFAULT_JOIN_SELECT_STRATEGY = SelectType.FULL_ENTITY;
 
 /**
  * Defines the specific methods from PseudoSqlTranslator that JoinSqlBuilder needs to perform its operations.
@@ -62,8 +68,8 @@ export class JoinSqlBuilder {
       | LeftJoinCriteria<JoinCSchema>
       | OuterJoinCriteria<JoinCSchema>,
     parameters:
-      | PivotJoin<ParentCSchema, JoinCSchema, JoinRelationType>
-      | SimpleJoin<ParentCSchema, JoinCSchema, JoinRelationType>,
+      | PivotJoin<ParentCSchema, JoinCSchema>
+      | SimpleJoin<ParentCSchema, JoinCSchema>,
     sqlParts: PseudoSqlParts,
     collectedOrders: Array<{ alias: string; order: Order<string> }>,
   ): void {
@@ -111,10 +117,34 @@ export class JoinSqlBuilder {
 
     sqlParts.joins.push(`${joinType} JOIN ${joinTable} ON ${onCondition}`);
 
-    if (parameters.with_select) {
-      criteria.select.forEach((f) =>
-        sqlParts.select.push(escapeField(String(f), parameters.relation_alias)),
-      );
+    // Determine the selection strategy.
+    // If undefined, fallback to the translator's default constant.
+    const selectStrategy =
+      parameters.join_options.select ?? DEFAULT_JOIN_SELECT_STRATEGY;
+
+    switch (selectStrategy) {
+      case SelectType.ID_ONLY:
+        sqlParts.select.push(
+          escapeField(
+            String(criteria.identifierField),
+            parameters.relation_alias,
+          ),
+        );
+        break;
+
+      case SelectType.NO_SELECTION:
+        // Do not add any fields to the select list.
+        break;
+
+      case SelectType.FULL_ENTITY:
+      default:
+        // Select all fields defined in the criteria (which defaults to all schema fields unless setSelect is used).
+        criteria.select.forEach((f) =>
+          sqlParts.select.push(
+            escapeField(String(f), parameters.relation_alias),
+          ),
+        );
+        break;
     }
 
     criteria.orders.forEach((order) =>

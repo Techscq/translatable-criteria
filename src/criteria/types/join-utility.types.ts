@@ -1,10 +1,8 @@
 import type { CriteriaSchema, SchemaJoins } from './schema.types.js';
 import type { PivotJoin, SimpleJoin } from './join-parameter.types.js';
-
 import type { InnerJoinCriteria } from '../join/inner.join-criteria.js';
 import type { LeftJoinCriteria } from '../join/left.join-criteria.js';
 import type { OuterJoinCriteria } from '../join/outer.join-criteria.js';
-import type { PivotJoinInput, SimpleJoinInput } from './join-input.types.js';
 
 /**
  * Represents any type of join criteria (Inner, Left, or Outer).
@@ -60,21 +58,8 @@ export type JoinCriteriaType<
   : MatchingConfig extends SchemaJoins<ParentSchema['fields'], string>
     ? MatchingConfig['target_source_name'] extends JoinedSchema['source_name']
       ? AnyJoinCriteria<JoinedSchema>
-      : `Error: The selected relation '${SpecificRelationAlias}' require a schema source name of '${MatchingConfig['target_source_name']}' and recieved '${JoinedSchema['source_name']}' instead.`
+      : `Error: The selected relation '${SpecificRelationAlias}' require a schema source name of '${MatchingConfig['target_source_name']}' and received '${JoinedSchema['source_name']}' instead.`
     : never;
-
-/**
- * Determines the expected shape of the join parameters object passed to the `.join()` method,
- * based on the `relation_type` defined in the `ParentSchema` for the matching join configuration.
- * If no matching join configuration is found for the `ActualJoinedSourceName`, this type resolves to `never`.
- * For 'many_to_many' relations, it expects {@link PivotJoinInput}.
- * For other relations (one-to-one, one-to-many, many-to-one), it expects {@link SimpleJoinInput}.
- *
- * @template ParentSchema - The {@link CriteriaSchema} of the parent entity.
- * @template JoinedSchema - The {@link CriteriaSchema} of the entity to be joined.
- * @template MatchingConfigForActualSourceName - The join configuration from `ParentSchema` that matches the
- *   `source_name` of `JoinedSchema`. Should be `never` if no match is found.
- */
 
 /**
  * Extracts the specific join configuration object from the `ParentSchema`'s `relations` array

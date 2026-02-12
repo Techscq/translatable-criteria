@@ -51,7 +51,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -59,7 +61,9 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'userId',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
@@ -85,7 +89,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -254,11 +260,11 @@ Con el nuevo enfoque declarativo, añadir uniones es más simple y robusto que n
 
 La firma del método `join()` ahora es:
 
-`criteria.join(relationAlias, criteriaToJoin, withSelect?)`
+`criteria.join(relationAlias, criteriaToJoin, joinOptions?)`
 
 - **`relationAlias` (string):** Es el **alias de la relación** tal como se define en el array `relations` dentro del esquema padre (ej. `'posts'`, `'user'`). Actúa como un identificador único para esa relación específica. La librería utiliza este alias para buscar automáticamente el `local_field`, `relation_field` y otros detalles necesarios del esquema.
 - **`criteriaToJoin` (JoinCriteria):** Una instancia de un `Criteria` de join (`InnerJoinCriteria`, `LeftJoinCriteria`, etc.), creada con `CriteriaFactory`.
-- **`withSelect` (booleano opcional, por defecto `true`):** Si es `false`, la unión solo se usará para filtrar, y sus campos no se incluirán en la sentencia `SELECT` final.
+- **`joinOptions` (optional object):** An object with options like `{ select: SelectType.NO_SELECTION }`. This overrides the default selection behavior defined in the schema for this relation.
 
 ### Uniones Simples (one-to-many, many-to-one, one-to-one)
 
@@ -341,7 +347,7 @@ const postsByPublisher = CriteriaFactory.GetCriteria(PostSchema).join(
     operator: FilterOperator.EQUALS,
     value: 'some-publisher-uuid',
   }),
-  false, // withSelect is false
+  { select: SelectType.NO_SELECTION }, // No fields from 'user' will be selected
 );
 ```
 

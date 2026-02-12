@@ -42,7 +42,10 @@ This guide will show you how to use `CriteriaFactory` and the fluent methods of 
 To make the examples in this guide self-contained, we will use the following simplified schemas:
 
 ```typescript
-import { GetTypedCriteriaSchema } from '@nulledexp/translatable-criteria';
+import {
+  GetTypedCriteriaSchema,
+  SelectType,
+} from '@nulledexp/translatable-criteria';
 
 export const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -51,7 +54,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -59,7 +64,9 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'userId',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
@@ -85,7 +92,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -254,11 +263,11 @@ With the new declarative approach, adding joins is simpler and more robust than 
 
 The `join()` method signature is now:
 
-`criteria.join(relationAlias, criteriaToJoin, withSelect?)`
+`criteria.join(relationAlias, criteriaToJoin, joinOptions?)`
 
 - **`relationAlias` (string):** This is the **alias of the relationship** as defined in the `relations` array within the parent schema (e.g., `'posts'`, `'user'`). It acts as a unique identifier for that specific relationship. The library uses this alias to automatically look up the `local_field`, `relation_field`, and other necessary details from the schema.
 - **`criteriaToJoin` (JoinCriteria):** An instance of a join `Criteria` (`InnerJoinCriteria`, `LeftJoinCriteria`, etc.), created with `CriteriaFactory`.
-- **`withSelect` (optional boolean, defaults to `true`):** If `false`, the join will only be used for filtering, and its fields will not be included in the final `SELECT` statement.
+- **`joinOptions` (optional object):** An object with options like `{ select: SelectType.NO_SELECTION }`. This overrides the default selection behavior defined in the schema for this relation.
 
 ### Simple Joins (one-to-many, many-to-one, one-to-one)
 
@@ -320,16 +329,17 @@ const postsFromActiveUsers = CriteriaFactory.GetCriteria(PostSchema).join(
 );
 ```
 
-### Efficient Filtering with `withSelect`
+### Efficient Filtering (No Selection)
 
 A common use case for joins is to filter the results of the main entity based on the properties of a related entity, without needing to actually retrieve the data from the joined entity.
 
-To achieve this, set the final optional parameter `withSelect` to `false`.
+To achieve this, pass an options object as the third argument with `select` set to `SelectType.NO_SELECTION`.
 
 ```typescript
 import {
   CriteriaFactory,
   FilterOperator,
+  SelectType,
 } from '@nulledexp/translatable-criteria';
 import { PostSchema, UserSchema } from './path/to/your/schemas';
 
@@ -341,7 +351,7 @@ const postsByPublisher = CriteriaFactory.GetCriteria(PostSchema).join(
     operator: FilterOperator.EQUALS,
     value: 'some-publisher-uuid',
   }),
-  false, // withSelect is false
+  { select: SelectType.NO_SELECTION }, // No fields from 'user' will be selected
 );
 ```
 

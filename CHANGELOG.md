@@ -1,5 +1,11 @@
 # @nulledexp/translatable-criteria
 
+## 4.0.0
+
+### Major Changes
+
+- Refactor join API: Replace `withSelect` and `is_relation_id` with `JoinOptions` and `SelectType`. Introduce optional default options in schemas and translator-led default selection strategy.
+
 ## 3.0.0
 
 ### Major Changes

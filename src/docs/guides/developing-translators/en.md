@@ -169,8 +169,9 @@ Properties available when visiting a join:
 - **`parent_alias`, `relation_alias`**:
   - **Explanation**: The aliases for the parent and joined entities, essential for qualifying field names in the `ON` and `SELECT` clauses.
 
-- **`is_relation_id`**:
-  - **Explanation**: A boolean indicating if this relation is purely an ID reference.
+- **`join_options: { select: SelectType }`**:
+  - **Explanation**: An object containing the selection strategy for the join (`FULL_ENTITY`, `ID_ONLY`, `NO_SELECTION`). Your translator must use this to determine which fields (if any) to include in the `SELECT` statement from the joined entity.
+  - **Note**: If `select` is `undefined`, the translator should decide the default behavior (typically `FULL_ENTITY`). It is recommended to define a constant for this default strategy within your translator.
 
 - **`local_field`, `relation_field`**:
   - **Explanation**: For a `SimpleJoin` (one-to-one, many-to-one), these are the names of the columns to be used in the `ON` condition (e.g., `ON parent.id = child.parent_id`). For a `PivotJoin`, these properties are objects containing the `pivot_field` (the field in the pivot table) and the `reference` field (the field in the source/target entity that the pivot field links to).
@@ -183,9 +184,6 @@ Properties available when visiting a join:
 
 - **`parent_schema_metadata`, `join_metadata`**:
   - **Explanation**: Similar to the schema-level metadata, these provide access to any custom metadata you defined. `parent_schema_metadata` comes from the parent entity's schema, while `join_metadata` is specific to the join definition itself, allowing for highly specific translator hints (e.g., database-specific join hints).
-
-- **`with_select`**:
-  - **Explanation**: A boolean property indicating whether the fields from the joined entity should be included in the final `SELECT` statement. If `false`, the translator should generate a join clause (e.g., `INNER JOIN`) but not a join-and-select clause (e.g., `INNER JOIN ... SELECT`).
 
 ## Implementing the `visit...` Methods
 

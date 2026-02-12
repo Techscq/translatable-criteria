@@ -68,7 +68,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
@@ -106,7 +108,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   ],
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -285,7 +289,7 @@ export function buildPostFilterOnlyByPublisherCriteria(publisherUuid: string) {
       operator: FilterOperator.EQUALS,
       value: publisherUuid,
     }),
-    false, // withSelect is false
+    { select: SelectType.NO_SELECTION },
   );
 
   postCriteria.orderBy('created_at', 'DESC');

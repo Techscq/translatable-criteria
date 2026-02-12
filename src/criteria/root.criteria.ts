@@ -5,7 +5,6 @@ import type { ICriteriaVisitor } from './types/visitor-interface.types.js';
 /**
  * Represents the root criteria for a query.
  * @template CSchema - The {@link CriteriaSchema} of the root entity.
- * @template Alias - The selected alias for the root entity from its schema.
  */
 export class RootCriteria<
   CSchema extends CriteriaSchema,
@@ -23,9 +22,9 @@ export class RootCriteria<
   }
 
   /**
-   * Returns a new instance of `RootCriteria` with the same schema and alias configuration,
+   * Returns a new instance of `RootCriteria` with the same schema configuration,
    * but with all other states (filters, joins, ordering, pagination, selection) reset to their defaults.
-   * @returns {RootCriteria<CSchema, Alias>} A new, reset `RootCriteria` instance.
+   * @returns {RootCriteria<CSchema>} A new, reset `RootCriteria` instance.
    */
   public resetCriteria(): RootCriteria<CSchema> {
     return new RootCriteria(this.schema as ValidSchema<CSchema>);

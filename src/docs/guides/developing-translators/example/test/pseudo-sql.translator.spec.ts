@@ -6,6 +6,7 @@ import {
 } from '../../../../../criteria/index.js';
 import { PseudoSqlTranslator } from '../pseudo-sql.translator.js';
 import type { PseudoSqlParts } from '../types.js';
+import { SelectType } from '../../../../../criteria/types/schema.types.js';
 
 const UserSchema = GetTypedCriteriaSchema({
   source_name: 'users',
@@ -14,6 +15,9 @@ const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -21,6 +25,9 @@ const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'userId',
     },
     {
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'roles',
       target_source_name: 'roles',
       relation_type: 'many_to_many',
@@ -46,6 +53,9 @@ const PostSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       target_source_name: 'users',
       relation_type: 'many_to_one',
@@ -690,5 +700,25 @@ describe('PseudoSqlTranslator (API v3 Tests)', () => {
 
     const { query } = translator.translate(criteria, createInitialParts());
     expect(query).toContain('ORDER BY `u`.`createdAt` DESC NULLS LAST');
+  });
+
+  it('should respect SelectType.ID_ONLY in joins', () => {
+    const joinCriteria = CriteriaFactory.GetInnerJoinCriteria(PostSchema);
+
+    // PostSchema relations define 'user' with default_options.select = FULL_ENTITY
+    // We override it here to ID_ONLY
+    const criteria = CriteriaFactory.GetCriteria(UserSchema).join(
+      'posts',
+      joinCriteria,
+      { select: SelectType.ID_ONLY },
+    );
+
+    const { query } = translator.translate(criteria, createInitialParts());
+
+    // Should select all user fields (root) but ONLY the id of the post
+    expect(query).toContain('SELECT `u`.`id`');
+    expect(query).toContain('`posts`.`id`');
+    // Should NOT contain other post fields like title
+    expect(query).not.toContain('`posts`.`title`');
   });
 });

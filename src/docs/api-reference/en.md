@@ -163,7 +163,15 @@ Abstract base class for all criteria types (`RootCriteria`, `InnerJoinCriteria`,
 - **`orWhere<Operator extends FilterOperator>(filterPrimitive: FilterPrimitive<...>): this`**: Adds an OR condition, creating a new group if necessary.
 - **`setCursor(cursorFilters: [...], operator: ..., order: ...): this`**: Configures cursor-based pagination.
 - **`orderBy(field: FieldOfSchema<TSchema>, direction: OrderDirection, nullsFirst: boolean = false): this`**: Adds an ordering rule.
-- **`join(joinAlias: string, criteriaToJoin: JoinCriteriaType<...>, withSelect: boolean = true): this`**: Adds a join condition.
+  /\*\*
+
+* Adds a join to another criteria.
+* @param {string} joinAlias - The alias of the relation defined in the schema.
+* @param {JoinCriteriaType<...>} criteriaToJoin - The criteria instance for the entity to join.
+* @param {JoinOptions} [joinOptions] - Optional configuration for the join, like selection strategy.
+  \*/
+
+- **`join(joinAlias: string, criteriaToJoin: JoinCriteriaType<...>, joinOptions?: JoinOptions): this`**: Adds a join condition.
 
 [Back to Index](#index)
 
@@ -351,7 +359,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'id',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       target_source_name: 'posts',
       relation_type: 'one_to_many',
@@ -386,8 +396,8 @@ Interface defining the structure of a join configuration within the `relations` 
 
 - **Properties:**
   - `relation_alias: string`: The alias for this specific join relation (e.g., `'posts'`, `'author'`).
-  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
   - `relation_type: JoinRelationType`: The type of relationship.
+  - `default_options: JoinOptions`: Default configuration for this relation, including the selection strategy (`select`).
   - `target_source_name: string`: The `source_name` of the schema being joined to.
   - `local_field: string | { pivot_field: string; reference: string }`: The field in the local entity for the join condition.
   - `relation_field: string | { pivot_field: string; reference: string }`: The field in the related entity for the join condition.
@@ -498,8 +508,7 @@ Helper type that extracts the specific join configuration from a parent schema t
 Type representing the fully resolved parameters for a `many-to-many` join via a pivot table, used internally.
 
 - **Properties:**
-  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
-  - `with_select: boolean`: If true, the joined entity's fields are selected.
+  - `join_options: JoinOptions`: Optional configuration for the join, such as selection strategy. The translator will determine the default behavior if not provided.
   - `relation_type: 'many_to_many'`
   - `parent_source_name: string`
   - `parent_alias: string`
@@ -518,8 +527,7 @@ Type representing the fully resolved parameters for a `many-to-many` join via a 
 Type representing the fully resolved parameters for a simple join (one-to-one, one-to-many, many-to-one), used internally.
 
 - **Properties:**
-  - `is_relation_id: boolean`: Indicates if this relation is purely an ID reference.
-  - `with_select: boolean`: If true, the joined entity's fields are selected.
+  - `join_options: JoinOptions`: Optional configuration for the join, such as selection strategy. The translator will determine the default behavior if not provided.
   - `relation_type: 'one_to_one' | 'one_to_many' | 'many_to_one'`
   - `parent_source_name: string`
   - `parent_alias: string`

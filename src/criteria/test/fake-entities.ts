@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { GetTypedCriteriaSchema } from '../types/schema.types.js';
+import { GetTypedCriteriaSchema, SelectType } from '../types/schema.types.js';
 
 export interface EntityBase {
   uuid: string;
@@ -21,7 +21,9 @@ export const UserSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'permissions',
       relation_type: 'many_to_many',
       target_source_name: 'permission',
@@ -30,7 +32,9 @@ export const UserSchema = GetTypedCriteriaSchema({
       local_field: { pivot_field: 'user_uuid', reference: 'uuid' },
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'addresses',
       relation_type: 'one_to_many',
       target_source_name: 'address',
@@ -38,7 +42,9 @@ export const UserSchema = GetTypedCriteriaSchema({
       relation_field: 'user_uuid',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'posts',
       relation_type: 'one_to_many',
       target_source_name: 'post',
@@ -78,7 +84,9 @@ export const PostSchema = GetTypedCriteriaSchema({
   ],
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'comments',
       relation_type: 'one_to_many',
       target_source_name: 'post_comment',
@@ -86,7 +94,9 @@ export const PostSchema = GetTypedCriteriaSchema({
       relation_field: 'post_uuid',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'publisher',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -110,15 +120,19 @@ export const PostCommentSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
-      is_relation_id: false,
-      relation_alias: 'post',
+      default_options: {
+        select: SelectType.ID_ONLY,
+      },
+      relation_alias: 'post_uuid',
       relation_type: 'many_to_one',
       target_source_name: 'post',
       local_field: 'post_uuid',
       relation_field: 'uuid',
     },
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'user',
       relation_type: 'many_to_one',
       target_source_name: 'user',
@@ -140,7 +154,9 @@ export const PermissionSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
-      is_relation_id: false,
+      default_options: {
+        select: SelectType.FULL_ENTITY,
+      },
       relation_alias: 'users',
       relation_type: 'many_to_many',
       target_source_name: 'user',
@@ -163,8 +179,10 @@ export const AddressSchema = GetTypedCriteriaSchema({
   identifier_field: 'uuid',
   relations: [
     {
-      is_relation_id: false,
-      relation_alias: 'user',
+      default_options: {
+        select: SelectType.ID_ONLY,
+      },
+      relation_alias: 'user_uuid',
       relation_type: 'many_to_one',
       target_source_name: 'user',
       local_field: 'user_uuid',

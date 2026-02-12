@@ -10,6 +10,7 @@ import {
   type CriteriaSchema,
   type FieldOfSchema,
   GetTypedCriteriaSchema,
+  SelectType,
 } from '../types/schema.types.js';
 import { type StoredJoinDetails } from '../types/join-utility.types.js';
 import { RootCriteria } from '../root.criteria.js';
@@ -568,10 +569,10 @@ describe('Criteria', () => {
 
     it('should validate take and skip are non-negative', () => {
       expect(() => criteriaRoot.setTake(-1)).toThrow(
-        'Take value cant be negative',
+        `Take value cannot be negative`,
       );
       expect(() => criteriaRoot.setSkip(-1)).toThrow(
-        'Skip value cant be negative',
+        `Skip value cannot be negative`,
       );
     });
 
@@ -693,6 +694,42 @@ describe('Criteria', () => {
         expect(joinEntry.criteria).toBe(userJoinCriteria2);
       }
     });
+
+    it('should handle missing default_options in schema relation', () => {
+      const SchemaWithoutDefaults = GetTypedCriteriaSchema({
+        source_name: 'test_source',
+        alias: 'ts',
+        fields: ['id', 'name'],
+        identifier_field: 'id',
+        relations: [
+          {
+            relation_alias: 'related',
+            relation_type: 'one_to_many',
+            target_source_name: 'related_source',
+            local_field: 'id',
+            relation_field: 'parent_id',
+            // default_options omitted
+          },
+        ],
+      });
+
+      const RelatedSchema = GetTypedCriteriaSchema({
+        source_name: 'related_source',
+        alias: 'rs',
+        fields: ['id', 'parent_id'],
+        identifier_field: 'id',
+        relations: [],
+      });
+
+      const criteria = new RootCriteria(SchemaWithoutDefaults);
+      const relatedCriteria = new InnerJoinCriteria(RelatedSchema);
+
+      criteria.join('related', relatedCriteria);
+
+      const joins = criteria.joins;
+      expect(joins).toHaveLength(1);
+      expect(joins[0]?.parameters.join_options.select).toBeUndefined();
+    });
   });
 
   describe('Complex Criteria Building', () => {
@@ -753,43 +790,71 @@ describe('Criteria', () => {
   it('should correctly store withSelect property for simple join', () => {
     const userJoinCriteria = new InnerJoinCriteria(UserSchema);
 
-    criteriaRoot.join('publisher', userJoinCriteria, false);
+    criteriaRoot.join('publisher', userJoinCriteria, {
+      select: SelectType.NO_SELECTION,
+    });
     let joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(false);
+    expect(joinsArray[0]?.parameters.join_options.select).toBe(
+      SelectType.NO_SELECTION,
+    );
 
     criteriaRoot = new RootCriteria(PostSchema);
-    criteriaRoot.join('publisher', userJoinCriteria, true);
+    criteriaRoot.join('publisher', userJoinCriteria, {
+      select: SelectType.NO_SELECTION,
+    });
     joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+    expect(joinsArray[0]?.parameters.join_options.select).toBe(
+      SelectType.NO_SELECTION,
+    );
 
     criteriaRoot = new RootCriteria(PostSchema);
     criteriaRoot.join('publisher', userJoinCriteria);
     joinsArray = criteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+    const firstJoin = joinsArray[0];
+    expect(firstJoin?.parameters.join_options.select).toBe(
+      PostSchema.relations.find(
+        (join) =>
+          join.target_source_name === firstJoin?.criteria.schema.source_name,
+      )?.default_options?.select,
+    );
   });
 
   it('should correctly store withSelect property for many-to-many join', () => {
     let userCriteriaRoot = new RootCriteria(UserSchema);
     const permissionJoinCriteria = new InnerJoinCriteria(PermissionSchema);
 
-    userCriteriaRoot.join('permissions', permissionJoinCriteria, false);
+    userCriteriaRoot.join('permissions', permissionJoinCriteria, {
+      select: SelectType.NO_SELECTION,
+    });
     let joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(false);
+    expect(joinsArray[0]?.parameters.join_options.select).toBe(
+      SelectType.NO_SELECTION,
+    );
 
     userCriteriaRoot = new RootCriteria(UserSchema);
-    userCriteriaRoot.join('permissions', permissionJoinCriteria, true);
+    userCriteriaRoot.join('permissions', permissionJoinCriteria, {
+      select: SelectType.NO_SELECTION,
+    });
     joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+    expect(joinsArray[0]?.parameters.join_options.select).toBe(
+      SelectType.NO_SELECTION,
+    );
 
     userCriteriaRoot = new RootCriteria(UserSchema);
     userCriteriaRoot.join('permissions', permissionJoinCriteria);
     joinsArray = userCriteriaRoot.joins;
     expect(joinsArray.length).toBe(1);
-    expect(joinsArray[0]?.parameters.with_select).toBe(true);
+    const firstJoin = joinsArray[0];
+    expect(firstJoin?.parameters.join_options.select).toBe(
+      UserSchema.relations.find(
+        (join) =>
+          join.target_source_name === firstJoin?.criteria.schema.source_name,
+      )?.default_options?.select,
+    );
   });
 });

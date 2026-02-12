@@ -1,3 +1,5 @@
+import type { ObjectValues } from './utils.js';
+
 /**
  * Defines the type of relationship for a join.
  * - `one_to_one`: Represents a one-to-one relationship.
@@ -20,6 +22,28 @@ export type FieldOfSchema<T extends CriteriaSchema> =
   T['fields'] extends ReadonlyArray<string> ? T['fields'][number] : never;
 
 /**
+ * Defines the strategy for selecting fields from a joined entity.
+ */
+export const SelectType = {
+  /** Selects only the identifier field of the joined entity. Useful for optimization when only the ID is needed. */
+  ID_ONLY: 'ID_ONLY',
+  /** Selects all fields of the joined entity. This is the standard behavior. */
+  FULL_ENTITY: 'FULL_ENTITY',
+  /** Performs the join but does not select any fields from the joined entity. Useful for filtering (e.g., EXISTS). */
+  NO_SELECTION: 'NO_SELECTION',
+} as const;
+
+export type SelectType = ObjectValues<typeof SelectType>;
+
+/**
+ * Options to configure a join operation.
+ */
+export type JoinOptions = {
+  /** Specifies which fields to select from the joined entity. */
+  select?: SelectType;
+};
+
+/**
  * Describes the configuration for a simple joinable relation (one-to-one, one-to-many, many-to-one).
  * The `relation_field` is not strongly typed against the target schema at compile-time to avoid complex cross-schema dependencies.
  * It will be validated at runtime when the schema is defined and when the join is processed.
@@ -30,7 +54,8 @@ export type SchemaSimpleJoin<
   TFields extends ReadonlyArray<string>,
   ValidAlias extends string,
 > = {
-  is_relation_id: boolean;
+  /** Optional default configuration for this relation. These options are used if no specific `joinOptions` are provided in the `.join()` call. */
+  default_options?: JoinOptions;
   /** The alias for this specific relation, used to identify it in `.join()` calls. */
   relation_alias: ValidAlias;
   /** The type of relationship this join represents (e.g., 'one_to_many'). */
@@ -64,7 +89,8 @@ export type SchemaPivotJoin<
   TFields extends ReadonlyArray<string>,
   ValidAlias extends string,
 > = {
-  is_relation_id: boolean;
+  /** Optional default configuration for this relation. These options are used if no specific `joinOptions` are provided in the `.join()` call. */
+  default_options?: JoinOptions;
   /** The alias for this specific relation, used to identify it in `.join()` calls. */
   relation_alias: ValidAlias;
   /** The type of relationship this join represents (must be 'many_to_many'). */
